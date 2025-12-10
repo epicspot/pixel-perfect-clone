@@ -10,7 +10,10 @@ import {
   Menu,
   Shield,
   Wrench,
-  Fuel
+  Fuel,
+  Users,
+  Receipt,
+  Wallet
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,9 +25,13 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
   { to: '/tickets', icon: Ticket, label: 'Tickets' },
   { to: '/voyages', icon: Bus, label: 'Voyages' },
+  { to: '/cloture-caisse', icon: Wallet, label: 'Clôture caisse' },
   { to: '/carburant', icon: Fuel, label: 'Carburant' },
   { to: '/maintenance', icon: Wrench, label: 'Maintenance' },
   { to: '/rapports', icon: BarChart3, label: 'Rapports' },
+  { to: '/staff', icon: Users, label: 'Personnel', adminOnly: true },
+  { to: '/depenses', icon: Receipt, label: 'Dépenses', adminOnly: true },
+  { to: '/paie', icon: Wallet, label: 'Paie', adminOnly: true },
   { to: '/admin', icon: Shield, label: 'Administration', adminOnly: true },
   { to: '/parametres', icon: Settings, label: 'Paramètres' },
 ];
