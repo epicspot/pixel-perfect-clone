@@ -104,7 +104,7 @@ export interface DashboardStats {
     tickets_count: number;
     trips_count: number;
   };
-  month: {
+  period: {
     sales_amount: number;
     tickets_count: number;
     trips_count: number;
@@ -116,6 +116,15 @@ export interface DashboardStats {
     agency_name: string;
     total_amount: number;
     tickets_count: number;
+  }>;
+  daily_sales: Array<{
+    date: string;
+    total_amount: number;
+    tickets_count: number;
+  }>;
+  daily_trips: Array<{
+    date: string;
+    trips_count: number;
   }>;
   recent_tickets: Array<{
     id: number;
@@ -232,8 +241,12 @@ class ApiClient {
   }
 
   // Dashboard
-  async getDashboardStats(): Promise<DashboardStats> {
-    return this.request('/admin/dashboard-stats');
+  async getDashboardStats(params?: { from?: string; to?: string }): Promise<DashboardStats> {
+    const query = new URLSearchParams();
+    if (params?.from) query.set('from', params.from);
+    if (params?.to) query.set('to', params.to);
+    const queryString = query.toString();
+    return this.request(`/admin/dashboard-stats${queryString ? `?${queryString}` : ''}`);
   }
 
   // Agencies
