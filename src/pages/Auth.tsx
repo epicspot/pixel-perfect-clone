@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,25 +10,34 @@ import { toast } from 'sonner';
 
 const Auth = () => {
   const navigate = useNavigate();
+  const { login, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  // Redirect if already authenticated
+  if (isAuthenticated) {
+    navigate('/');
+    return null;
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toast.error('Veuillez remplir tous les champs');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const result = await api.login(email, password);
-      
-      if (result.success) {
-        toast.success('Connexion réussie!');
-        navigate('/');
-      } else {
-        toast.error(result.error || 'Erreur de connexion');
-      }
-    } catch (error) {
-      toast.error('Une erreur est survenue');
+      await login(email, password);
+      toast.success('Connexion réussie!');
+      navigate('/');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.error(error.message || 'Identifiants invalides');
     } finally {
       setIsLoading(false);
     }
@@ -48,7 +57,7 @@ const Auth = () => {
           <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center shadow-glow mb-4">
             <Bus className="w-8 h-8 text-primary-foreground" />
           </div>
-          <h1 className="font-display text-2xl font-bold text-card-foreground">TransPort</h1>
+          <h1 className="font-display text-2xl font-bold text-card-foreground">EPICSPOT TRANS</h1>
           <p className="text-muted-foreground text-sm">Connectez-vous à votre compte</p>
         </div>
 
@@ -59,11 +68,12 @@ const Auth = () => {
             <Input
               id="email"
               type="email"
-              placeholder="admin@transport.sn"
+              placeholder="votre@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               className="bg-background"
+              disabled={isLoading}
             />
           </div>
           
@@ -77,6 +87,7 @@ const Auth = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="bg-background"
+              disabled={isLoading}
             />
           </div>
 
@@ -96,11 +107,10 @@ const Auth = () => {
           </Button>
         </form>
 
-        {/* Demo credentials */}
+        {/* Info */}
         <div className="mt-6 p-4 rounded-lg bg-muted/50 border border-border">
-          <p className="text-xs text-muted-foreground text-center mb-2">Identifiants de démonstration</p>
-          <p className="text-sm font-mono text-card-foreground text-center">
-            admin@transport.sn / password
+          <p className="text-xs text-muted-foreground text-center">
+            Contactez votre administrateur si vous avez oublié vos identifiants.
           </p>
         </div>
       </Card>
