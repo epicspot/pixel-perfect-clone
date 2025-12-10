@@ -19,6 +19,7 @@ import ClotureCaisse from "./pages/ClotureCaisse";
 import Staff from "./pages/Staff";
 import Depenses from "./pages/Depenses";
 import Paie from "./pages/Paie";
+import VehicleCostDashboard from "./pages/VehicleCostDashboard";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -164,6 +165,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <Paie />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/couts-vehicules"
+          element={
+            <ProtectedRoute>
+              <VehicleCostDashboard />
             </ProtectedRoute>
           }
         />
