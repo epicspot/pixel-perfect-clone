@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FuelEntryForm } from '@/components/carburant/FuelEntryForm';
 import { Fuel, TrendingUp } from 'lucide-react';
 
 const Carburant = () => {
@@ -54,11 +55,14 @@ const Carburant = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-foreground">Carburant</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Statistiques et gestion des entrées de carburant
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-display font-bold text-foreground">Carburant</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Statistiques et gestion des entrées de carburant
+            </p>
+          </div>
+          <FuelEntryForm />
         </div>
 
         {/* Filters */}

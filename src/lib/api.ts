@@ -543,6 +543,28 @@ export const api = {
     };
   },
 
+  async createFuelEntry(entry: {
+    vehicle_id: number;
+    agency_id: number;
+    liters: number;
+    price_per_liter: number;
+    total_amount: number;
+    filled_at?: string;
+  }): Promise<FuelEntry> {
+    const { data: session } = await supabase.auth.getSession();
+    const { data, error } = await supabase
+      .from('fuel_entries')
+      .insert({
+        ...entry,
+        filled_at: entry.filled_at || new Date().toISOString(),
+        created_by: session?.session?.user?.id,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data as unknown as FuelEntry;
+  },
+
   // Dashboard Stats
   async getDashboardStats(params?: { from?: string; to?: string }): Promise<DashboardStats> {
     const today = new Date().toISOString().split('T')[0];
