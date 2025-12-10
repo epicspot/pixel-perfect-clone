@@ -351,6 +351,45 @@ export const api = {
     return { data: (data || []) as unknown as Trip[], total: count || 0 };
   },
 
+  async createTrip(trip: {
+    route_id: number;
+    vehicle_id: number;
+    departure_datetime: string;
+    status?: string;
+  }): Promise<Trip> {
+    const { data, error } = await supabase
+      .from('trips')
+      .insert({
+        route_id: trip.route_id,
+        vehicle_id: trip.vehicle_id,
+        departure_datetime: trip.departure_datetime,
+        status: trip.status || 'scheduled',
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data as unknown as Trip;
+  },
+
+  async updateTrip(id: number, updates: Partial<Trip>): Promise<Trip> {
+    const { data, error } = await supabase
+      .from('trips')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data as unknown as Trip;
+  },
+
+  async deleteTrip(id: number): Promise<void> {
+    const { error } = await supabase
+      .from('trips')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error(error.message);
+  },
+
   // Tickets
   async getTickets(params?: { from?: string; to?: string }): Promise<{ data: Ticket[]; total: number }> {
     let query = supabase
