@@ -9,6 +9,7 @@ import Tickets from "./pages/Tickets";
 import Voyages from "./pages/Voyages";
 import Rapports from "./pages/Rapports";
 import Parametres from "./pages/Parametres";
+import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -69,15 +70,23 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/parametres"
-        element={
-          <ProtectedRoute>
-            <Parametres />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<NotFound />} />
+        <Route
+          path="/parametres"
+          element={
+            <ProtectedRoute>
+              <Parametres />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <Admin />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
