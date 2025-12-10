@@ -15,6 +15,10 @@ import Parametres from "./pages/Parametres";
 import Admin from "./pages/Admin";
 import Maintenance from "./pages/Maintenance";
 import Carburant from "./pages/Carburant";
+import ClotureCaisse from "./pages/ClotureCaisse";
+import Staff from "./pages/Staff";
+import Depenses from "./pages/Depenses";
+import Paie from "./pages/Paie";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -128,6 +132,38 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <Carburant />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cloture-caisse"
+          element={
+            <ProtectedRoute>
+              <ClotureCaisse />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff"
+          element={
+            <ProtectedRoute>
+              <Staff />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/depenses"
+          element={
+            <ProtectedRoute>
+              <Depenses />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/paie"
+          element={
+            <ProtectedRoute>
+              <Paie />
             </ProtectedRoute>
           }
         />
