@@ -1,24 +1,27 @@
 import { useQuery } from '@tanstack/react-query';
-import { api, Voyage } from '@/lib/api';
+import { api, Trip } from '@/lib/api';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { Plus, MapPin, Clock, Users } from 'lucide-react';
+import { Plus, MapPin, Clock, Users, Calendar, Bus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const statusConfig = {
-  active: { label: 'Actif', className: 'bg-success/10 text-success border-success/20' },
+  scheduled: { label: 'Programmé', className: 'bg-primary/10 text-primary border-primary/20' },
+  in_progress: { label: 'En cours', className: 'bg-success/10 text-success border-success/20' },
   completed: { label: 'Terminé', className: 'bg-muted text-muted-foreground border-border' },
   cancelled: { label: 'Annulé', className: 'bg-destructive/10 text-destructive border-destructive/20' },
 };
 
 const Voyages = () => {
-  const { data: voyages, isLoading } = useQuery({
-    queryKey: ['voyages'],
-    queryFn: api.getVoyages,
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['trips'],
+    queryFn: () => api.getTrips(),
   });
+
+  const trips = data?.data || [];
 
   return (
     <DashboardLayout>
@@ -35,6 +38,12 @@ const Voyages = () => {
           </Button>
         </div>
 
+        {error && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 text-destructive">
+            Erreur lors du chargement des voyages. Vérifiez votre connexion à l'API.
+          </div>
+        )}
+
         {/* Voyages Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {isLoading ? (
@@ -47,65 +56,83 @@ const Voyages = () => {
               </div>
             ))
           ) : (
-            voyages?.map((voyage, index) => {
-              const occupancy = ((voyage.total_seats - voyage.available_seats) / voyage.total_seats) * 100;
+            trips.map((trip, index) => {
+              const status = statusConfig[trip.status] || statusConfig.scheduled;
               
               return (
                 <div 
-                  key={voyage.id}
+                  key={trip.id}
                   className="bg-card rounded-xl border border-border p-6 hover:border-primary/30 hover:shadow-lg transition-all duration-300 cursor-pointer animate-slide-up"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h3 className="font-display font-semibold text-lg text-card-foreground">{voyage.name}</h3>
+                      <h3 className="font-display font-semibold text-lg text-card-foreground">
+                        {trip.route?.name || `Voyage #${trip.id}`}
+                      </h3>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                         <MapPin className="w-4 h-4" />
-                        <span>{voyage.departure} → {voyage.destination}</span>
+                        <span>
+                          {trip.route?.departure_agency?.name || 'Départ'} → {trip.route?.arrival_agency?.name || 'Arrivée'}
+                        </span>
                       </div>
                     </div>
                     <Badge 
                       variant="outline" 
-                      className={cn("text-xs", statusConfig[voyage.status].className)}
+                      className={cn("text-xs", status.className)}
                     >
-                      {statusConfig[voyage.status].label}
+                      {status.label}
                     </Badge>
                   </div>
                   
                   <div className="flex items-center gap-6 text-sm text-muted-foreground mb-4">
                     <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      <span>{new Date(trip.departure_datetime).toLocaleDateString('fr-FR')}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4" />
-                      <span>{voyage.departure_time} - {voyage.arrival_time}</span>
+                      <span>{new Date(trip.departure_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-2xl font-display font-bold text-card-foreground">
-                      {voyage.price.toLocaleString()} F
+                      {trip.route?.base_price?.toLocaleString() || '—'} F
                     </span>
                     <div className="flex items-center gap-2 text-sm">
                       <Users className="w-4 h-4 text-muted-foreground" />
-                      <span className={cn(
-                        "font-medium",
-                        voyage.available_seats === 0 ? "text-destructive" : "text-card-foreground"
-                      )}>
-                        {voyage.available_seats} places
+                      <span className="font-medium text-card-foreground">
+                        {trip.vehicle?.seats || '—'} places
                       </span>
                     </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Taux de remplissage</span>
-                      <span className="font-medium text-card-foreground">{occupancy.toFixed(0)}%</span>
+                  {trip.vehicle && (
+                    <div className="pt-4 border-t border-border">
+                      <p className="text-xs text-muted-foreground">
+                        Véhicule: {trip.vehicle.registration_number}
+                        {trip.vehicle.brand && ` - ${trip.vehicle.brand}`}
+                      </p>
                     </div>
-                    <Progress value={occupancy} className="h-2" />
-                  </div>
+                  )}
                 </div>
               );
             })
           )}
         </div>
+
+        {!isLoading && trips.length === 0 && (
+          <div className="bg-card rounded-xl border border-dashed border-border p-12 text-center">
+            <Bus className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="font-display font-semibold text-lg text-card-foreground mb-2">
+              Aucun voyage
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Les voyages apparaîtront ici une fois créés.
+            </p>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

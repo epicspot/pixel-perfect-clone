@@ -17,16 +17,28 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 
 const statusConfig = {
-  confirmed: { label: 'Confirmé', className: 'bg-success/10 text-success border-success/20' },
+  paid: { label: 'Payé', className: 'bg-success/10 text-success border-success/20' },
   pending: { label: 'En attente', className: 'bg-warning/10 text-warning border-warning/20' },
   cancelled: { label: 'Annulé', className: 'bg-destructive/10 text-destructive border-destructive/20' },
 };
 
 const Tickets = () => {
-  const { data: tickets, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['tickets'],
-    queryFn: api.getTickets,
+    queryFn: () => api.getTickets(),
   });
+
+  const tickets = data?.data || [];
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
 
   return (
     <DashboardLayout>
@@ -58,15 +70,21 @@ const Tickets = () => {
           </Button>
         </div>
 
+        {error && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 text-destructive">
+            Erreur lors du chargement des tickets. Vérifiez votre connexion à l'API.
+          </div>
+        )}
+
         {/* Table */}
         <div className="bg-card rounded-xl border border-border overflow-hidden animate-slide-up" style={{ animationDelay: '200ms' }}>
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="font-semibold">Référence</TableHead>
-                <TableHead className="font-semibold">Passager</TableHead>
-                <TableHead className="font-semibold">Trajet</TableHead>
-                <TableHead className="font-semibold">Date</TableHead>
+                <TableHead className="font-semibold">ID</TableHead>
+                <TableHead className="font-semibold">Client</TableHead>
+                <TableHead className="font-semibold">Date vente</TableHead>
+                <TableHead className="font-semibold">Paiement</TableHead>
                 <TableHead className="font-semibold">Prix</TableHead>
                 <TableHead className="font-semibold">Statut</TableHead>
               </TableRow>
@@ -75,37 +93,50 @@ const Tickets = () => {
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-12" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                   </TableRow>
                 ))
               ) : (
-                tickets?.map((ticket) => (
-                  <TableRow key={ticket.id} className="hover:bg-muted/30 cursor-pointer transition-colors">
-                    <TableCell className="font-mono font-medium text-primary">{ticket.reference}</TableCell>
-                    <TableCell className="font-medium">{ticket.passenger}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {ticket.departure} → {ticket.destination}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{ticket.date}</TableCell>
-                    <TableCell className="font-semibold">{ticket.price.toLocaleString()} F</TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant="outline" 
-                        className={cn("text-xs", statusConfig[ticket.status].className)}
-                      >
-                        {statusConfig[ticket.status].label}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
+                tickets.map((ticket) => {
+                  const status = statusConfig[ticket.status] || statusConfig.pending;
+                  return (
+                    <TableRow key={ticket.id} className="hover:bg-muted/30 cursor-pointer transition-colors">
+                      <TableCell className="font-mono font-medium text-primary">#{ticket.id}</TableCell>
+                      <TableCell className="font-medium">{ticket.customer_name}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {ticket.sold_at ? formatDate(ticket.sold_at) : '—'}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground capitalize">
+                        {ticket.payment_method === 'cash' ? 'Espèces' : 
+                         ticket.payment_method === 'mobile_money' ? 'Mobile Money' : 
+                         ticket.payment_method}
+                      </TableCell>
+                      <TableCell className="font-semibold">{ticket.price?.toLocaleString() || ticket.total_amount?.toLocaleString()} F</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant="outline" 
+                          className={cn("text-xs", status.className)}
+                        >
+                          {status.label}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
+          
+          {!isLoading && tickets.length === 0 && (
+            <div className="p-8 text-center text-muted-foreground">
+              Aucun ticket trouvé
+            </div>
+          )}
         </div>
       </div>
     </DashboardLayout>

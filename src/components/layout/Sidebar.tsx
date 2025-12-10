@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Ticket, 
@@ -12,6 +12,8 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
@@ -23,6 +25,19 @@ const navItems = [
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
+  const { logout, user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success('Déconnexion réussie');
+      navigate('/auth');
+    } catch (error) {
+      console.error('Logout error:', error);
+      navigate('/auth');
+    }
+  };
 
   return (
     <aside 
@@ -39,8 +54,8 @@ export function Sidebar() {
               <Bus className="w-6 h-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="font-display font-bold text-sidebar-foreground text-lg">TransPort</h1>
-              <p className="text-xs text-sidebar-foreground/60">Gestion</p>
+              <h1 className="font-display font-bold text-sidebar-foreground text-lg">EPICSPOT</h1>
+              <p className="text-xs text-sidebar-foreground/60">Trans Manager</p>
             </div>
           </div>
         )}
@@ -58,6 +73,14 @@ export function Sidebar() {
           {collapsed ? <Menu className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
         </Button>
       </div>
+
+      {/* User info */}
+      {!collapsed && user && (
+        <div className="px-4 py-3 border-b border-sidebar-border">
+          <p className="text-sm font-medium text-sidebar-foreground truncate">{user.name}</p>
+          <p className="text-xs text-sidebar-foreground/60 capitalize">{user.role}</p>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
@@ -83,16 +106,16 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="p-4 border-t border-sidebar-border">
-        <NavLink
-          to="/auth"
+        <button
+          onClick={handleLogout}
           className={cn(
-            "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
+            "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 w-full",
             "text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10"
           )}
         >
           <LogOut className={cn("w-5 h-5 flex-shrink-0", collapsed && "mx-auto")} />
           {!collapsed && <span className="font-medium">Déconnexion</span>}
-        </NavLink>
+        </button>
       </div>
     </aside>
   );
