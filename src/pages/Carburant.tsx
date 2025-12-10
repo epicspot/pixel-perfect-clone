@@ -1,14 +1,12 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, FileSpreadsheet, Fuel, TrendingUp } from 'lucide-react';
+import { Fuel, TrendingUp } from 'lucide-react';
 
 const Carburant = () => {
   const { user } = useAuth();
@@ -25,45 +23,24 @@ const Carburant = () => {
   });
 
   const { data: summaryStats, isLoading: loadingSummary } = useQuery({
-    queryKey: ['fuel-stats-summary', appliedFrom, appliedTo, appliedAgency],
+    queryKey: ['fuel-stats-summary', appliedFrom, appliedTo],
     queryFn: () => api.getFuelStatsSummary({
       from: appliedFrom,
       to: appliedTo,
-      agency_id: appliedAgency,
     }),
   });
 
   const { data: vehicleStats, isLoading: loadingVehicle } = useQuery({
-    queryKey: ['fuel-stats-vehicle', appliedFrom, appliedTo, appliedAgency],
+    queryKey: ['fuel-stats-vehicle', appliedFrom, appliedTo],
     queryFn: () => api.getFuelStatsPerVehicle({
       from: appliedFrom,
       to: appliedTo,
-      agency_id: appliedAgency,
     }),
   });
 
   const handleApplyFilter = () => {
     setAppliedFrom(fromDate || undefined);
     setAppliedTo(toDate || undefined);
-    setAppliedAgency(agencyId ? Number(agencyId) : undefined);
-  };
-
-  const handleExportPdf = () => {
-    const url = api.getFuelExportPdfUrl({
-      from: appliedFrom,
-      to: appliedTo,
-      agency_id: appliedAgency,
-    });
-    window.open(url, '_blank');
-  };
-
-  const handleExportExcel = () => {
-    const url = api.getFuelExportExcelUrl({
-      from: appliedFrom,
-      to: appliedTo,
-      agency_id: appliedAgency,
-    });
-    window.open(url, '_blank');
   };
 
   const formatCurrency = (value: number) =>
@@ -121,26 +98,6 @@ const Carburant = () => {
           <Button onClick={handleApplyFilter} size="sm">
             Appliquer
           </Button>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportPdf}
-              disabled={!summaryStats}
-              title="Exporter en PDF"
-            >
-              <FileText className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportExcel}
-              disabled={!summaryStats}
-              title="Exporter en Excel"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
 
         {/* Global Stats */}

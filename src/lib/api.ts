@@ -1,6 +1,4 @@
-// API Service for Laravel backend
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+import { supabase } from '@/integrations/supabase/client';
 
 // Types
 export interface Agency {
@@ -33,7 +31,7 @@ export interface Vehicle {
 }
 
 export interface User {
-  id: number;
+  id: string;
   name: string;
   email: string;
   role: 'admin' | 'manager' | 'cashier' | 'accountant' | 'mechanic';
@@ -82,8 +80,8 @@ export interface MaintenanceOrder {
   id: number;
   vehicle_id: number;
   agency_id: number;
-  reported_by?: number;
-  validated_by?: number;
+  reported_by?: string;
+  validated_by?: string;
   opened_at: string;
   closed_at?: string;
   type: 'preventive' | 'corrective' | 'other';
@@ -94,8 +92,6 @@ export interface MaintenanceOrder {
   odometer_km?: number;
   vehicle?: Vehicle;
   agency?: Agency;
-  reporter?: User;
-  validator?: User;
 }
 
 export interface DashboardStats {
@@ -160,305 +156,478 @@ export interface FuelStats {
   }>;
 }
 
-export interface VehicleCostStats {
-  period: { from: string | null; to: string | null };
-  data: Array<{
-    vehicle_id: number;
-    registration_number: string;
-    agency_name: string;
-    total_fuel_amount: number;
-    total_fuel_liters: number;
-    total_maintenance_amount: number;
-    total_cost: number;
-  }>;
-}
-
-export interface VehicleProfitStats {
-  period: { from: string | null; to: string | null };
-  data: Array<{
-    vehicle_id: number;
-    registration_number: string;
-    agency_name: string;
-    total_revenue: number;
-    tickets_count: number;
-    total_fuel_cost: number;
-    total_maintenance_cost: number;
-    total_cost: number;
-    profit: number;
-    margin_percent: number;
-  }>;
-}
-
-// API Client
-class ApiClient {
-  private token: string | null = null;
-
-  setToken(token: string | null) {
-    this.token = token;
-  }
-
-  private getHeaders(): HeadersInit {
-    return {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-    };
-  }
-
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${API_BASE_URL}/api${endpoint}`;
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...this.getHeaders(),
-        ...options.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Erreur réseau' }));
-      throw new Error(error.message || `Erreur ${response.status}`);
-    }
-
-    return response.json();
-  }
-
-  // Auth
-  async login(email: string, password: string): Promise<{ token: string; user: User }> {
-    return this.request('/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-  }
-
-  async logout(): Promise<void> {
-    await this.request('/logout', { method: 'POST' });
-    this.token = null;
-  }
-
-  async getProfile(): Promise<User> {
-    return this.request('/user');
-  }
-
-  // Dashboard
-  async getDashboardStats(params?: { from?: string; to?: string }): Promise<DashboardStats> {
-    const query = new URLSearchParams();
-    if (params?.from) query.set('from', params.from);
-    if (params?.to) query.set('to', params.to);
-    const queryString = query.toString();
-    return this.request(`/admin/dashboard-stats${queryString ? `?${queryString}` : ''}`);
-  }
-
-  // Dashboard Export URLs
-  getDashboardExportPdfUrl(params?: { from?: string; to?: string }): string {
-    const query = new URLSearchParams();
-    if (params?.from) query.set('from', params.from);
-    if (params?.to) query.set('to', params.to);
-    const queryString = query.toString();
-    return `${API_BASE_URL}/api/admin/dashboard-stats/export/pdf${queryString ? `?${queryString}` : ''}`;
-  }
-
-  getDashboardExportExcelUrl(params?: { from?: string; to?: string }): string {
-    const query = new URLSearchParams();
-    if (params?.from) query.set('from', params.from);
-    if (params?.to) query.set('to', params.to);
-    const queryString = query.toString();
-    return `${API_BASE_URL}/api/admin/dashboard-stats/export/excel${queryString ? `?${queryString}` : ''}`;
-  }
-
+// API Functions
+export const api = {
   // Agencies
   async getAgencies(): Promise<Agency[]> {
-    return this.request('/admin/agencies');
-  }
+    const { data, error } = await supabase
+      .from('agencies')
+      .select('*')
+      .order('name');
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
 
-  async createAgency(data: Omit<Agency, 'id'>): Promise<Agency> {
-    return this.request('/admin/agencies', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
+  async createAgency(agency: Omit<Agency, 'id'>): Promise<Agency> {
+    const { data, error } = await supabase
+      .from('agencies')
+      .insert(agency)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
 
-  async updateAgency(id: number, data: Partial<Agency>): Promise<Agency> {
-    return this.request(`/admin/agencies/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
+  async updateAgency(id: number, updates: Partial<Agency>): Promise<Agency> {
+    const { data, error } = await supabase
+      .from('agencies')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
 
   async deleteAgency(id: number): Promise<void> {
-    await this.request(`/admin/agencies/${id}`, { method: 'DELETE' });
-  }
+    const { error } = await supabase
+      .from('agencies')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error(error.message);
+  },
 
   // Routes
   async getRoutes(): Promise<RouteRow[]> {
-    return this.request('/admin/routes');
-  }
+    const { data, error } = await supabase
+      .from('routes')
+      .select(`
+        *,
+        departure_agency:agencies!routes_departure_agency_id_fkey(*),
+        arrival_agency:agencies!routes_arrival_agency_id_fkey(*)
+      `)
+      .order('name');
+    if (error) throw new Error(error.message);
+    return data || [];
+  },
 
-  async createRoute(data: Omit<RouteRow, 'id' | 'departure_agency' | 'arrival_agency'>): Promise<RouteRow> {
-    return this.request('/admin/routes', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
+  async createRoute(route: Omit<RouteRow, 'id' | 'departure_agency' | 'arrival_agency'>): Promise<RouteRow> {
+    const { data, error } = await supabase
+      .from('routes')
+      .insert(route)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
 
-  async updateRoute(id: number, data: Partial<RouteRow>): Promise<RouteRow> {
-    return this.request(`/admin/routes/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
+  async updateRoute(id: number, updates: Partial<RouteRow>): Promise<RouteRow> {
+    const { data, error } = await supabase
+      .from('routes')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
+  },
 
   async deleteRoute(id: number): Promise<void> {
-    await this.request(`/admin/routes/${id}`, { method: 'DELETE' });
-  }
+    const { error } = await supabase
+      .from('routes')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error(error.message);
+  },
 
   // Vehicles
   async getVehicles(): Promise<Vehicle[]> {
-    return this.request('/admin/vehicles');
-  }
+    const { data, error } = await supabase
+      .from('vehicles')
+      .select(`
+        *,
+        agency:agencies(*)
+      `)
+      .order('registration_number');
+    if (error) throw new Error(error.message);
+    return (data || []) as unknown as Vehicle[];
+  },
 
-  async createVehicle(data: Omit<Vehicle, 'id' | 'agency'>): Promise<Vehicle> {
-    return this.request('/admin/vehicles', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
+  async createVehicle(vehicle: Omit<Vehicle, 'id' | 'agency'>): Promise<Vehicle> {
+    const { data, error } = await supabase
+      .from('vehicles')
+      .insert(vehicle)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data as unknown as Vehicle;
+  },
 
-  async updateVehicle(id: number, data: Partial<Vehicle>): Promise<Vehicle> {
-    return this.request(`/admin/vehicles/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
+  async updateVehicle(id: number, updates: Partial<Vehicle>): Promise<Vehicle> {
+    const { data, error } = await supabase
+      .from('vehicles')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data as unknown as Vehicle;
+  },
 
   async deleteVehicle(id: number): Promise<void> {
-    await this.request(`/admin/vehicles/${id}`, { method: 'DELETE' });
-  }
+    const { error } = await supabase
+      .from('vehicles')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error(error.message);
+  },
 
-  // Users
+  // Users (Profiles)
   async getUsers(): Promise<User[]> {
-    return this.request('/admin/users');
-  }
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        agency:agencies(name)
+      `)
+      .order('name');
+    if (error) throw new Error(error.message);
+    return (data || []).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      email: p.email,
+      role: p.role as User['role'],
+      agency_id: p.agency_id,
+      agency_name: p.agency?.name,
+    }));
+  },
 
-  async createUser(data: Omit<User, 'id'> & { password: string }): Promise<User> {
-    return this.request('/admin/users', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
+  async updateUser(id: string, updates: Partial<User>): Promise<User> {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        name: updates.name,
+        role: updates.role,
+        agency_id: updates.agency_id,
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data as unknown as User;
+  },
 
-  async updateUser(id: number, data: Partial<User> & { password?: string }): Promise<User> {
-    return this.request(`/admin/users/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteUser(id: number): Promise<void> {
-    await this.request(`/admin/users/${id}`, { method: 'DELETE' });
-  }
-
-  // Tickets
-  async getTickets(params?: { from?: string; to?: string; agency_id?: number }): Promise<{ data: Ticket[]; total: number }> {
-    const query = new URLSearchParams();
-    if (params?.from) query.set('from', params.from);
-    if (params?.to) query.set('to', params.to);
-    if (params?.agency_id) query.set('agency_id', params.agency_id.toString());
-    return this.request(`/tickets?${query}`);
-  }
+  async deleteUser(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error(error.message);
+  },
 
   // Trips
   async getTrips(params?: { from?: string; to?: string }): Promise<{ data: Trip[]; total: number }> {
-    const query = new URLSearchParams();
-    if (params?.from) query.set('from', params.from);
-    if (params?.to) query.set('to', params.to);
-    return this.request(`/trips?${query}`);
-  }
+    let query = supabase
+      .from('trips')
+      .select(`
+        *,
+        route:routes(*,
+          departure_agency:agencies!routes_departure_agency_id_fkey(*),
+          arrival_agency:agencies!routes_arrival_agency_id_fkey(*)
+        ),
+        vehicle:vehicles(*, agency:agencies(*))
+      `, { count: 'exact' })
+      .order('departure_datetime', { ascending: false });
 
-  // Fuel Stats
-  async getFuelStatsSummary(params?: { from?: string; to?: string; agency_id?: number }): Promise<FuelStats> {
-    const query = new URLSearchParams();
-    if (params?.from) query.set('from', params.from);
-    if (params?.to) query.set('to', params.to);
-    if (params?.agency_id) query.set('agency_id', params.agency_id.toString());
-    return this.request(`/fuel-stats/summary?${query}`);
-  }
+    if (params?.from) {
+      query = query.gte('departure_datetime', params.from);
+    }
+    if (params?.to) {
+      query = query.lte('departure_datetime', params.to);
+    }
 
-  async getFuelStatsPerVehicle(params?: { from?: string; to?: string; agency_id?: number }): Promise<FuelStats> {
-    const query = new URLSearchParams();
-    if (params?.from) query.set('from', params.from);
-    if (params?.to) query.set('to', params.to);
-    if (params?.agency_id) query.set('agency_id', params.agency_id.toString());
-    return this.request(`/fuel-stats/per-vehicle?${query}`);
-  }
+    const { data, error, count } = await query;
+    if (error) throw new Error(error.message);
+    return { data: (data || []) as unknown as Trip[], total: count || 0 };
+  },
+
+  // Tickets
+  async getTickets(params?: { from?: string; to?: string }): Promise<{ data: Ticket[]; total: number }> {
+    let query = supabase
+      .from('tickets')
+      .select('*', { count: 'exact' })
+      .order('sold_at', { ascending: false });
+
+    if (params?.from) {
+      query = query.gte('sold_at', params.from);
+    }
+    if (params?.to) {
+      query = query.lte('sold_at', params.to);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw new Error(error.message);
+    return { data: (data || []) as unknown as Ticket[], total: count || 0 };
+  },
 
   // Maintenance Orders
-  async getMaintenanceOrders(params?: { 
-    status?: string; 
-    type?: string; 
-    vehicle_id?: number;
-    from?: string; 
-    to?: string;
-  }): Promise<{ data: MaintenanceOrder[]; total: number }> {
-    const query = new URLSearchParams();
-    if (params?.status) query.set('status', params.status);
-    if (params?.type) query.set('type', params.type);
-    if (params?.vehicle_id) query.set('vehicle_id', params.vehicle_id.toString());
-    if (params?.from) query.set('from', params.from);
-    if (params?.to) query.set('to', params.to);
-    return this.request(`/maintenance-orders?${query}`);
-  }
+  async getMaintenanceOrders(params?: { status?: string; type?: string }): Promise<{ data: MaintenanceOrder[]; total: number }> {
+    let query = supabase
+      .from('maintenance_orders')
+      .select(`
+        *,
+        vehicle:vehicles(*, agency:agencies(*))
+      `, { count: 'exact' })
+      .order('opened_at', { ascending: false });
 
-  async createMaintenanceOrder(data: Partial<MaintenanceOrder>): Promise<MaintenanceOrder> {
-    return this.request('/maintenance-orders', {
-      method: 'POST',
-      body: JSON.stringify(data),
+    if (params?.status) {
+      query = query.eq('status', params.status);
+    }
+    if (params?.type) {
+      query = query.eq('type', params.type);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw new Error(error.message);
+    return { data: (data || []) as unknown as MaintenanceOrder[], total: count || 0 };
+  },
+
+  async createMaintenanceOrder(order: Partial<MaintenanceOrder>): Promise<MaintenanceOrder> {
+    const { data, error } = await supabase
+      .from('maintenance_orders')
+      .insert({
+        vehicle_id: order.vehicle_id,
+        title: order.title,
+        description: order.description,
+        type: order.type,
+        status: order.status,
+        total_cost: order.total_cost,
+        odometer_km: order.odometer_km,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data as unknown as MaintenanceOrder;
+  },
+
+  async updateMaintenanceOrder(id: number, updates: Partial<MaintenanceOrder>): Promise<MaintenanceOrder> {
+    const { data, error } = await supabase
+      .from('maintenance_orders')
+      .update({
+        vehicle_id: updates.vehicle_id,
+        title: updates.title,
+        description: updates.description,
+        type: updates.type,
+        status: updates.status,
+        total_cost: updates.total_cost,
+        odometer_km: updates.odometer_km,
+        closed_at: updates.status === 'closed' ? new Date().toISOString() : undefined,
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data as unknown as MaintenanceOrder;
+  },
+
+  // Fuel Stats
+  async getFuelStatsSummary(params?: { from?: string; to?: string }): Promise<FuelStats> {
+    let query = supabase
+      .from('fuel_entries')
+      .select(`
+        *,
+        vehicle:vehicles(*),
+        agency:agencies(*)
+      `);
+
+    if (params?.from) {
+      query = query.gte('filled_at', params.from);
+    }
+    if (params?.to) {
+      query = query.lte('filled_at', params.to);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    const entries = data || [];
+    const total_liters = entries.reduce((sum, e: any) => sum + Number(e.liters), 0);
+    const total_amount = entries.reduce((sum, e: any) => sum + Number(e.total_amount), 0);
+
+    // Group by agency
+    const agencyMap = new Map<number, { agency_id: number; agency_name: string; total_liters: number; total_amount: number }>();
+    entries.forEach((e: any) => {
+      if (e.agency_id && e.agency) {
+        const existing = agencyMap.get(e.agency_id) || {
+          agency_id: e.agency_id,
+          agency_name: e.agency.name,
+          total_liters: 0,
+          total_amount: 0,
+        };
+        existing.total_liters += Number(e.liters);
+        existing.total_amount += Number(e.total_amount);
+        agencyMap.set(e.agency_id, existing);
+      }
     });
-  }
 
-  async updateMaintenanceOrder(id: number, data: Partial<MaintenanceOrder>): Promise<MaintenanceOrder> {
-    return this.request(`/maintenance-orders/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
+    return {
+      period: { from: params?.from || null, to: params?.to || null },
+      global: {
+        total_liters,
+        total_amount,
+        average_liter_price: total_liters > 0 ? total_amount / total_liters : 0,
+      },
+      per_agency: Array.from(agencyMap.values()),
+    };
+  },
+
+  async getFuelStatsPerVehicle(params?: { from?: string; to?: string }): Promise<FuelStats> {
+    let query = supabase
+      .from('fuel_entries')
+      .select(`
+        *,
+        vehicle:vehicles(*, agency:agencies(*))
+      `);
+
+    if (params?.from) {
+      query = query.gte('filled_at', params.from);
+    }
+    if (params?.to) {
+      query = query.lte('filled_at', params.to);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    const entries = data || [];
+    const total_liters = entries.reduce((sum, e: any) => sum + Number(e.liters), 0);
+    const total_amount = entries.reduce((sum, e: any) => sum + Number(e.total_amount), 0);
+
+    // Group by vehicle
+    const vehicleMap = new Map<number, {
+      vehicle_id: number;
+      registration_number: string;
+      agency_name: string;
+      seats: number;
+      total_liters: number;
+      total_amount: number;
+      fuel_count: number;
+    }>();
+
+    entries.forEach((e: any) => {
+      if (e.vehicle_id && e.vehicle) {
+        const existing = vehicleMap.get(e.vehicle_id) || {
+          vehicle_id: e.vehicle_id,
+          registration_number: e.vehicle.registration_number,
+          agency_name: e.vehicle.agency?.name || '',
+          seats: e.vehicle.seats,
+          total_liters: 0,
+          total_amount: 0,
+          fuel_count: 0,
+        };
+        existing.total_liters += Number(e.liters);
+        existing.total_amount += Number(e.total_amount);
+        existing.fuel_count += 1;
+        vehicleMap.set(e.vehicle_id, existing);
+      }
     });
-  }
 
-  // Vehicle Cost Stats
-  async getVehicleCostStats(params?: { from?: string; to?: string; agency_id?: number }): Promise<VehicleCostStats> {
-    const query = new URLSearchParams();
-    if (params?.from) query.set('from', params.from);
-    if (params?.to) query.set('to', params.to);
-    if (params?.agency_id) query.set('agency_id', params.agency_id.toString());
-    return this.request(`/vehicle-cost-stats/per-vehicle?${query}`);
-  }
+    return {
+      period: { from: params?.from || null, to: params?.to || null },
+      global: {
+        total_liters,
+        total_amount,
+        average_liter_price: total_liters > 0 ? total_amount / total_liters : 0,
+      },
+      per_vehicle: Array.from(vehicleMap.values()),
+    };
+  },
 
-  // Vehicle Profit Stats
-  async getVehicleProfitStats(params?: { from?: string; to?: string; agency_id?: number }): Promise<VehicleProfitStats> {
-    const query = new URLSearchParams();
-    if (params?.from) query.set('from', params.from);
-    if (params?.to) query.set('to', params.to);
-    if (params?.agency_id) query.set('agency_id', params.agency_id.toString());
-    return this.request(`/vehicle-profit-stats/per-vehicle?${query}`);
-  }
+  // Dashboard Stats
+  async getDashboardStats(params?: { from?: string; to?: string }): Promise<DashboardStats> {
+    const today = new Date().toISOString().split('T')[0];
+    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const endOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0];
 
-  // Export URLs
-  getFuelExportPdfUrl(params?: { from?: string; to?: string; agency_id?: number; year?: number }): string {
-    const query = new URLSearchParams();
-    if (params?.from) query.set('from', params.from);
-    if (params?.to) query.set('to', params.to);
-    if (params?.agency_id) query.set('agency_id', params.agency_id.toString());
-    if (params?.year) query.set('year', params.year.toString());
-    return `${API_BASE_URL}/api/fuel-stats/export/pdf?${query}`;
-  }
+    const periodStart = params?.from || startOfMonth;
+    const periodEnd = params?.to || endOfMonth;
 
-  getFuelExportExcelUrl(params?: { from?: string; to?: string; agency_id?: number; year?: number }): string {
-    const query = new URLSearchParams();
-    if (params?.from) query.set('from', params.from);
-    if (params?.to) query.set('to', params.to);
-    if (params?.agency_id) query.set('agency_id', params.agency_id.toString());
-    if (params?.year) query.set('year', params.year.toString());
-    return `${API_BASE_URL}/api/fuel-stats/export/excel?${query}`;
-  }
-}
+    // Today's tickets
+    const { data: todayTickets } = await supabase
+      .from('tickets')
+      .select('price')
+      .eq('status', 'paid')
+      .gte('sold_at', `${today}T00:00:00`)
+      .lte('sold_at', `${today}T23:59:59`);
 
-export const api = new ApiClient();
+    // Today's trips
+    const { count: todayTripsCount } = await supabase
+      .from('trips')
+      .select('*', { count: 'exact', head: true })
+      .gte('departure_datetime', `${today}T00:00:00`)
+      .lte('departure_datetime', `${today}T23:59:59`);
+
+    // Period tickets with trip info
+    const { data: periodTickets } = await supabase
+      .from('tickets')
+      .select('*')
+      .eq('status', 'paid')
+      .gte('sold_at', periodStart)
+      .lte('sold_at', periodEnd);
+
+    // Period trips
+    const { count: periodTripsCount } = await supabase
+      .from('trips')
+      .select('*', { count: 'exact', head: true })
+      .gte('departure_datetime', periodStart)
+      .lte('departure_datetime', periodEnd);
+
+    // Process data
+    const todaySales = (todayTickets || []).reduce((sum, t: any) => sum + Number(t.price), 0);
+    const periodSales = (periodTickets || []).reduce((sum, t: any) => sum + Number(t.price), 0);
+
+    // Group by day for daily_sales
+    const dailySalesMap = new Map<string, { date: string; total_amount: number; tickets_count: number }>();
+    (periodTickets || []).forEach((t: any) => {
+      if (t.sold_at) {
+        const date = t.sold_at.split('T')[0];
+        const existing = dailySalesMap.get(date) || { date, total_amount: 0, tickets_count: 0 };
+        existing.total_amount += Number(t.price);
+        existing.tickets_count += 1;
+        dailySalesMap.set(date, existing);
+      }
+    });
+
+    // Recent tickets
+    const recentTickets = (periodTickets || [])
+      .sort((a: any, b: any) => new Date(b.sold_at || 0).getTime() - new Date(a.sold_at || 0).getTime())
+      .slice(0, 10)
+      .map((t: any) => ({
+        id: t.id,
+        sold_at: t.sold_at || '',
+        price: Number(t.price),
+        payment_method: t.payment_method || 'cash',
+        customer_name: t.customer_name || '',
+        agency_name: '',
+      }));
+
+    return {
+      today: {
+        sales_amount: todaySales,
+        tickets_count: (todayTickets || []).length,
+        trips_count: todayTripsCount || 0,
+      },
+      period: {
+        sales_amount: periodSales,
+        tickets_count: (periodTickets || []).length,
+        trips_count: periodTripsCount || 0,
+        start: periodStart,
+        end: periodEnd,
+      },
+      per_agency: [],
+      daily_sales: Array.from(dailySalesMap.values()).sort((a, b) => a.date.localeCompare(b.date)),
+      daily_trips: [],
+      recent_tickets: recentTickets,
+    };
+  },
+};
