@@ -10,10 +10,12 @@ import { toast } from 'sonner';
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { login, isAuthenticated } = useAuth();
+  const { signIn, signUp, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
 
   // Redirect if already authenticated
   if (isAuthenticated) {
@@ -29,15 +31,31 @@ const Auth = () => {
       return;
     }
 
+    if (isSignUp && !name) {
+      toast.error('Veuillez entrer votre nom');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await login(email, password);
-      toast.success('Connexion réussie!');
+      if (isSignUp) {
+        await signUp(email, password, name);
+        toast.success('Compte créé avec succès!');
+      } else {
+        await signIn(email, password);
+        toast.success('Connexion réussie!');
+      }
       navigate('/');
     } catch (error: any) {
-      console.error('Login error:', error);
-      toast.error(error.message || 'Identifiants invalides');
+      console.error('Auth error:', error);
+      if (error.message.includes('already registered')) {
+        toast.error('Cet email est déjà utilisé');
+      } else if (error.message.includes('Invalid login')) {
+        toast.error('Email ou mot de passe incorrect');
+      } else {
+        toast.error(error.message || 'Erreur d\'authentification');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -58,11 +76,28 @@ const Auth = () => {
             <Bus className="w-8 h-8 text-primary-foreground" />
           </div>
           <h1 className="font-display text-2xl font-bold text-card-foreground">EPICSPOT TRANS</h1>
-          <p className="text-muted-foreground text-sm">Connectez-vous à votre compte</p>
+          <p className="text-muted-foreground text-sm">
+            {isSignUp ? 'Créez votre compte' : 'Connectez-vous à votre compte'}
+          </p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {isSignUp && (
+            <div className="space-y-2">
+              <Label htmlFor="name">Nom complet</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Votre nom"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="bg-background"
+                disabled={isLoading}
+              />
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -99,18 +134,33 @@ const Auth = () => {
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Connexion...
+                {isSignUp ? 'Création...' : 'Connexion...'}
               </>
             ) : (
-              'Se connecter'
+              isSignUp ? 'Créer un compte' : 'Se connecter'
             )}
           </Button>
         </form>
 
+        {/* Toggle */}
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="text-sm text-primary hover:underline"
+          >
+            {isSignUp 
+              ? 'Déjà un compte ? Se connecter' 
+              : 'Pas de compte ? S\'inscrire'}
+          </button>
+        </div>
+
         {/* Info */}
-        <div className="mt-6 p-4 rounded-lg bg-muted/50 border border-border">
+        <div className="mt-4 p-4 rounded-lg bg-muted/50 border border-border">
           <p className="text-xs text-muted-foreground text-center">
-            Contactez votre administrateur si vous avez oublié vos identifiants.
+            {isSignUp 
+              ? 'Un compte sera créé avec le rôle "Guichetier" par défaut.'
+              : 'Contactez votre administrateur si vous avez oublié vos identifiants.'}
           </p>
         </div>
       </Card>

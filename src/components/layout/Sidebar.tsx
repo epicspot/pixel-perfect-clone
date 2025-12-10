@@ -31,12 +31,12 @@ const navItems = [
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
-  const { logout, user } = useAuth();
+  const { signOut, profile } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await signOut();
       toast.success('Déconnexion réussie');
       navigate('/auth');
     } catch (error) {
@@ -81,17 +81,17 @@ export function Sidebar() {
       </div>
 
       {/* User info */}
-      {!collapsed && user && (
+      {!collapsed && profile && (
         <div className="px-4 py-3 border-b border-sidebar-border">
-          <p className="text-sm font-medium text-sidebar-foreground truncate">{user.name}</p>
-          <p className="text-xs text-sidebar-foreground/60 capitalize">{user.role}</p>
+          <p className="text-sm font-medium text-sidebar-foreground truncate">{profile.name}</p>
+          <p className="text-xs text-sidebar-foreground/60 capitalize">{profile.role}</p>
         </div>
       )}
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
         {navItems
-          .filter((item) => !item.adminOnly || user?.role === 'admin')
+          .filter((item) => !item.adminOnly || profile?.role === 'admin')
           .map((item) => (
           <NavLink
             key={item.to}
