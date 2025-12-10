@@ -28,6 +28,7 @@ const navItems = [
   { to: '/cloture-caisse', icon: Wallet, label: 'Clôture caisse' },
   { to: '/carburant', icon: Fuel, label: 'Carburant' },
   { to: '/maintenance', icon: Wrench, label: 'Maintenance' },
+  { to: '/couts-vehicules', icon: BarChart3, label: 'Coûts véhicules', adminOnly: true },
   { to: '/rapports', icon: BarChart3, label: 'Rapports' },
   { to: '/staff', icon: Users, label: 'Personnel', adminOnly: true },
   { to: '/depenses', icon: Receipt, label: 'Dépenses', adminOnly: true },
