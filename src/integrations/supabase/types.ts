@@ -14,13 +14,391 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agencies: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          id: number
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          id?: number
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          id?: number
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fuel_entries: {
+        Row: {
+          agency_id: number | null
+          created_at: string
+          created_by: string | null
+          filled_at: string
+          id: number
+          liters: number
+          price_per_liter: number
+          total_amount: number
+          vehicle_id: number | null
+        }
+        Insert: {
+          agency_id?: number | null
+          created_at?: string
+          created_by?: string | null
+          filled_at?: string
+          id?: number
+          liters?: number
+          price_per_liter?: number
+          total_amount?: number
+          vehicle_id?: number | null
+        }
+        Update: {
+          agency_id?: number | null
+          created_at?: string
+          created_by?: string | null
+          filled_at?: string
+          id?: number
+          liters?: number
+          price_per_liter?: number
+          total_amount?: number
+          vehicle_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_entries_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_entries_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maintenance_orders: {
+        Row: {
+          agency_id: number | null
+          closed_at: string | null
+          created_at: string
+          description: string | null
+          id: number
+          odometer_km: number | null
+          opened_at: string
+          reported_by: string | null
+          status: string
+          title: string
+          total_cost: number | null
+          type: string
+          updated_at: string
+          validated_by: string | null
+          vehicle_id: number | null
+        }
+        Insert: {
+          agency_id?: number | null
+          closed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: number
+          odometer_km?: number | null
+          opened_at?: string
+          reported_by?: string | null
+          status?: string
+          title: string
+          total_cost?: number | null
+          type?: string
+          updated_at?: string
+          validated_by?: string | null
+          vehicle_id?: number | null
+        }
+        Update: {
+          agency_id?: number | null
+          closed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: number
+          odometer_km?: number | null
+          opened_at?: string
+          reported_by?: string | null
+          status?: string
+          title?: string
+          total_cost?: number | null
+          type?: string
+          updated_at?: string
+          validated_by?: string | null
+          vehicle_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_orders_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_orders_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          agency_id: number | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id?: number | null
+          created_at?: string
+          email: string
+          id: string
+          name: string
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: number | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      routes: {
+        Row: {
+          arrival_agency_id: number | null
+          base_price: number
+          created_at: string
+          departure_agency_id: number | null
+          id: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          arrival_agency_id?: number | null
+          base_price?: number
+          created_at?: string
+          departure_agency_id?: number | null
+          id?: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          arrival_agency_id?: number | null
+          base_price?: number
+          created_at?: string
+          departure_agency_id?: number | null
+          id?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routes_arrival_agency_id_fkey"
+            columns: ["arrival_agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_departure_agency_id_fkey"
+            columns: ["departure_agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tickets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_name: string | null
+          id: number
+          payment_method: string | null
+          price: number
+          reference: string | null
+          sold_at: string | null
+          status: string
+          total_amount: number
+          trip_id: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          id?: number
+          payment_method?: string | null
+          price?: number
+          reference?: string | null
+          sold_at?: string | null
+          status?: string
+          total_amount?: number
+          trip_id?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          id?: number
+          payment_method?: string | null
+          price?: number
+          reference?: string | null
+          sold_at?: string | null
+          status?: string
+          total_amount?: number
+          trip_id?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trips: {
+        Row: {
+          arrival_datetime: string | null
+          created_at: string
+          departure_datetime: string
+          id: number
+          route_id: number | null
+          status: string
+          updated_at: string
+          vehicle_id: number | null
+        }
+        Insert: {
+          arrival_datetime?: string | null
+          created_at?: string
+          departure_datetime: string
+          id?: number
+          route_id?: number | null
+          status?: string
+          updated_at?: string
+          vehicle_id?: number | null
+        }
+        Update: {
+          arrival_datetime?: string | null
+          created_at?: string
+          departure_datetime?: string
+          id?: number
+          route_id?: number | null
+          status?: string
+          updated_at?: string
+          vehicle_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trips_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trips_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicles: {
+        Row: {
+          agency_id: number | null
+          brand: string | null
+          created_at: string
+          id: number
+          model: string | null
+          registration_number: string
+          seats: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id?: number | null
+          brand?: string | null
+          created_at?: string
+          id?: number
+          model?: string | null
+          registration_number: string
+          seats?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: number | null
+          brand?: string | null
+          created_at?: string
+          id?: number
+          model?: string | null
+          registration_number?: string
+          seats?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: { Args: { user_id: string }; Returns: string }
+      is_admin: { Args: { user_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
