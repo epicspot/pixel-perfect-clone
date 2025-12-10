@@ -1,26 +1,29 @@
-import React from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, Agency, RouteRow, Vehicle, User } from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Building2, Route, Bus, Users, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Pencil, Trash2, Plus, X } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 type Tab = 'agencies' | 'routes' | 'vehicles' | 'users';
 
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+};
+
 const Admin = () => {
+  const [activeTab, setActiveTab] = useState<Tab>('agencies');
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = React.useState<Tab>('agencies');
 
-  // Check if user has admin access
-  const isAdmin = profile?.role === 'admin';
-
-  if (!isAdmin) {
+  if (profile?.role !== 'admin') {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
@@ -33,31 +36,18 @@ const Admin = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-foreground">Administration</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Configuration des agences, lignes, véhicules et utilisateurs
-          </p>
+        <div className="animate-fade-in">
+          <h1 className="text-3xl font-display font-bold text-foreground">Administration</h1>
+          <p className="text-muted-foreground mt-1">Configuration des agences, lignes, véhicules et utilisateurs</p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 flex-wrap">
-          {(['agencies', 'routes', 'vehicles', 'users'] as Tab[]).map((tab) => (
-            <Button
-              key={tab}
-              variant={activeTab === tab ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab === 'agencies' && 'Agences'}
-              {tab === 'routes' && 'Lignes'}
-              {tab === 'vehicles' && 'Véhicules'}
-              {tab === 'users' && 'Utilisateurs'}
-            </Button>
-          ))}
+        <div className="flex flex-wrap gap-2">
+          <TabButton icon={Building2} label="Agences" active={activeTab === 'agencies'} onClick={() => setActiveTab('agencies')} />
+          <TabButton icon={Route} label="Lignes" active={activeTab === 'routes'} onClick={() => setActiveTab('routes')} />
+          <TabButton icon={Bus} label="Véhicules" active={activeTab === 'vehicles'} onClick={() => setActiveTab('vehicles')} />
+          <TabButton icon={Users} label="Utilisateurs" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
         </div>
 
-        {/* Content */}
         {activeTab === 'agencies' && <AgenciesTab />}
         {activeTab === 'routes' && <RoutesTab />}
         {activeTab === 'vehicles' && <VehiclesTab />}
@@ -67,44 +57,58 @@ const Admin = () => {
   );
 };
 
-// ============ AGENCIES TAB ============
+const TabButton = ({ icon: Icon, label, active, onClick }: { icon: any; label: string; active: boolean; onClick: () => void }) => (
+  <Button variant={active ? 'default' : 'outline'} size="sm" onClick={onClick} className="gap-2">
+    <Icon className="w-4 h-4" />
+    {label}
+  </Button>
+);
+
+/* ---------- AGENCIES TAB ---------- */
 const AgenciesTab = () => {
   const queryClient = useQueryClient();
-  const [editing, setEditing] = React.useState<Agency | null>(null);
-  const [form, setForm] = React.useState({ name: '', city: '', address: '', phone: '' });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState({ name: '', city: '', address: '', phone: '' });
 
-  const { data: agencies, isLoading } = useQuery({
+  const { data: agencies = [], isLoading } = useQuery({
     queryKey: ['agencies'],
-    queryFn: () => api.getAgencies(),
+    queryFn: async () => {
+      const { data, error } = await supabase.from('agencies').select('*').order('name');
+      if (error) throw error;
+      return data;
+    },
   });
 
-  const createMutation = useMutation({
-    mutationFn: (data: Omit<Agency, 'id'>) => api.createAgency(data),
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (editing) {
+        const { error } = await supabase.from('agencies').update(form).eq('id', editing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('agencies').insert(form);
+        if (error) throw error;
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agencies'] });
-      toast.success('Agence créée');
+      setDialogOpen(false);
       resetForm();
+      toast.success(editing ? 'Agence modifiée' : 'Agence créée');
     },
-    onError: () => toast.error('Erreur lors de la création'),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Agency> }) => api.updateAgency(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['agencies'] });
-      toast.success('Agence modifiée');
-      resetForm();
-    },
-    onError: () => toast.error('Erreur lors de la modification'),
+    onError: (error: any) => toast.error(error.message),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => api.deleteAgency(id),
+    mutationFn: async (id: number) => {
+      const { error } = await supabase.from('agencies').delete().eq('id', id);
+      if (error) throw error;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agencies'] });
       toast.success('Agence supprimée');
     },
-    onError: () => toast.error('Erreur lors de la suppression'),
+    onError: (error: any) => toast.error(error.message),
   });
 
   const resetForm = () => {
@@ -112,346 +116,524 @@ const AgenciesTab = () => {
     setForm({ name: '', city: '', address: '', phone: '' });
   };
 
-  const handleEdit = (agency: Agency) => {
+  const openEdit = (agency: any) => {
     setEditing(agency);
-    setForm({
-      name: agency.name,
-      city: agency.city || '',
-      address: agency.address || '',
-      phone: agency.phone || '',
-    });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editing) {
-      updateMutation.mutate({ id: editing.id, data: form });
-    } else {
-      createMutation.mutate(form);
-    }
-  };
-
-  const handleDelete = (agency: Agency) => {
-    if (window.confirm(`Supprimer l'agence "${agency.name}" ?`)) {
-      deleteMutation.mutate(agency.id);
-    }
+    setForm({ name: agency.name, city: agency.city || '', address: agency.address || '', phone: agency.phone || '' });
+    setDialogOpen(true);
   };
 
   return (
     <div className="space-y-4">
-      <div className="bg-card rounded-xl border border-border p-4">
-        <h2 className="text-sm font-semibold text-card-foreground mb-3">
-          {editing ? 'Modifier une agence' : 'Ajouter une agence'}
-        </h2>
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div>
-            <Label className="text-xs">Nom *</Label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required className="mt-1" />
-          </div>
-          <div>
-            <Label className="text-xs">Ville</Label>
-            <Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="mt-1" />
-          </div>
-          <div>
-            <Label className="text-xs">Adresse</Label>
-            <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="mt-1" />
-          </div>
-          <div>
-            <Label className="text-xs">Téléphone</Label>
-            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="mt-1" />
-          </div>
-          <div className="md:col-span-4 flex justify-end gap-2">
-            {editing && (
-              <Button type="button" variant="outline" size="sm" onClick={resetForm}>
-                <X className="w-4 h-4 mr-1" /> Annuler
-              </Button>
-            )}
-            <Button type="submit" size="sm" disabled={createMutation.isPending || updateMutation.isPending}>
-              <Plus className="w-4 h-4 mr-1" /> {editing ? 'Modifier' : 'Ajouter'}
-            </Button>
-          </div>
-        </form>
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold">Agences ({agencies.length})</h2>
+        <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-2"><Plus className="w-4 h-4" /> Ajouter</Button>
       </div>
 
-      <div className="bg-card rounded-xl border border-border p-4">
-        <h3 className="text-sm font-semibold text-card-foreground mb-3">Agences ({agencies?.length || 0})</h3>
+      <Card>
         {isLoading ? (
-          <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+          <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="text-xs text-muted-foreground border-b border-border">
-                <tr>
-                  <th className="px-3 py-2 text-left">Nom</th>
-                  <th className="px-3 py-2 text-left">Ville</th>
-                  <th className="px-3 py-2 text-left">Téléphone</th>
-                  <th className="px-3 py-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {agencies?.map((a) => (
-                  <tr key={a.id} className="border-b border-border/50 hover:bg-muted/50">
-                    <td className="px-3 py-2">{a.name}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{a.city || '-'}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{a.phone || '-'}</td>
-                    <td className="px-3 py-2 text-right space-x-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(a)}><Pencil className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(a)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
-                    </td>
-                  </tr>
-                ))}
-                {(!agencies || agencies.length === 0) && (
-                  <tr><td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">Aucune agence.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nom</TableHead>
+                <TableHead>Ville</TableHead>
+                <TableHead>Adresse</TableHead>
+                <TableHead>Téléphone</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {agencies.map((a: any) => (
+                <TableRow key={a.id}>
+                  <TableCell className="font-medium">{a.name}</TableCell>
+                  <TableCell>{a.city || '-'}</TableCell>
+                  <TableCell>{a.address || '-'}</TableCell>
+                  <TableCell>{a.phone || '-'}</TableCell>
+                  <TableCell className="text-right space-x-2">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(a)}><Pencil className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { if (window.confirm(`Supprimer "${a.name}" ?`)) deleteMutation.mutate(a.id); }}><Trash2 className="w-4 h-4" /></Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {agencies.length === 0 && (
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Aucune agence</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
         )}
-      </div>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editing ? 'Modifier l\'agence' : 'Nouvelle agence'}</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2"><Label>Nom *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="grid gap-2"><Label>Ville</Label><Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
+            <div className="grid gap-2"><Label>Adresse</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+            <div className="grid gap-2"><Label>Téléphone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={!form.name || saveMutation.isPending}>
+              {saveMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-// ============ ROUTES TAB ============
+/* ---------- ROUTES TAB ---------- */
 const RoutesTab = () => {
   const queryClient = useQueryClient();
-  const [editing, setEditing] = React.useState<RouteRow | null>(null);
-  const [form, setForm] = React.useState({ name: '', base_price: '', departure_agency_id: '', arrival_agency_id: '' });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState({ name: '', base_price: '', departure_agency_id: '', arrival_agency_id: '' });
 
-  const { data: agencies } = useQuery({ queryKey: ['agencies'], queryFn: () => api.getAgencies() });
-  const { data: routes, isLoading } = useQuery({ queryKey: ['routes'], queryFn: () => api.getRoutes() });
-
-  const createMutation = useMutation({
-    mutationFn: (data: Omit<RouteRow, 'id' | 'departure_agency' | 'arrival_agency'>) => api.createRoute(data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routes'] }); toast.success('Ligne créée'); resetForm(); },
-    onError: () => toast.error('Erreur'),
+  const { data: agencies = [] } = useQuery({
+    queryKey: ['agencies'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('agencies').select('*').order('name');
+      if (error) throw error;
+      return data;
+    },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<RouteRow> }) => api.updateRoute(id, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routes'] }); toast.success('Ligne modifiée'); resetForm(); },
-    onError: () => toast.error('Erreur'),
+  const { data: routes = [], isLoading } = useQuery({
+    queryKey: ['routes'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('routes')
+        .select('*, departure_agency:agencies!routes_departure_agency_id_fkey(*), arrival_agency:agencies!routes_arrival_agency_id_fkey(*)')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        name: form.name,
+        base_price: parseFloat(form.base_price) || 0,
+        departure_agency_id: parseInt(form.departure_agency_id) || null,
+        arrival_agency_id: parseInt(form.arrival_agency_id) || null,
+      };
+      if (editing) {
+        const { error } = await supabase.from('routes').update(payload).eq('id', editing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('routes').insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['routes'] });
+      setDialogOpen(false);
+      setEditing(null);
+      setForm({ name: '', base_price: '', departure_agency_id: '', arrival_agency_id: '' });
+      toast.success(editing ? 'Ligne modifiée' : 'Ligne créée');
+    },
+    onError: (error: any) => toast.error(error.message),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => api.deleteRoute(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['routes'] }); toast.success('Supprimée'); },
-    onError: () => toast.error('Erreur'),
+    mutationFn: async (id: number) => {
+      const { error } = await supabase.from('routes').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['routes'] });
+      toast.success('Ligne supprimée');
+    },
+    onError: (error: any) => toast.error(error.message),
   });
 
-  const resetForm = () => { setEditing(null); setForm({ name: '', base_price: '', departure_agency_id: '', arrival_agency_id: '' }); };
-
-  const handleEdit = (route: RouteRow) => {
+  const openEdit = (route: any) => {
     setEditing(route);
-    setForm({ name: route.name, base_price: route.base_price.toString(), departure_agency_id: route.departure_agency_id.toString(), arrival_agency_id: route.arrival_agency_id.toString() });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const payload = { name: form.name, base_price: Number(form.base_price), departure_agency_id: Number(form.departure_agency_id), arrival_agency_id: Number(form.arrival_agency_id) };
-    if (editing) { updateMutation.mutate({ id: editing.id, data: payload }); } else { createMutation.mutate(payload); }
+    setForm({
+      name: route.name,
+      base_price: route.base_price.toString(),
+      departure_agency_id: route.departure_agency_id?.toString() || '',
+      arrival_agency_id: route.arrival_agency_id?.toString() || '',
+    });
+    setDialogOpen(true);
   };
 
   return (
     <div className="space-y-4">
-      <div className="bg-card rounded-xl border border-border p-4">
-        <h2 className="text-sm font-semibold mb-3">{editing ? 'Modifier' : 'Ajouter'} une ligne</h2>
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div><Label className="text-xs">Nom *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required className="mt-1" /></div>
-          <div>
-            <Label className="text-xs">Départ *</Label>
-            <Select value={form.departure_agency_id} onValueChange={(v) => setForm({ ...form, departure_agency_id: v })}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-              <SelectContent>{agencies?.map((a) => <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Arrivée *</Label>
-            <Select value={form.arrival_agency_id} onValueChange={(v) => setForm({ ...form, arrival_agency_id: v })}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-              <SelectContent>{agencies?.map((a) => <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div><Label className="text-xs">Prix (F) *</Label><Input type="number" min={0} value={form.base_price} onChange={(e) => setForm({ ...form, base_price: e.target.value })} required className="mt-1" /></div>
-          <div className="md:col-span-4 flex justify-end gap-2">
-            {editing && <Button type="button" variant="outline" size="sm" onClick={resetForm}><X className="w-4 h-4 mr-1" /> Annuler</Button>}
-            <Button type="submit" size="sm"><Plus className="w-4 h-4 mr-1" /> {editing ? 'Modifier' : 'Ajouter'}</Button>
-          </div>
-        </form>
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold">Lignes ({routes.length})</h2>
+        <Button onClick={() => { setEditing(null); setForm({ name: '', base_price: '', departure_agency_id: '', arrival_agency_id: '' }); setDialogOpen(true); }} className="gap-2"><Plus className="w-4 h-4" /> Ajouter</Button>
       </div>
-      <div className="bg-card rounded-xl border border-border p-4">
-        <h3 className="text-sm font-semibold mb-3">Lignes ({routes?.length || 0})</h3>
-        {isLoading ? <Skeleton className="h-20 w-full" /> : (
-          <table className="min-w-full text-sm">
-            <thead className="text-xs text-muted-foreground border-b"><tr><th className="px-3 py-2 text-left">Nom</th><th className="px-3 py-2 text-left">Départ</th><th className="px-3 py-2 text-left">Arrivée</th><th className="px-3 py-2 text-right">Prix</th><th className="px-3 py-2 text-right">Actions</th></tr></thead>
-            <tbody>
-              {routes?.map((r) => (
-                <tr key={r.id} className="border-b border-border/50 hover:bg-muted/50">
-                  <td className="px-3 py-2">{r.name}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{r.departure_agency?.name || '-'}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{r.arrival_agency?.name || '-'}</td>
-                  <td className="px-3 py-2 text-right">{r.base_price} F</td>
-                  <td className="px-3 py-2 text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(r)}><Pencil className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(r.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
-                  </td>
-                </tr>
+
+      <Card>
+        {isLoading ? (
+          <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nom</TableHead>
+                <TableHead>Départ</TableHead>
+                <TableHead>Arrivée</TableHead>
+                <TableHead className="text-right">Prix de base</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {routes.map((r: any) => (
+                <TableRow key={r.id}>
+                  <TableCell className="font-medium">{r.name}</TableCell>
+                  <TableCell>{r.departure_agency?.name || '-'}</TableCell>
+                  <TableCell>{r.arrival_agency?.name || '-'}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(r.base_price)}</TableCell>
+                  <TableCell className="text-right space-x-2">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(r)}><Pencil className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { if (window.confirm(`Supprimer "${r.name}" ?`)) deleteMutation.mutate(r.id); }}><Trash2 className="w-4 h-4" /></Button>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+              {routes.length === 0 && (
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Aucune ligne</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
         )}
-      </div>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editing ? 'Modifier la ligne' : 'Nouvelle ligne'}</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2"><Label>Nom *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ouaga → Bobo" /></div>
+            <div className="grid gap-2">
+              <Label>Agence départ</Label>
+              <Select value={form.departure_agency_id} onValueChange={(v) => setForm({ ...form, departure_agency_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                <SelectContent>{agencies.map((a: any) => <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Agence arrivée</Label>
+              <Select value={form.arrival_agency_id} onValueChange={(v) => setForm({ ...form, arrival_agency_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                <SelectContent>{agencies.map((a: any) => <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2"><Label>Prix de base (F)</Label><Input type="number" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: e.target.value })} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={!form.name || saveMutation.isPending}>{saveMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-// ============ VEHICLES TAB ============
+/* ---------- VEHICLES TAB ---------- */
 const VehiclesTab = () => {
   const queryClient = useQueryClient();
-  const [editing, setEditing] = React.useState<Vehicle | null>(null);
-  const [form, setForm] = React.useState({ agency_id: '', registration_number: '', brand: '', model: '', seats: '50', status: 'active' as Vehicle['status'] });
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState({ registration_number: '', agency_id: '', brand: '', model: '', seats: '50', status: 'active' });
 
-  const { data: agencies } = useQuery({ queryKey: ['agencies'], queryFn: () => api.getAgencies() });
-  const { data: vehicles, isLoading } = useQuery({ queryKey: ['vehicles'], queryFn: () => api.getVehicles() });
-
-  const createMutation = useMutation({
-    mutationFn: (data: Omit<Vehicle, 'id' | 'agency'>) => api.createVehicle(data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['vehicles'] }); toast.success('Véhicule créé'); resetForm(); },
-    onError: () => toast.error('Erreur'),
+  const { data: agencies = [] } = useQuery({
+    queryKey: ['agencies'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('agencies').select('*').order('name');
+      if (error) throw error;
+      return data;
+    },
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Vehicle> }) => api.updateVehicle(id, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['vehicles'] }); toast.success('Modifié'); resetForm(); },
-    onError: () => toast.error('Erreur'),
+  const { data: vehicles = [], isLoading } = useQuery({
+    queryKey: ['vehicles'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('vehicles').select('*, agency:agencies(*)').order('registration_number');
+      if (error) throw error;
+      return data;
+    },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => api.deleteVehicle(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['vehicles'] }); toast.success('Supprimé'); },
-    onError: () => toast.error('Erreur'),
-  });
-
-  const resetForm = () => { setEditing(null); setForm({ agency_id: '', registration_number: '', brand: '', model: '', seats: '50', status: 'active' }); };
-
-  const handleEdit = (v: Vehicle) => {
-    setEditing(v);
-    setForm({ agency_id: v.agency_id.toString(), registration_number: v.registration_number, brand: v.brand || '', model: v.model || '', seats: v.seats.toString(), status: v.status });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const payload = { agency_id: Number(form.agency_id), registration_number: form.registration_number, brand: form.brand || undefined, model: form.model || undefined, seats: Number(form.seats), status: form.status };
-    if (editing) { updateMutation.mutate({ id: editing.id, data: payload }); } else { createMutation.mutate(payload as Omit<Vehicle, 'id' | 'agency'>); }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="bg-card rounded-xl border border-border p-4">
-        <h2 className="text-sm font-semibold mb-3">{editing ? 'Modifier' : 'Ajouter'} un véhicule</h2>
-        <form onSubmit={handleSubmit} className="grid grid-cols-2 md:grid-cols-6 gap-3">
-          <div><Label className="text-xs">Immat. *</Label><Input value={form.registration_number} onChange={(e) => setForm({ ...form, registration_number: e.target.value })} required className="mt-1" /></div>
-          <div>
-            <Label className="text-xs">Agence *</Label>
-            <Select value={form.agency_id} onValueChange={(v) => setForm({ ...form, agency_id: v })}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
-              <SelectContent>{agencies?.map((a) => <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div><Label className="text-xs">Marque</Label><Input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} className="mt-1" /></div>
-          <div><Label className="text-xs">Modèle</Label><Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} className="mt-1" /></div>
-          <div><Label className="text-xs">Places *</Label><Input type="number" min={1} value={form.seats} onChange={(e) => setForm({ ...form, seats: e.target.value })} required className="mt-1" /></div>
-          <div>
-            <Label className="text-xs">Statut *</Label>
-            <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Vehicle['status'] })}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="maintenance">Maintenance</SelectItem>
-                <SelectItem value="inactive">Inactif</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="col-span-2 md:col-span-6 flex justify-end gap-2">
-            {editing && <Button type="button" variant="outline" size="sm" onClick={resetForm}><X className="w-4 h-4 mr-1" /> Annuler</Button>}
-            <Button type="submit" size="sm"><Plus className="w-4 h-4 mr-1" /> {editing ? 'Modifier' : 'Ajouter'}</Button>
-          </div>
-        </form>
-      </div>
-      <div className="bg-card rounded-xl border border-border p-4">
-        <h3 className="text-sm font-semibold mb-3">Véhicules ({vehicles?.length || 0})</h3>
-        {isLoading ? <Skeleton className="h-20 w-full" /> : (
-          <table className="min-w-full text-sm">
-            <thead className="text-xs text-muted-foreground border-b"><tr><th className="px-3 py-2 text-left">Immat.</th><th className="px-3 py-2 text-left">Agence</th><th className="px-3 py-2 text-right">Places</th><th className="px-3 py-2 text-left">Statut</th><th className="px-3 py-2 text-right">Actions</th></tr></thead>
-            <tbody>
-              {vehicles?.map((v) => (
-                <tr key={v.id} className="border-b border-border/50 hover:bg-muted/50">
-                  <td className="px-3 py-2">{v.registration_number}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{v.agency?.name || '-'}</td>
-                  <td className="px-3 py-2 text-right">{v.seats}</td>
-                  <td className="px-3 py-2"><span className={`text-xs px-2 py-1 rounded-full ${v.status === 'active' ? 'bg-green-100 text-green-700' : v.status === 'maintenance' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{v.status}</span></td>
-                  <td className="px-3 py-2 text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(v)}><Pencil className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(v.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ============ USERS TAB ============
-const UsersTab = () => {
-  const queryClient = useQueryClient();
-  const [editing, setEditing] = React.useState<User | null>(null);
-  const [form, setForm] = React.useState({ name: '', role: 'cashier' as User['role'], agency_id: '' });
-
-  const { data: agencies } = useQuery({ queryKey: ['agencies'], queryFn: () => api.getAgencies() });
-  const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: () => api.getUsers() });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<User> }) => api.updateUser(id, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['users'] }); toast.success('Utilisateur modifié'); resetForm(); },
-    onError: () => toast.error('Erreur'),
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        registration_number: form.registration_number,
+        agency_id: parseInt(form.agency_id) || null,
+        brand: form.brand || null,
+        model: form.model || null,
+        seats: parseInt(form.seats) || 50,
+        status: form.status,
+      };
+      if (editing) {
+        const { error } = await supabase.from('vehicles').update(payload).eq('id', editing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('vehicles').insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      setDialogOpen(false);
+      setEditing(null);
+      setForm({ registration_number: '', agency_id: '', brand: '', model: '', seats: '50', status: 'active' });
+      toast.success(editing ? 'Véhicule modifié' : 'Véhicule créé');
+    },
+    onError: (error: any) => toast.error(error.message),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.deleteUser(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['users'] }); toast.success('Supprimé'); },
-    onError: () => toast.error('Erreur'),
+    mutationFn: async (id: number) => {
+      const { error } = await supabase.from('vehicles').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      toast.success('Véhicule supprimé');
+    },
+    onError: (error: any) => toast.error(error.message),
   });
 
-  const resetForm = () => { setEditing(null); setForm({ name: '', role: 'cashier', agency_id: '' }); };
-
-  const handleEdit = (u: User) => {
-    setEditing(u);
-    setForm({ name: u.name, role: u.role, agency_id: u.agency_id?.toString() || '' });
+  const openEdit = (vehicle: any) => {
+    setEditing(vehicle);
+    setForm({
+      registration_number: vehicle.registration_number,
+      agency_id: vehicle.agency_id?.toString() || '',
+      brand: vehicle.brand || '',
+      model: vehicle.model || '',
+      seats: vehicle.seats.toString(),
+      status: vehicle.status,
+    });
+    setDialogOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editing) {
-      updateMutation.mutate({ id: editing.id, data: { name: form.name, role: form.role, agency_id: form.agency_id ? Number(form.agency_id) : undefined } });
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'active': return 'Actif';
+      case 'maintenance': return 'En maintenance';
+      case 'inactive': return 'Inactif';
+      default: return status;
     }
   };
 
-  const roleLabels: Record<string, string> = { admin: 'Admin', manager: 'Manager', cashier: 'Guichetier', accountant: 'Comptable', mechanic: 'Mécanicien' };
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold">Véhicules ({vehicles.length})</h2>
+        <Button onClick={() => { setEditing(null); setForm({ registration_number: '', agency_id: '', brand: '', model: '', seats: '50', status: 'active' }); setDialogOpen(true); }} className="gap-2"><Plus className="w-4 h-4" /> Ajouter</Button>
+      </div>
+
+      <Card>
+        {isLoading ? (
+          <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Immatriculation</TableHead>
+                <TableHead>Agence</TableHead>
+                <TableHead>Marque / Modèle</TableHead>
+                <TableHead className="text-center">Places</TableHead>
+                <TableHead>Statut</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {vehicles.map((v: any) => (
+                <TableRow key={v.id}>
+                  <TableCell className="font-medium">{v.registration_number}</TableCell>
+                  <TableCell>{v.agency?.name || '-'}</TableCell>
+                  <TableCell>{[v.brand, v.model].filter(Boolean).join(' ') || '-'}</TableCell>
+                  <TableCell className="text-center">{v.seats}</TableCell>
+                  <TableCell>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      v.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                      v.status === 'maintenance' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                      'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                    }`}>{getStatusLabel(v.status)}</span>
+                  </TableCell>
+                  <TableCell className="text-right space-x-2">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(v)}><Pencil className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { if (window.confirm(`Supprimer "${v.registration_number}" ?`)) deleteMutation.mutate(v.id); }}><Trash2 className="w-4 h-4" /></Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {vehicles.length === 0 && (
+                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Aucun véhicule</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editing ? 'Modifier le véhicule' : 'Nouveau véhicule'}</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2"><Label>Immatriculation *</Label><Input value={form.registration_number} onChange={(e) => setForm({ ...form, registration_number: e.target.value })} placeholder="BUS-01" /></div>
+            <div className="grid gap-2">
+              <Label>Agence</Label>
+              <Select value={form.agency_id} onValueChange={(v) => setForm({ ...form, agency_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                <SelectContent>{agencies.map((a: any) => <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2"><Label>Marque</Label><Input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} /></div>
+              <div className="grid gap-2"><Label>Modèle</Label><Input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2"><Label>Places</Label><Input type="number" value={form.seats} onChange={(e) => setForm({ ...form, seats: e.target.value })} /></div>
+              <div className="grid gap-2">
+                <Label>Statut</Label>
+                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Actif</SelectItem>
+                    <SelectItem value="maintenance">En maintenance</SelectItem>
+                    <SelectItem value="inactive">Inactif</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={!form.registration_number || saveMutation.isPending}>{saveMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+/* ---------- USERS TAB ---------- */
+const UsersTab = () => {
+  const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState({ name: '', email: '', role: 'cashier', agency_id: '' });
+
+  const { data: agencies = [] } = useQuery({
+    queryKey: ['agencies'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('agencies').select('*').order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ['profiles'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('profiles').select('*, agency:agencies(*)').order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        name: form.name,
+        role: form.role,
+        agency_id: form.agency_id ? parseInt(form.agency_id) : null,
+      };
+      if (editing) {
+        const { error } = await supabase.from('profiles').update(payload).eq('id', editing.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      setDialogOpen(false);
+      setEditing(null);
+      setForm({ name: '', email: '', role: 'cashier', agency_id: '' });
+      toast.success('Profil modifié');
+    },
+    onError: (error: any) => toast.error(error.message),
+  });
+
+  const openEdit = (user: any) => {
+    setEditing(user);
+    setForm({ name: user.name, email: user.email, role: user.role, agency_id: user.agency_id?.toString() || '' });
+    setDialogOpen(true);
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'admin': return 'Admin';
+      case 'manager': return 'Manager';
+      case 'cashier': return 'Guichetier';
+      case 'accountant': return 'Comptable';
+      case 'mechanic': return 'Mécanicien';
+      default: return role;
+    }
+  };
 
   return (
     <div className="space-y-4">
-      {editing && (
-        <div className="bg-card rounded-xl border border-border p-4">
-          <h2 className="text-sm font-semibold mb-3">Modifier l'utilisateur</h2>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div><Label className="text-xs">Nom *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required className="mt-1" /></div>
-            <div>
-              <Label className="text-xs">Rôle *</Label>
-              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as User['role'] })}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold">Utilisateurs ({users.length})</h2>
+        <p className="text-sm text-muted-foreground">Les utilisateurs se créent via l'inscription</p>
+      </div>
+
+      <Card>
+        {isLoading ? (
+          <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nom</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Rôle</TableHead>
+                <TableHead>Agence</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((u: any) => (
+                <TableRow key={u.id}>
+                  <TableCell className="font-medium">{u.name}</TableCell>
+                  <TableCell>{u.email}</TableCell>
+                  <TableCell>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      u.role === 'admin' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                      u.role === 'manager' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                      'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                    }`}>{getRoleLabel(u.role)}</span>
+                  </TableCell>
+                  <TableCell>{u.agency?.name || '(Central)'}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(u)}><Pencil className="w-4 h-4" /></Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {users.length === 0 && (
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Aucun utilisateur</TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Modifier l'utilisateur</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2"><Label>Nom</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+            <div className="grid gap-2"><Label>Email</Label><Input type="email" value={form.email} disabled className="bg-muted" /></div>
+            <div className="grid gap-2">
+              <Label>Rôle</Label>
+              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="manager">Manager</SelectItem>
@@ -461,46 +643,23 @@ const UsersTab = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label className="text-xs">Agence</Label>
+            <div className="grid gap-2">
+              <Label>Agence</Label>
               <Select value={form.agency_id} onValueChange={(v) => setForm({ ...form, agency_id: v })}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Aucune" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="(Central)" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">(Central)</SelectItem>
-                  {agencies?.map((a) => <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>)}
+                  <SelectItem value="">Central</SelectItem>
+                  {agencies.map((a: any) => <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div className="md:col-span-3 flex justify-end gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={resetForm}><X className="w-4 h-4 mr-1" /> Annuler</Button>
-              <Button type="submit" size="sm"><Plus className="w-4 h-4 mr-1" /> Modifier</Button>
-            </div>
-          </form>
-        </div>
-      )}
-      <div className="bg-card rounded-xl border border-border p-4">
-        <h3 className="text-sm font-semibold mb-3">Utilisateurs ({users?.length || 0})</h3>
-        <p className="text-xs text-muted-foreground mb-3">Les utilisateurs sont créés via l'inscription. Vous pouvez modifier leur rôle et agence ici.</p>
-        {isLoading ? <Skeleton className="h-20 w-full" /> : (
-          <table className="min-w-full text-sm">
-            <thead className="text-xs text-muted-foreground border-b"><tr><th className="px-3 py-2 text-left">Nom</th><th className="px-3 py-2 text-left">Email</th><th className="px-3 py-2 text-left">Rôle</th><th className="px-3 py-2 text-left">Agence</th><th className="px-3 py-2 text-right">Actions</th></tr></thead>
-            <tbody>
-              {users?.map((u) => (
-                <tr key={u.id} className="border-b border-border/50 hover:bg-muted/50">
-                  <td className="px-3 py-2">{u.name}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{u.email}</td>
-                  <td className="px-3 py-2"><span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">{roleLabels[u.role]}</span></td>
-                  <td className="px-3 py-2 text-muted-foreground">{u.agency_name || '(Central)'}</td>
-                  <td className="px-3 py-2 text-right">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(u)}><Pencil className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(u.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={!form.name || saveMutation.isPending}>{saveMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
