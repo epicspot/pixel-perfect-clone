@@ -8,6 +8,9 @@ import Index from "./pages/Index";
 import Tickets from "./pages/Tickets";
 import Voyages from "./pages/Voyages";
 import Rapports from "./pages/Rapports";
+import ReportAgency from "./pages/ReportAgency";
+import ReportRoutes from "./pages/ReportRoutes";
+import ReportCashiers from "./pages/ReportCashiers";
 import Parametres from "./pages/Parametres";
 import Admin from "./pages/Admin";
 import Maintenance from "./pages/Maintenance";
@@ -69,6 +72,30 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Rapports />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rapports/agence"
+        element={
+          <ProtectedRoute>
+            <ReportAgency />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rapports/lignes"
+        element={
+          <ProtectedRoute>
+            <ReportRoutes />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rapports/caisse"
+        element={
+          <ProtectedRoute>
+            <ReportCashiers />
           </ProtectedRoute>
         }
       />
