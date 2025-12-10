@@ -75,8 +75,8 @@ const Index = () => {
               delay={200}
             />
             <StatCard
-              title="Ventes du mois"
-              value={formatCurrency(stats?.month.sales_amount || 0)}
+              title="Ventes de la période"
+              value={formatCurrency(stats?.period.sales_amount || 0)}
               icon={Users}
               delay={300}
             />
