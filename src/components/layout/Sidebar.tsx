@@ -7,7 +7,8 @@ import {
   Settings,
   LogOut,
   ChevronLeft,
-  Menu
+  Menu,
+  Shield
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ const navItems = [
   { to: '/tickets', icon: Ticket, label: 'Tickets' },
   { to: '/voyages', icon: Bus, label: 'Voyages' },
   { to: '/rapports', icon: BarChart3, label: 'Rapports' },
+  { to: '/admin', icon: Shield, label: 'Administration', adminOnly: true },
   { to: '/parametres', icon: Settings, label: 'Paramètres' },
 ];
 
@@ -84,7 +86,9 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
-        {navItems.map((item) => (
+        {navItems
+          .filter((item) => !item.adminOnly || user?.role === 'admin')
+          .map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
