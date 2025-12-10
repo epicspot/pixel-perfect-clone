@@ -18,8 +18,11 @@ export type Database = {
         Row: {
           address: string | null
           city: string | null
+          code: string | null
           created_at: string
+          email: string | null
           id: number
+          is_active: boolean
           name: string
           phone: string | null
           updated_at: string
@@ -27,8 +30,11 @@ export type Database = {
         Insert: {
           address?: string | null
           city?: string | null
+          code?: string | null
           created_at?: string
+          email?: string | null
           id?: number
+          is_active?: boolean
           name: string
           phone?: string | null
           updated_at?: string
@@ -36,13 +42,223 @@ export type Database = {
         Update: {
           address?: string | null
           city?: string | null
+          code?: string | null
           created_at?: string
+          email?: string | null
           id?: number
+          is_active?: boolean
           name?: string
           phone?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          agency_id: number | null
+          created_at: string
+          description: string | null
+          entity_id: number | null
+          entity_type: string | null
+          id: number
+          ip_address: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          agency_id?: number | null
+          created_at?: string
+          description?: string | null
+          entity_id?: number | null
+          entity_type?: string | null
+          id?: number
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          agency_id?: number | null
+          created_at?: string
+          description?: string | null
+          entity_id?: number | null
+          entity_type?: string | null
+          id?: number
+          ip_address?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_closures: {
+        Row: {
+          agency_id: number | null
+          closure_date: string
+          created_at: string
+          difference: number | null
+          from_datetime: string
+          id: number
+          status: Database["public"]["Enums"]["cash_closure_status"]
+          to_datetime: string
+          total_card_sales: number
+          total_cash_sales: number
+          total_mobile_money_sales: number
+          total_tickets_count: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          agency_id?: number | null
+          closure_date?: string
+          created_at?: string
+          difference?: number | null
+          from_datetime: string
+          id?: number
+          status?: Database["public"]["Enums"]["cash_closure_status"]
+          to_datetime: string
+          total_card_sales?: number
+          total_cash_sales?: number
+          total_mobile_money_sales?: number
+          total_tickets_count?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          agency_id?: number | null
+          closure_date?: string
+          created_at?: string
+          difference?: number | null
+          from_datetime?: string
+          id?: number
+          status?: Database["public"]["Enums"]["cash_closure_status"]
+          to_datetime?: string
+          total_card_sales?: number
+          total_cash_sales?: number
+          total_mobile_money_sales?: number
+          total_tickets_count?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_closures_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_categories: {
+        Row: {
+          code: string
+          created_at: string
+          id: number
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          agency_id: number | null
+          amount: number
+          category_id: number | null
+          created_at: string
+          description: string | null
+          expense_date: string
+          id: number
+          recorded_by: string | null
+          staff_id: number | null
+          supporting_document_path: string | null
+          updated_at: string
+          vehicle_id: number | null
+        }
+        Insert: {
+          agency_id?: number | null
+          amount: number
+          category_id?: number | null
+          created_at?: string
+          description?: string | null
+          expense_date?: string
+          id?: number
+          recorded_by?: string | null
+          staff_id?: number | null
+          supporting_document_path?: string | null
+          updated_at?: string
+          vehicle_id?: number | null
+        }
+        Update: {
+          agency_id?: number | null
+          amount?: number
+          category_id?: number | null
+          created_at?: string
+          description?: string | null
+          expense_date?: string
+          id?: number
+          recorded_by?: string | null
+          staff_id?: number | null
+          supporting_document_path?: string | null
+          updated_at?: string
+          vehicle_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fuel_entries: {
         Row: {
@@ -52,7 +268,10 @@ export type Database = {
           filled_at: string
           id: number
           liters: number
+          note: string | null
+          odometer_km: number | null
           price_per_liter: number
+          supplier_id: number | null
           total_amount: number
           vehicle_id: number | null
         }
@@ -63,7 +282,10 @@ export type Database = {
           filled_at?: string
           id?: number
           liters?: number
+          note?: string | null
+          odometer_km?: number | null
           price_per_liter?: number
+          supplier_id?: number | null
           total_amount?: number
           vehicle_id?: number | null
         }
@@ -74,7 +296,10 @@ export type Database = {
           filled_at?: string
           id?: number
           liters?: number
+          note?: string | null
+          odometer_km?: number | null
           price_per_liter?: number
+          supplier_id?: number | null
           total_amount?: number
           vehicle_id?: number | null
         }
@@ -87,10 +312,85 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fuel_entries_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "fuel_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fuel_entries_vehicle_id_fkey"
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fuel_suppliers: {
+        Row: {
+          contact: string | null
+          created_at: string
+          id: number
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          contact?: string | null
+          created_at?: string
+          id?: number
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contact?: string | null
+          created_at?: string
+          id?: number
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      maintenance_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: number
+          maintenance_order_id: number | null
+          quantity: number
+          total_cost: number
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: number
+          maintenance_order_id?: number | null
+          quantity?: number
+          total_cost?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: number
+          maintenance_order_id?: number | null
+          quantity?: number
+          total_cost?: number
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_items_maintenance_order_id_fkey"
+            columns: ["maintenance_order_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -105,6 +405,7 @@ export type Database = {
           odometer_km: number | null
           opened_at: string
           reported_by: string | null
+          reported_by_staff: number | null
           status: string
           title: string
           total_cost: number | null
@@ -122,6 +423,7 @@ export type Database = {
           odometer_km?: number | null
           opened_at?: string
           reported_by?: string | null
+          reported_by_staff?: number | null
           status?: string
           title: string
           total_cost?: number | null
@@ -139,6 +441,7 @@ export type Database = {
           odometer_km?: number | null
           opened_at?: string
           reported_by?: string | null
+          reported_by_staff?: number | null
           status?: string
           title?: string
           total_cost?: number | null
@@ -156,6 +459,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "maintenance_orders_reported_by_staff_fkey"
+            columns: ["reported_by_staff"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "maintenance_orders_vehicle_id_fkey"
             columns: ["vehicle_id"]
             isOneToOne: false
@@ -163,6 +473,96 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payroll_entries: {
+        Row: {
+          allowances: number
+          base_salary: number
+          bonuses: number
+          created_at: string
+          deductions: number
+          id: number
+          net_salary: number
+          paid_at: string | null
+          payment_method: string | null
+          payroll_period_id: number | null
+          staff_id: number | null
+          updated_at: string
+        }
+        Insert: {
+          allowances?: number
+          base_salary?: number
+          bonuses?: number
+          created_at?: string
+          deductions?: number
+          id?: number
+          net_salary?: number
+          paid_at?: string | null
+          payment_method?: string | null
+          payroll_period_id?: number | null
+          staff_id?: number | null
+          updated_at?: string
+        }
+        Update: {
+          allowances?: number
+          base_salary?: number
+          bonuses?: number
+          created_at?: string
+          deductions?: number
+          id?: number
+          net_salary?: number
+          paid_at?: string | null
+          payment_method?: string | null
+          payroll_period_id?: number | null
+          staff_id?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_entries_payroll_period_id_fkey"
+            columns: ["payroll_period_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_entries_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_periods: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: number
+          label: string
+          start_date: string
+          status: Database["public"]["Enums"]["payroll_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: number
+          label: string
+          start_date: string
+          status?: Database["public"]["Enums"]["payroll_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: number
+          label?: string
+          start_date?: string
+          status?: Database["public"]["Enums"]["payroll_status"]
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -208,7 +608,9 @@ export type Database = {
           base_price: number
           created_at: string
           departure_agency_id: number | null
+          distance_km: number | null
           id: number
+          is_active: boolean
           name: string
           updated_at: string
         }
@@ -217,7 +619,9 @@ export type Database = {
           base_price?: number
           created_at?: string
           departure_agency_id?: number | null
+          distance_km?: number | null
           id?: number
+          is_active?: boolean
           name: string
           updated_at?: string
         }
@@ -226,7 +630,9 @@ export type Database = {
           base_price?: number
           created_at?: string
           departure_agency_id?: number | null
+          distance_km?: number | null
           id?: number
+          is_active?: boolean
           name?: string
           updated_at?: string
         }
@@ -247,50 +653,152 @@ export type Database = {
           },
         ]
       }
+      staff: {
+        Row: {
+          agency_id: number | null
+          base_salary: number | null
+          created_at: string
+          email: string | null
+          first_name: string
+          full_name: string | null
+          hire_date: string | null
+          id: number
+          is_active: boolean
+          job_title: string | null
+          last_name: string
+          phone: string | null
+          staff_type: Database["public"]["Enums"]["staff_type"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          agency_id?: number | null
+          base_salary?: number | null
+          created_at?: string
+          email?: string | null
+          first_name: string
+          full_name?: string | null
+          hire_date?: string | null
+          id?: number
+          is_active?: boolean
+          job_title?: string | null
+          last_name: string
+          phone?: string | null
+          staff_type?: Database["public"]["Enums"]["staff_type"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          agency_id?: number | null
+          base_salary?: number | null
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          full_name?: string | null
+          hire_date?: string | null
+          id?: number
+          is_active?: boolean
+          job_title?: string | null
+          last_name?: string
+          phone?: string | null
+          staff_type?: Database["public"]["Enums"]["staff_type"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
+          agency_id: number | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string
           created_by: string | null
+          currency: string | null
           customer_name: string | null
+          customer_phone: string | null
           id: number
+          paid_at: string | null
           payment_method: string | null
           price: number
           reference: string | null
+          refund_amount: number | null
+          refund_reason: string | null
+          seat_number: string | null
+          seller_id: string | null
           sold_at: string | null
           status: string
+          ticket_number: string | null
           total_amount: number
           trip_id: number | null
           updated_at: string
         }
         Insert: {
+          agency_id?: number | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           created_by?: string | null
+          currency?: string | null
           customer_name?: string | null
+          customer_phone?: string | null
           id?: number
+          paid_at?: string | null
           payment_method?: string | null
           price?: number
           reference?: string | null
+          refund_amount?: number | null
+          refund_reason?: string | null
+          seat_number?: string | null
+          seller_id?: string | null
           sold_at?: string | null
           status?: string
+          ticket_number?: string | null
           total_amount?: number
           trip_id?: number | null
           updated_at?: string
         }
         Update: {
+          agency_id?: number | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           created_by?: string | null
+          currency?: string | null
           customer_name?: string | null
+          customer_phone?: string | null
           id?: number
+          paid_at?: string | null
           payment_method?: string | null
           price?: number
           reference?: string | null
+          refund_amount?: number | null
+          refund_reason?: string | null
+          seat_number?: string | null
+          seller_id?: string | null
           sold_at?: string | null
           status?: string
+          ticket_number?: string | null
           total_amount?: number
           trip_id?: number | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tickets_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tickets_trip_id_fkey"
             columns: ["trip_id"]
@@ -303,9 +811,13 @@ export type Database = {
       trips: {
         Row: {
           arrival_datetime: string | null
+          assistant_id: number | null
+          capacity: number | null
           created_at: string
           departure_datetime: string
+          driver_id: number | null
           id: number
+          notes: string | null
           route_id: number | null
           status: string
           updated_at: string
@@ -313,9 +825,13 @@ export type Database = {
         }
         Insert: {
           arrival_datetime?: string | null
+          assistant_id?: number | null
+          capacity?: number | null
           created_at?: string
           departure_datetime: string
+          driver_id?: number | null
           id?: number
+          notes?: string | null
           route_id?: number | null
           status?: string
           updated_at?: string
@@ -323,15 +839,33 @@ export type Database = {
         }
         Update: {
           arrival_datetime?: string | null
+          assistant_id?: number | null
+          capacity?: number | null
           created_at?: string
           departure_datetime?: string
+          driver_id?: number | null
           id?: number
+          notes?: string | null
           route_id?: number | null
           status?: string
           updated_at?: string
           vehicle_id?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "trips_assistant_id_fkey"
+            columns: ["assistant_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trips_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "trips_route_id_fkey"
             columns: ["route_id"]
@@ -348,8 +882,88 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vehicle_assignments: {
+        Row: {
+          agency_id: number | null
+          created_at: string
+          ended_at: string | null
+          id: number
+          note: string | null
+          route_id: number | null
+          started_at: string
+          updated_at: string
+          vehicle_id: number | null
+        }
+        Insert: {
+          agency_id?: number | null
+          created_at?: string
+          ended_at?: string | null
+          id?: number
+          note?: string | null
+          route_id?: number | null
+          started_at?: string
+          updated_at?: string
+          vehicle_id?: number | null
+        }
+        Update: {
+          agency_id?: number | null
+          created_at?: string
+          ended_at?: string | null
+          id?: number
+          note?: string | null
+          route_id?: number | null
+          started_at?: string
+          updated_at?: string
+          vehicle_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_assignments_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_assignments_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_assignments_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
+          acquisition_date: string | null
           agency_id: number | null
           brand: string | null
           created_at: string
@@ -358,9 +972,11 @@ export type Database = {
           registration_number: string
           seats: number
           status: string
+          type: string | null
           updated_at: string
         }
         Insert: {
+          acquisition_date?: string | null
           agency_id?: number | null
           brand?: string | null
           created_at?: string
@@ -369,9 +985,11 @@ export type Database = {
           registration_number: string
           seats?: number
           status?: string
+          type?: string | null
           updated_at?: string
         }
         Update: {
+          acquisition_date?: string | null
           agency_id?: number | null
           brand?: string | null
           created_at?: string
@@ -380,6 +998,7 @@ export type Database = {
           registration_number?: string
           seats?: number
           status?: string
+          type?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -398,10 +1017,39 @@ export type Database = {
     }
     Functions: {
       get_user_role: { Args: { user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_admin: { Args: { user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role:
+        | "admin"
+        | "manager"
+        | "cashier"
+        | "accountant"
+        | "mechanic"
+        | "driver"
+        | "assistant"
+      cash_closure_status: "open" | "closed" | "validated"
+      maintenance_status: "open" | "in_progress" | "closed" | "cancelled"
+      maintenance_type: "preventive" | "corrective" | "other"
+      payment_method: "cash" | "mobile_money" | "card" | "other"
+      payroll_status: "open" | "closed"
+      staff_type:
+        | "driver"
+        | "assistant"
+        | "cashier"
+        | "admin"
+        | "mechanic"
+        | "other"
+      ticket_status: "reserved" | "paid" | "cancelled" | "refunded" | "used"
+      trip_status: "planned" | "boarding" | "departed" | "arrived" | "cancelled"
+      vehicle_status: "active" | "maintenance" | "inactive"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -528,6 +1176,32 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: [
+        "admin",
+        "manager",
+        "cashier",
+        "accountant",
+        "mechanic",
+        "driver",
+        "assistant",
+      ],
+      cash_closure_status: ["open", "closed", "validated"],
+      maintenance_status: ["open", "in_progress", "closed", "cancelled"],
+      maintenance_type: ["preventive", "corrective", "other"],
+      payment_method: ["cash", "mobile_money", "card", "other"],
+      payroll_status: ["open", "closed"],
+      staff_type: [
+        "driver",
+        "assistant",
+        "cashier",
+        "admin",
+        "mechanic",
+        "other",
+      ],
+      ticket_status: ["reserved", "paid", "cancelled", "refunded", "used"],
+      trip_status: ["planned", "boarding", "departed", "arrived", "cancelled"],
+      vehicle_status: ["active", "maintenance", "inactive"],
+    },
   },
 } as const
