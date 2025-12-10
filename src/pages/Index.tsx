@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FileText, FileSpreadsheet } from 'lucide-react';
 
 const Index = () => {
   const { user } = useAuth();
@@ -33,6 +34,16 @@ const Index = () => {
       setAppliedFrom(fromDate);
       setAppliedTo(toDate);
     }
+  };
+
+  const handleExportPdf = () => {
+    const url = api.getDashboardExportPdfUrl({ from: appliedFrom, to: appliedTo });
+    window.open(url, '_blank');
+  };
+
+  const handleExportExcel = () => {
+    const url = api.getDashboardExportExcelUrl({ from: appliedFrom, to: appliedTo });
+    window.open(url, '_blank');
   };
 
   const isAdminView = ['admin', 'manager', 'accountant'].includes(user?.role ?? '');
@@ -75,6 +86,26 @@ const Index = () => {
           >
             Appliquer
           </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPdf}
+              disabled={!stats}
+              title="Exporter en PDF"
+            >
+              <FileText className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportExcel}
+              disabled={!stats}
+              title="Exporter en Excel"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Error */}

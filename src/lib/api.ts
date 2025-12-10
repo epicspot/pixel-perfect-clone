@@ -249,6 +249,23 @@ class ApiClient {
     return this.request(`/admin/dashboard-stats${queryString ? `?${queryString}` : ''}`);
   }
 
+  // Dashboard Export URLs
+  getDashboardExportPdfUrl(params?: { from?: string; to?: string }): string {
+    const query = new URLSearchParams();
+    if (params?.from) query.set('from', params.from);
+    if (params?.to) query.set('to', params.to);
+    const queryString = query.toString();
+    return `${API_BASE_URL}/api/admin/dashboard-stats/export/pdf${queryString ? `?${queryString}` : ''}`;
+  }
+
+  getDashboardExportExcelUrl(params?: { from?: string; to?: string }): string {
+    const query = new URLSearchParams();
+    if (params?.from) query.set('from', params.from);
+    if (params?.to) query.set('to', params.to);
+    const queryString = query.toString();
+    return `${API_BASE_URL}/api/admin/dashboard-stats/export/excel${queryString ? `?${queryString}` : ''}`;
+  }
+
   // Agencies
   async getAgencies(): Promise<Agency[]> {
     return this.request('/admin/agencies');
