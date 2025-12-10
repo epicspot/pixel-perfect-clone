@@ -233,7 +233,7 @@ class ApiClient {
 
   // Dashboard
   async getDashboardStats(): Promise<DashboardStats> {
-    return this.request('/admin/dashboard/stats');
+    return this.request('/admin/dashboard-stats');
   }
 
   // Agencies
