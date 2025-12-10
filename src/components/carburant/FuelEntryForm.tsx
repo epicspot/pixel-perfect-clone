@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { api, FuelEntry } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const fuelEntrySchema = z.object({
@@ -33,9 +33,15 @@ const fuelEntrySchema = z.object({
 
 type FuelEntryFormData = z.infer<typeof fuelEntrySchema>;
 
-export const FuelEntryForm: React.FC = () => {
+interface FuelEntryFormProps {
+  entry?: FuelEntry;
+  trigger?: React.ReactNode;
+}
+
+export const FuelEntryForm: React.FC<FuelEntryFormProps> = ({ entry, trigger }) => {
   const [open, setOpen] = React.useState(false);
   const queryClient = useQueryClient();
+  const isEditing = !!entry;
 
   const { data: vehicles } = useQuery({
     queryKey: ['vehicles'],
@@ -45,17 +51,29 @@ export const FuelEntryForm: React.FC = () => {
   const form = useForm<FuelEntryFormData>({
     resolver: zodResolver(fuelEntrySchema),
     defaultValues: {
-      liters: 0,
-      price_per_liter: 0,
-      filled_at: new Date().toISOString().split('T')[0],
+      vehicle_id: entry?.vehicle_id || undefined,
+      liters: entry?.liters || 0,
+      price_per_liter: entry?.price_per_liter || 0,
+      filled_at: entry?.filled_at?.split('T')[0] || new Date().toISOString().split('T')[0],
     },
   });
+
+  React.useEffect(() => {
+    if (entry && open) {
+      form.reset({
+        vehicle_id: entry.vehicle_id,
+        liters: entry.liters,
+        price_per_liter: entry.price_per_liter,
+        filled_at: entry.filled_at?.split('T')[0],
+      });
+    }
+  }, [entry, open, form]);
 
   const liters = form.watch('liters');
   const pricePerLiter = form.watch('price_per_liter');
   const totalAmount = (liters || 0) * (pricePerLiter || 0);
 
-  const mutation = useMutation({
+  const createMutation = useMutation({
     mutationFn: (data: FuelEntryFormData) => {
       const vehicle = vehicles?.find((v) => v.id === data.vehicle_id);
       return api.createFuelEntry({
@@ -69,8 +87,7 @@ export const FuelEntryForm: React.FC = () => {
     },
     onSuccess: () => {
       toast({ title: 'Entrée carburant ajoutée' });
-      queryClient.invalidateQueries({ queryKey: ['fuel-stats-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['fuel-stats-vehicle'] });
+      invalidateQueries();
       form.reset();
       setOpen(false);
     },
@@ -79,24 +96,62 @@ export const FuelEntryForm: React.FC = () => {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: (data: FuelEntryFormData) => {
+      const vehicle = vehicles?.find((v) => v.id === data.vehicle_id);
+      return api.updateFuelEntry(entry!.id, {
+        vehicle_id: data.vehicle_id,
+        agency_id: vehicle?.agency_id || 0,
+        liters: data.liters,
+        price_per_liter: data.price_per_liter,
+        total_amount: totalAmount,
+        filled_at: data.filled_at ? `${data.filled_at}T12:00:00Z` : undefined,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'Entrée carburant modifiée' });
+      invalidateQueries();
+      setOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const invalidateQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ['fuel-entries'] });
+    queryClient.invalidateQueries({ queryKey: ['fuel-stats-summary'] });
+    queryClient.invalidateQueries({ queryKey: ['fuel-stats-vehicle'] });
+  };
+
   const onSubmit = (data: FuelEntryFormData) => {
-    mutation.mutate(data);
+    if (isEditing) {
+      updateMutation.mutate(data);
+    } else {
+      createMutation.mutate(data);
+    }
   };
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
 
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="w-4 h-4 mr-1" />
-          Ajouter
-        </Button>
+        {trigger || (
+          <Button size="sm">
+            <Plus className="w-4 h-4 mr-1" />
+            Ajouter
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Nouvelle entrée carburant</DialogTitle>
+          <DialogTitle>
+            {isEditing ? 'Modifier entrée carburant' : 'Nouvelle entrée carburant'}
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div>
@@ -172,8 +227,8 @@ export const FuelEntryForm: React.FC = () => {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Annuler
             </Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            <Button type="submit" disabled={isPending}>
+              {isPending ? 'Enregistrement...' : isEditing ? 'Modifier' : 'Enregistrer'}
             </Button>
           </div>
         </form>

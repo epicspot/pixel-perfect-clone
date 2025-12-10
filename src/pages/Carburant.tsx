@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FuelEntryForm } from '@/components/carburant/FuelEntryForm';
+import { FuelEntriesList } from '@/components/carburant/FuelEntriesList';
 import { Fuel, TrendingUp } from 'lucide-react';
 
 const Carburant = () => {
@@ -166,6 +167,14 @@ const Carburant = () => {
             </div>
           </div>
         )}
+
+        {/* Fuel Entries List */}
+        <div className="bg-card rounded-xl border border-border p-4">
+          <h3 className="text-sm font-semibold text-card-foreground mb-3">
+            Historique des pleins
+          </h3>
+          <FuelEntriesList from={appliedFrom} to={appliedTo} />
+        </div>
 
         {/* Per Vehicle */}
         <div className="bg-card rounded-xl border border-border p-4">

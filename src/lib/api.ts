@@ -565,6 +565,54 @@ export const api = {
     return data as unknown as FuelEntry;
   },
 
+  async getFuelEntries(params?: { from?: string; to?: string }): Promise<FuelEntry[]> {
+    let query = supabase
+      .from('fuel_entries')
+      .select(`
+        *,
+        vehicle:vehicles(*, agency:agencies(*)),
+        agency:agencies(*)
+      `)
+      .order('filled_at', { ascending: false });
+
+    if (params?.from) {
+      query = query.gte('filled_at', params.from);
+    }
+    if (params?.to) {
+      query = query.lte('filled_at', params.to);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return (data || []) as unknown as FuelEntry[];
+  },
+
+  async updateFuelEntry(id: number, entry: {
+    vehicle_id?: number;
+    agency_id?: number;
+    liters?: number;
+    price_per_liter?: number;
+    total_amount?: number;
+    filled_at?: string;
+  }): Promise<FuelEntry> {
+    const { data, error } = await supabase
+      .from('fuel_entries')
+      .update(entry)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data as unknown as FuelEntry;
+  },
+
+  async deleteFuelEntry(id: number): Promise<void> {
+    const { error } = await supabase
+      .from('fuel_entries')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error(error.message);
+  },
+
   // Dashboard Stats
   async getDashboardStats(params?: { from?: string; to?: string }): Promise<DashboardStats> {
     const today = new Date().toISOString().split('T')[0];
