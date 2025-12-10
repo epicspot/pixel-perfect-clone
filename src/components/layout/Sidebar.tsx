@@ -8,7 +8,9 @@ import {
   LogOut,
   ChevronLeft,
   Menu,
-  Shield
+  Shield,
+  Wrench,
+  Fuel
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -20,6 +22,8 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
   { to: '/tickets', icon: Ticket, label: 'Tickets' },
   { to: '/voyages', icon: Bus, label: 'Voyages' },
+  { to: '/carburant', icon: Fuel, label: 'Carburant' },
+  { to: '/maintenance', icon: Wrench, label: 'Maintenance' },
   { to: '/rapports', icon: BarChart3, label: 'Rapports' },
   { to: '/admin', icon: Shield, label: 'Administration', adminOnly: true },
   { to: '/parametres', icon: Settings, label: 'Paramètres' },

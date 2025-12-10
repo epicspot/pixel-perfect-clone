@@ -10,6 +10,8 @@ import Voyages from "./pages/Voyages";
 import Rapports from "./pages/Rapports";
 import Parametres from "./pages/Parametres";
 import Admin from "./pages/Admin";
+import Maintenance from "./pages/Maintenance";
+import Carburant from "./pages/Carburant";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -83,6 +85,22 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <Admin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/maintenance"
+          element={
+            <ProtectedRoute>
+              <Maintenance />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/carburant"
+          element={
+            <ProtectedRoute>
+              <Carburant />
             </ProtectedRoute>
           }
         />
