@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { Plus, MapPin, Clock, Users, Calendar, Bus, Search, Pencil, Trash2, FileText, Play, UserCheck, ArrowRight, CheckCircle, XCircle, User, UserCog } from 'lucide-react';
+import { Plus, MapPin, Clock, Users, Calendar, Bus, Search, Pencil, Trash2, FileText, Play, UserCheck, ArrowRight, CheckCircle, XCircle, User, UserCog, AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -102,6 +102,7 @@ const Voyages = () => {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingTrip, setEditingTrip] = React.useState<Trip | null>(null);
+  const [replacingVehicleTrip, setReplacingVehicleTrip] = React.useState<Trip | null>(null);
   // Admin voit le Siège par défaut
   const [adminAgencyFilter, setAdminAgencyFilter] = React.useState(SIEGE_AGENCY_ID);
 
@@ -449,6 +450,18 @@ const Voyages = () => {
                         {trip.vehicle.brand && ` • ${trip.vehicle.brand}`}
                       </p>
                       <div className="flex items-center gap-1">
+                        {/* Replacement vehicle button - shown for departed or boarding trips */}
+                        {['departed', 'in_progress', 'boarding'].includes(trip.status) && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-7 w-7 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                            onClick={() => setReplacingVehicleTrip(trip)}
+                            title="Panne - Véhicule de remplacement"
+                          >
+                            <AlertTriangle className="w-3 h-3" />
+                          </Button>
+                        )}
                         <Button 
                           variant="ghost" 
                           size="icon" 
@@ -523,6 +536,17 @@ const Voyages = () => {
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['trips'] });
             setEditingTrip(null);
+          }}
+        />
+
+        {/* Replace Vehicle Dialog */}
+        <ReplaceVehicleDialog
+          trip={replacingVehicleTrip}
+          open={!!replacingVehicleTrip}
+          onOpenChange={(open) => !open && setReplacingVehicleTrip(null)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['trips'] });
+            setReplacingVehicleTrip(null);
           }}
         />
       </div>
@@ -1322,6 +1346,209 @@ const CrewQuickEdit: React.FC<CrewQuickEditProps> = ({ trip, onSuccess }) => {
         </PopoverContent>
       </Popover>
     </div>
+  );
+};
+
+// Replace Vehicle Dialog (for breakdown situations)
+interface ReplaceVehicleDialogProps {
+  trip: Trip | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+}
+
+const ReplaceVehicleDialog: React.FC<ReplaceVehicleDialogProps> = ({ trip, open, onOpenChange, onSuccess }) => {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
+  const userAgencyId = profile?.agency_id;
+
+  const [vehicleId, setVehicleId] = React.useState('');
+  const [reason, setReason] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  // Reset form when dialog opens
+  React.useEffect(() => {
+    if (open) {
+      setVehicleId('');
+      setReason('');
+    }
+  }, [open]);
+
+  // Fetch all vehicles
+  const { data: allVehicles } = useQuery({
+    queryKey: ['vehicles-for-replacement'],
+    queryFn: () => api.getVehicles(),
+    enabled: open,
+  });
+
+  // Fetch vehicle current locations
+  const { data: vehicleLocations } = useQuery({
+    queryKey: ['vehicle-current-locations-replacement'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('trips')
+        .select(`
+          vehicle_id,
+          status,
+          route:routes(arrival_agency_id)
+        `)
+        .eq('status', 'arrived')
+        .order('arrival_datetime', { ascending: false });
+      
+      if (error) throw error;
+      
+      const locationMap: Record<number, number> = {};
+      data?.forEach(t => {
+        if (t.vehicle_id && !locationMap[t.vehicle_id]) {
+          locationMap[t.vehicle_id] = (t.route as any)?.arrival_agency_id;
+        }
+      });
+      return locationMap;
+    },
+    enabled: open,
+  });
+
+  // Fetch agencies to display locations
+  const { data: agencies } = useQuery({
+    queryKey: ['agencies-for-replacement'],
+    queryFn: () => api.getAgencies(),
+    enabled: open,
+  });
+
+  // Filter available vehicles (exclude current vehicle, show Siège + available vehicles)
+  const availableVehicles = React.useMemo(() => {
+    if (!allVehicles || !trip) return [];
+    
+    return allVehicles.filter(v => {
+      // Exclude current vehicle
+      if (v.id === trip.vehicle_id) return false;
+      
+      // Exclude vehicles in maintenance
+      if (v.status === 'maintenance' || v.status === 'inactive') return false;
+      
+      // Vehicles from Siège are always available
+      if (v.agency_id === Number(SIEGE_AGENCY_ID)) return true;
+      
+      // Admin sees all
+      if (isAdmin) return true;
+      
+      // User sees their agency + Siège
+      return v.agency_id === userAgencyId || v.agency_id === Number(SIEGE_AGENCY_ID);
+    });
+  }, [allVehicles, trip, isAdmin, userAgencyId]);
+
+  // Get vehicle location display
+  const getVehicleLocation = (vehicle: any) => {
+    const currentLocation = vehicleLocations?.[vehicle.id] || vehicle.agency_id;
+    const agency = agencies?.find(a => a.id === currentLocation);
+    return agency?.name || 'Inconnu';
+  };
+
+  const handleSubmit = async () => {
+    if (!trip || !vehicleId) return;
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('trips')
+        .update({ vehicle_id: Number(vehicleId) })
+        .eq('id', trip.id);
+
+      if (error) throw error;
+
+      // Log audit - use logAudit directly for custom description
+      const { logAudit } = await import('@/lib/audit');
+      await logAudit({
+        action: 'TRIP_UPDATE',
+        entityType: 'trip',
+        entityId: trip.id,
+        description: `Véhicule de remplacement assigné (panne) pour voyage ${trip.route?.name || 'N/A'}. Raison: ${reason || 'Non spécifiée'}`,
+      });
+
+      toast({
+        title: 'Véhicule remplacé',
+        description: 'Le véhicule de remplacement a été assigné au voyage.',
+      });
+
+      onSuccess();
+    } catch (error: any) {
+      toast({
+        title: 'Erreur',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-orange-600">
+            <AlertTriangle className="w-5 h-5" />
+            Véhicule de remplacement
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-2">
+          {trip && (
+            <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+              <p className="text-sm font-medium">{trip.route?.name}</p>
+              <p className="text-xs text-muted-foreground">
+                Véhicule actuel: {trip.vehicle?.registration_number}
+                {trip.vehicle?.brand && ` (${trip.vehicle.brand})`}
+              </p>
+            </div>
+          )}
+
+          <div>
+            <Label className="text-sm">Nouveau véhicule *</Label>
+            <Select value={vehicleId} onValueChange={setVehicleId}>
+              <SelectTrigger className="mt-1.5">
+                <SelectValue placeholder="Sélectionner un véhicule" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableVehicles.map((v) => (
+                  <SelectItem key={v.id} value={v.id.toString()}>
+                    {v.registration_number} {v.brand && `(${v.brand})`} • {v.seats} places • {getVehicleLocation(v)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {availableVehicles.length === 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Aucun véhicule disponible
+              </p>
+            )}
+          </div>
+
+          <div>
+            <Label className="text-sm">Raison du remplacement</Label>
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Décrivez la panne ou la raison du remplacement..."
+              className="mt-1.5 min-h-[80px]"
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Annuler
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={!vehicleId || isSubmitting}
+            className="bg-orange-600 hover:bg-orange-700 text-white"
+          >
+            {isSubmitting ? 'Enregistrement...' : 'Remplacer le véhicule'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
