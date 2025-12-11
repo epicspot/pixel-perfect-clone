@@ -290,20 +290,32 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
     setIsSubmitting(true);
     try {
       const reference = `TKT-${Date.now().toString(36).toUpperCase()}`;
-      const { error } = await supabase.from('tickets').insert({
+      const { data: newTicket, error } = await supabase.from('tickets').insert({
         trip_id: Number(tripId),
         customer_name: customerName.trim(),
+        customer_phone: customerPhone.trim() || null,
         price: effectivePrice,
         total_amount: effectivePrice,
         payment_method: paymentMethod,
         status: 'paid',
         sold_at: new Date().toISOString(),
         reference,
-      });
+      }).select().single();
 
       if (error) throw error;
 
-      toast({ title: 'Ticket vendu', description: `Ticket ${reference} créé pour ${customerName}` });
+      // Impression automatique du ticket
+      const ticketForPrint = {
+        ...newTicket,
+        trip: selectedTrip ? {
+          route: selectedTrip.route,
+          vehicle: selectedTrip.vehicle,
+          departure_datetime: selectedTrip.departure_datetime,
+        } : undefined,
+      };
+      generateTicketPdf(ticketForPrint);
+
+      toast({ title: 'Ticket vendu', description: `Ticket ${reference} créé et imprimé pour ${customerName}` });
       onSuccess();
       onOpenChange(false);
       resetForm();
