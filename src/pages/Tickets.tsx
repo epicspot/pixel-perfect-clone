@@ -374,7 +374,20 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
         return;
       }
 
-      const reference = `TKT-${Date.now().toString(36).toUpperCase()}`;
+      // Generate official ticket number: AGENCE-ANNEE-NUMERO
+      const departureAgency = selectedTrip?.route?.departure_agency as any;
+      const agencyCode = departureAgency?.code || departureAgency?.name?.substring(0, 3).toUpperCase() || 'TKT';
+      const year = new Date().getFullYear();
+      
+      // Get the next sequential number for this agency/year
+      const { count: ticketCount } = await supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .like('reference', `${agencyCode}-${year}-%`);
+      
+      const sequentialNumber = ((ticketCount || 0) + 1).toString().padStart(6, '0');
+      const reference = `${agencyCode}-${year}-${sequentialNumber}`;
+
       const { data: newTicket, error } = await supabase.from('tickets').insert({
         trip_id: Number(tripId),
         customer_name: customerName.trim(),
