@@ -556,20 +556,65 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
     queryFn: () => api.getRoutes(),
   });
 
-  // Fetch vehicles - include Siège (ID: 4) for all users
+  // Fetch vehicles
   const { data: allVehicles } = useQuery({
     queryKey: ['vehicles'],
     queryFn: () => api.getVehicles(),
   });
 
-  // Filter vehicles: admin sees all, others see their agency + Siège
+  // Fetch latest arrived trips to determine vehicle current locations
+  const { data: vehicleLocations } = useQuery({
+    queryKey: ['vehicle-current-locations'],
+    queryFn: async () => {
+      // Get the most recent arrived trip for each vehicle
+      const { data, error } = await supabase
+        .from('trips')
+        .select(`
+          vehicle_id,
+          status,
+          route:routes(arrival_agency_id)
+        `)
+        .eq('status', 'arrived')
+        .order('arrival_datetime', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Build a map of vehicle_id -> current_agency_id (based on latest arrived trip)
+      const locationMap: Record<number, number> = {};
+      data?.forEach(trip => {
+        if (trip.vehicle_id && !locationMap[trip.vehicle_id]) {
+          locationMap[trip.vehicle_id] = (trip.route as any)?.arrival_agency_id;
+        }
+      });
+      return locationMap;
+    },
+  });
+
+  // Get the departure agency of selected route for vehicle filtering
+  const routeForVehicleFilter = routes?.find(r => r.id.toString() === routeId);
+  const departureAgencyId = routeForVehicleFilter?.departure_agency_id;
+
+  // Filter vehicles based on their current location
   const vehicles = React.useMemo(() => {
     if (!allVehicles) return [];
-    if (isAdmin) return allVehicles;
-    return allVehicles.filter(v => 
-      v.agency_id === userAgencyId || v.agency_id === Number(SIEGE_AGENCY_ID)
-    );
-  }, [allVehicles, isAdmin, userAgencyId]);
+    
+    return allVehicles.filter(v => {
+      // Vehicles from Siège are always available
+      if (v.agency_id === Number(SIEGE_AGENCY_ID)) return true;
+      
+      // If no route selected, show all vehicles (for admin) or user's agency vehicles
+      if (!departureAgencyId) {
+        if (isAdmin) return true;
+        return v.agency_id === userAgencyId || v.agency_id === Number(SIEGE_AGENCY_ID);
+      }
+      
+      // Determine vehicle's current location
+      const currentLocation = vehicleLocations?.[v.id] || v.agency_id;
+      
+      // Show vehicle if it's currently at the departure agency
+      return currentLocation === departureAgencyId;
+    });
+  }, [allVehicles, vehicleLocations, departureAgencyId, isAdmin, userAgencyId]);
 
   // Fetch drivers and assistants from staff table
   const { data: allStaff } = useQuery({
@@ -853,13 +898,55 @@ const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChang
     queryFn: () => api.getVehicles(),
   });
 
+  // Fetch latest arrived trips to determine vehicle current locations
+  const { data: vehicleLocations } = useQuery({
+    queryKey: ['vehicle-current-locations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('trips')
+        .select(`
+          vehicle_id,
+          status,
+          route:routes(arrival_agency_id)
+        `)
+        .eq('status', 'arrived')
+        .order('arrival_datetime', { ascending: false });
+      
+      if (error) throw error;
+      
+      const locationMap: Record<number, number> = {};
+      data?.forEach(trip => {
+        if (trip.vehicle_id && !locationMap[trip.vehicle_id]) {
+          locationMap[trip.vehicle_id] = (trip.route as any)?.arrival_agency_id;
+        }
+      });
+      return locationMap;
+    },
+  });
+
+  const routeForVehicleFilter = routes?.find(r => r.id.toString() === routeId);
+  const departureAgencyId = routeForVehicleFilter?.departure_agency_id;
+
   const vehicles = React.useMemo(() => {
     if (!allVehicles) return [];
-    if (isAdmin) return allVehicles;
-    return allVehicles.filter(v => 
-      v.agency_id === userAgencyId || v.agency_id === Number(SIEGE_AGENCY_ID)
-    );
-  }, [allVehicles, isAdmin, userAgencyId]);
+    
+    return allVehicles.filter(v => {
+      // Vehicles from Siège are always available
+      if (v.agency_id === Number(SIEGE_AGENCY_ID)) return true;
+      
+      // If no route selected, show all for admin or user's agency
+      if (!departureAgencyId) {
+        if (isAdmin) return true;
+        return v.agency_id === userAgencyId || v.agency_id === Number(SIEGE_AGENCY_ID);
+      }
+      
+      // Determine vehicle's current location
+      const currentLocation = vehicleLocations?.[v.id] || v.agency_id;
+      
+      // Show vehicle if it's currently at the departure agency
+      return currentLocation === departureAgencyId;
+    });
+  }, [allVehicles, vehicleLocations, departureAgencyId, isAdmin, userAgencyId]);
 
   const { data: allStaff } = useQuery({
     queryKey: ['staff-for-trips'],
