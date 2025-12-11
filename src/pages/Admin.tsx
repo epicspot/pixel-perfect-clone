@@ -602,6 +602,19 @@ const UsersTab = () => {
     onError: (error: any) => toast.error(error.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      // Delete profile (user won't be able to login anymore)
+      const { error } = await supabase.from('profiles').delete().eq('id', userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      toast.success('Utilisateur supprimé');
+    },
+    onError: (error: any) => toast.error(error.message),
+  });
+
   const resetForm = () => {
     setEditing(null);
     setIsCreating(false);
@@ -619,6 +632,12 @@ const UsersTab = () => {
     setIsCreating(false);
     setForm({ name: user.name, email: user.email, password: '', role: user.role, agency_id: user.agency_id?.toString() || '' });
     setDialogOpen(true);
+  };
+
+  const handleDelete = (user: any) => {
+    if (window.confirm(`Supprimer l'utilisateur "${user.name}" ?`)) {
+      deleteMutation.mutate(user.id);
+    }
   };
 
   const handleSave = () => {
@@ -666,8 +685,9 @@ const UsersTab = () => {
                     </span>
                   </TableCell>
                   <TableCell>{u.agency?.name || '(Central)'}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-2">
                     <Button variant="ghost" size="sm" onClick={() => openEdit(u)}><Pencil className="w-4 h-4" /></Button>
+                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDelete(u)}><Trash2 className="w-4 h-4" /></Button>
                   </TableCell>
                 </TableRow>
               ))}
