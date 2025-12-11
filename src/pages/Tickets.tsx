@@ -7,8 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { Search, Plus, Filter, Ticket, TrendingUp, Bus, Printer } from 'lucide-react';
+import { Search, Plus, Filter, Ticket, TrendingUp, Bus, Printer, XCircle, RotateCcw, Eye, MoreHorizontal } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -23,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -31,6 +33,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from '@/hooks/use-toast';
@@ -38,10 +47,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { generateTicketPdf } from '@/lib/documentPdf';
 import { audit } from '@/lib/audit';
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; className: string }> = {
   paid: { label: 'Payé', className: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-800' },
   pending: { label: 'En attente', className: 'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 border-orange-100 dark:border-orange-800' },
   cancelled: { label: 'Annulé', className: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-100 dark:border-red-800' },
+  refunded: { label: 'Remboursé', className: 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-100 dark:border-purple-800' },
+  used: { label: 'Utilisé', className: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-800' },
+  reserved: { label: 'Réservé', className: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-100 dark:border-yellow-800' },
 };
 
 const paymentConfig: Record<string, { label: string; className: string }> = {
@@ -229,14 +241,27 @@ const Tickets = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={async () => await generateTicketPdf(ticket)}
-                          title="Imprimer le ticket"
-                        >
-                          <Printer className="w-4 h-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={async () => await generateTicketPdf(ticket)}>
+                              <Printer className="w-4 h-4 mr-2" />
+                              Imprimer
+                            </DropdownMenuItem>
+                            <TicketDetailsMenuItem ticket={ticket} />
+                            <DropdownMenuSeparator />
+                            {ticket.status === 'paid' && (
+                              <>
+                                <CancelTicketMenuItem ticket={ticket} onSuccess={() => queryClient.invalidateQueries({ queryKey: ['tickets'] })} />
+                                <RefundTicketMenuItem ticket={ticket} onSuccess={() => queryClient.invalidateQueries({ queryKey: ['tickets'] })} />
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   );
@@ -476,6 +501,320 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
         </form>
       </DialogContent>
     </Dialog>
+  );
+};
+
+// Cancel Ticket Menu Item
+const CancelTicketMenuItem: React.FC<{ ticket: any; onSuccess: () => void }> = ({ ticket, onSuccess }) => {
+  const [open, setOpen] = React.useState(false);
+  const [reason, setReason] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { user } = useAuth();
+
+  const handleCancel = async () => {
+    if (!reason.trim()) {
+      toast({ title: 'Erreur', description: 'Veuillez indiquer la raison de l\'annulation', variant: 'destructive' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('tickets').update({
+        status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        cancelled_by: user?.id,
+        refund_reason: reason.trim(),
+      }).eq('id', ticket.id);
+
+      if (error) throw error;
+
+      audit.ticketCancel(ticket.id, ticket.reference, reason.trim(), ticket.agency_id);
+
+      toast({ title: 'Ticket annulé', description: `Le ticket ${ticket.reference} a été annulé` });
+      setOpen(false);
+      setReason('');
+      onSuccess();
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setOpen(true); }}>
+        <XCircle className="w-4 h-4 mr-2 text-destructive" />
+        <span className="text-destructive">Annuler</span>
+      </DropdownMenuItem>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Annuler le ticket</DialogTitle>
+            <DialogDescription>
+              Ticket {ticket.reference} - {ticket.customer_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive">
+              Cette action est irréversible. Le ticket sera marqué comme annulé.
+            </div>
+            <div>
+              <Label className="text-xs">Raison de l'annulation *</Label>
+              <Textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Indiquez la raison de l'annulation..."
+                className="mt-1"
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">
+                Fermer
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleCancel} 
+                disabled={isSubmitting || !reason.trim()}
+                className="flex-1"
+              >
+                {isSubmitting ? 'Annulation...' : 'Confirmer l\'annulation'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+// Refund Ticket Menu Item
+const RefundTicketMenuItem: React.FC<{ ticket: any; onSuccess: () => void }> = ({ ticket, onSuccess }) => {
+  const [open, setOpen] = React.useState(false);
+  const [reason, setReason] = React.useState('');
+  const [refundAmount, setRefundAmount] = React.useState(ticket.price?.toString() || '0');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { user } = useAuth();
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+
+  const handleRefund = async () => {
+    if (!reason.trim()) {
+      toast({ title: 'Erreur', description: 'Veuillez indiquer la raison du remboursement', variant: 'destructive' });
+      return;
+    }
+
+    const amount = Number(refundAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({ title: 'Erreur', description: 'Montant de remboursement invalide', variant: 'destructive' });
+      return;
+    }
+
+    if (amount > (ticket.price || 0)) {
+      toast({ title: 'Erreur', description: 'Le montant ne peut pas dépasser le prix du ticket', variant: 'destructive' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('tickets').update({
+        status: 'refunded',
+        cancelled_at: new Date().toISOString(),
+        cancelled_by: user?.id,
+        refund_reason: reason.trim(),
+        refund_amount: amount,
+      }).eq('id', ticket.id);
+
+      if (error) throw error;
+
+      audit.ticketRefund(ticket.id, ticket.reference, amount, ticket.agency_id);
+
+      toast({ title: 'Ticket remboursé', description: `${formatCurrency(amount)} remboursé pour le ticket ${ticket.reference}` });
+      setOpen(false);
+      setReason('');
+      onSuccess();
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setOpen(true); }}>
+        <RotateCcw className="w-4 h-4 mr-2 text-purple-600" />
+        <span className="text-purple-600">Rembourser</span>
+      </DropdownMenuItem>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rembourser le ticket</DialogTitle>
+            <DialogDescription>
+              Ticket {ticket.reference} - {ticket.customer_name} ({formatCurrency(ticket.price || 0)})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs">Montant à rembourser (F CFA) *</Label>
+              <Input
+                type="number"
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+                className="mt-1"
+                max={ticket.price}
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Maximum: {formatCurrency(ticket.price || 0)}
+              </p>
+            </div>
+            <div>
+              <Label className="text-xs">Raison du remboursement *</Label>
+              <Textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Indiquez la raison du remboursement..."
+                className="mt-1"
+                rows={3}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setOpen(false)} className="flex-1">
+                Fermer
+              </Button>
+              <Button 
+                onClick={handleRefund} 
+                disabled={isSubmitting || !reason.trim()}
+                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                {isSubmitting ? 'Remboursement...' : `Rembourser ${formatCurrency(Number(refundAmount) || 0)}`}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+// Ticket Details Menu Item
+const TicketDetailsMenuItem: React.FC<{ ticket: any }> = ({ ticket }) => {
+  const [open, setOpen] = React.useState(false);
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '—';
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+
+  const status = statusConfig[ticket.status] || statusConfig.pending;
+  const payment = paymentConfig[ticket.payment_method || 'cash'] || paymentConfig.cash;
+
+  return (
+    <>
+      <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setOpen(true); }}>
+        <Eye className="w-4 h-4 mr-2" />
+        Détails
+      </DropdownMenuItem>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Détails du ticket</DialogTitle>
+            <DialogDescription>
+              {ticket.reference}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Status Badge */}
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className={cn('text-sm px-3 py-1', status.className)}>
+                {status.label}
+              </Badge>
+              <Badge variant="outline" className={cn('text-sm px-3 py-1', payment.className)}>
+                {payment.label}
+              </Badge>
+            </div>
+
+            {/* Client Info */}
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+              <h4 className="font-semibold text-sm">Informations client</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground text-xs">Nom</span>
+                  <p className="font-medium">{ticket.customer_name || 'Anonyme'}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Téléphone</span>
+                  <p className="font-medium">{ticket.customer_phone || '—'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Transaction Info */}
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+              <h4 className="font-semibold text-sm">Transaction</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-muted-foreground text-xs">Montant</span>
+                  <p className="font-bold text-lg">{formatCurrency(ticket.price || ticket.total_amount || 0)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Date de vente</span>
+                  <p className="font-medium">{formatDate(ticket.sold_at)}</p>
+                </div>
+                {ticket.seat_number && (
+                  <div>
+                    <span className="text-muted-foreground text-xs">Siège</span>
+                    <p className="font-medium">{ticket.seat_number}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Cancellation/Refund History */}
+            {(ticket.status === 'cancelled' || ticket.status === 'refunded') && (
+              <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-4 space-y-2">
+                <h4 className="font-semibold text-sm text-destructive">
+                  {ticket.status === 'refunded' ? 'Remboursement' : 'Annulation'}
+                </h4>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground text-xs">Date</span>
+                    <p className="font-medium">{formatDate(ticket.cancelled_at)}</p>
+                  </div>
+                  {ticket.refund_amount && (
+                    <div>
+                      <span className="text-muted-foreground text-xs">Montant remboursé</span>
+                      <p className="font-bold text-purple-600">{formatCurrency(ticket.refund_amount)}</p>
+                    </div>
+                  )}
+                  {ticket.refund_reason && (
+                    <div>
+                      <span className="text-muted-foreground text-xs">Raison</span>
+                      <p className="font-medium bg-background/50 rounded p-2 mt-1">{ticket.refund_reason}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <Button variant="outline" onClick={() => setOpen(false)} className="w-full">
+              Fermer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
