@@ -538,6 +538,10 @@ interface NewTripDialogProps {
 }
 
 const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuccess }) => {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
+  const userAgencyId = profile?.agency_id;
+
   const [routeId, setRouteId] = React.useState('');
   const [vehicleId, setVehicleId] = React.useState('');
   const [driverId, setDriverId] = React.useState('');
@@ -552,18 +556,28 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
     queryFn: () => api.getRoutes(),
   });
 
-  const { data: vehicles } = useQuery({
+  // Fetch vehicles - include Siège (ID: 4) for all users
+  const { data: allVehicles } = useQuery({
     queryKey: ['vehicles'],
     queryFn: () => api.getVehicles(),
   });
 
+  // Filter vehicles: admin sees all, others see their agency + Siège
+  const vehicles = React.useMemo(() => {
+    if (!allVehicles) return [];
+    if (isAdmin) return allVehicles;
+    return allVehicles.filter(v => 
+      v.agency_id === userAgencyId || v.agency_id === Number(SIEGE_AGENCY_ID)
+    );
+  }, [allVehicles, isAdmin, userAgencyId]);
+
   // Fetch drivers and assistants from staff table
-  const { data: staff } = useQuery({
+  const { data: allStaff } = useQuery({
     queryKey: ['staff-for-trips'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('staff')
-        .select('id, first_name, last_name, full_name, staff_type, agency:agencies(name)')
+        .select('id, first_name, last_name, full_name, staff_type, agency_id, agency:agencies(name)')
         .eq('is_active', true)
         .in('staff_type', ['driver', 'assistant'])
         .order('first_name');
@@ -572,8 +586,17 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
     },
   });
 
-  const drivers = staff?.filter(s => s.staff_type === 'driver') || [];
-  const assistants = staff?.filter(s => s.staff_type === 'assistant') || [];
+  // Filter staff: admin sees all, others see their agency + Siège
+  const filteredStaff = React.useMemo(() => {
+    if (!allStaff) return [];
+    if (isAdmin) return allStaff;
+    return allStaff.filter(s => 
+      s.agency_id === userAgencyId || s.agency_id === Number(SIEGE_AGENCY_ID)
+    );
+  }, [allStaff, isAdmin, userAgencyId]);
+
+  const drivers = filteredStaff?.filter(s => s.staff_type === 'driver') || [];
+  const assistants = filteredStaff?.filter(s => s.staff_type === 'assistant') || [];
 
   const selectedRoute = routes?.find(r => r.id.toString() === routeId);
 
@@ -793,6 +816,10 @@ interface EditTripDialogProps {
 }
 
 const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChange, onSuccess }) => {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
+  const userAgencyId = profile?.agency_id;
+
   const [routeId, setRouteId] = React.useState('');
   const [vehicleId, setVehicleId] = React.useState('');
   const [driverId, setDriverId] = React.useState('');
@@ -821,18 +848,25 @@ const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChang
     queryFn: () => api.getRoutes(),
   });
 
-  const { data: vehicles } = useQuery({
+  const { data: allVehicles } = useQuery({
     queryKey: ['vehicles'],
     queryFn: () => api.getVehicles(),
   });
 
-  // Fetch drivers and assistants from staff table
-  const { data: staff } = useQuery({
+  const vehicles = React.useMemo(() => {
+    if (!allVehicles) return [];
+    if (isAdmin) return allVehicles;
+    return allVehicles.filter(v => 
+      v.agency_id === userAgencyId || v.agency_id === Number(SIEGE_AGENCY_ID)
+    );
+  }, [allVehicles, isAdmin, userAgencyId]);
+
+  const { data: allStaff } = useQuery({
     queryKey: ['staff-for-trips'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('staff')
-        .select('id, first_name, last_name, full_name, staff_type, agency:agencies(name)')
+        .select('id, first_name, last_name, full_name, staff_type, agency_id, agency:agencies(name)')
         .eq('is_active', true)
         .in('staff_type', ['driver', 'assistant'])
         .order('first_name');
@@ -841,8 +875,16 @@ const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChang
     },
   });
 
-  const drivers = staff?.filter(s => s.staff_type === 'driver') || [];
-  const assistants = staff?.filter(s => s.staff_type === 'assistant') || [];
+  const filteredStaff = React.useMemo(() => {
+    if (!allStaff) return [];
+    if (isAdmin) return allStaff;
+    return allStaff.filter(s => 
+      s.agency_id === userAgencyId || s.agency_id === Number(SIEGE_AGENCY_ID)
+    );
+  }, [allStaff, isAdmin, userAgencyId]);
+
+  const drivers = filteredStaff?.filter(s => s.staff_type === 'driver') || [];
+  const assistants = filteredStaff?.filter(s => s.staff_type === 'assistant') || [];
 
   const selectedRoute = routes?.find(r => r.id.toString() === routeId);
 
@@ -1036,6 +1078,10 @@ interface CrewQuickEditProps {
 }
 
 const CrewQuickEdit: React.FC<CrewQuickEditProps> = ({ trip, onSuccess }) => {
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
+  const userAgencyId = profile?.agency_id;
+
   const [isOpen, setIsOpen] = React.useState(false);
   const [driverId, setDriverId] = React.useState('');
   const [assistantId, setAssistantId] = React.useState('');
@@ -1048,12 +1094,12 @@ const CrewQuickEdit: React.FC<CrewQuickEditProps> = ({ trip, onSuccess }) => {
     }
   }, [isOpen, trip]);
 
-  const { data: staff } = useQuery({
+  const { data: allStaff } = useQuery({
     queryKey: ['staff-for-trips'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('staff')
-        .select('id, first_name, last_name, full_name, staff_type, agency:agencies(name)')
+        .select('id, first_name, last_name, full_name, staff_type, agency_id, agency:agencies(name)')
         .eq('is_active', true)
         .in('staff_type', ['driver', 'assistant'])
         .order('first_name');
@@ -1062,8 +1108,16 @@ const CrewQuickEdit: React.FC<CrewQuickEditProps> = ({ trip, onSuccess }) => {
     },
   });
 
-  const drivers = staff?.filter(s => s.staff_type === 'driver') || [];
-  const assistants = staff?.filter(s => s.staff_type === 'assistant') || [];
+  const filteredStaff = React.useMemo(() => {
+    if (!allStaff) return [];
+    if (isAdmin) return allStaff;
+    return allStaff.filter(s => 
+      s.agency_id === userAgencyId || s.agency_id === Number(SIEGE_AGENCY_ID)
+    );
+  }, [allStaff, isAdmin, userAgencyId]);
+
+  const drivers = filteredStaff?.filter(s => s.staff_type === 'driver') || [];
+  const assistants = filteredStaff?.filter(s => s.staff_type === 'assistant') || [];
 
   const getStaffName = (s: any) => s.full_name || `${s.first_name} ${s.last_name}`;
 
