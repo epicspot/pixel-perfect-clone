@@ -470,7 +470,22 @@ export const api = {
   },
 
   // Fuel Stats
-  async getFuelStatsSummary(params?: { from?: string; to?: string }): Promise<FuelStats> {
+  async getFuelStatsSummary(params?: { from?: string; to?: string; agency_id?: number }): Promise<FuelStats> {
+    // Get current user profile for agency restriction
+    const { data: { session } } = await supabase.auth.getSession();
+    let userAgencyId: number | null = null;
+    let userRole: string | null = null;
+
+    if (session?.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('agency_id, role')
+        .eq('id', session.user.id)
+        .single();
+      userAgencyId = profile?.agency_id || null;
+      userRole = profile?.role || null;
+    }
+
     let query = supabase
       .from('fuel_entries')
       .select(`
@@ -478,6 +493,13 @@ export const api = {
         vehicle:vehicles(*),
         agency:agencies(*)
       `);
+
+    // Apply agency restriction for non-admin users
+    if (userRole !== 'admin' && userAgencyId) {
+      query = query.eq('agency_id', userAgencyId);
+    } else if (params?.agency_id) {
+      query = query.eq('agency_id', params.agency_id);
+    }
 
     if (params?.from) {
       query = query.gte('filled_at', params.from);
@@ -520,13 +542,39 @@ export const api = {
     };
   },
 
-  async getFuelStatsPerVehicle(params?: { from?: string; to?: string }): Promise<FuelStats> {
+  async getFuelStatsPerVehicle(params?: { from?: string; to?: string; agency_id?: number; vehicle_id?: number }): Promise<FuelStats> {
+    // Get current user profile for agency restriction
+    const { data: { session } } = await supabase.auth.getSession();
+    let userAgencyId: number | null = null;
+    let userRole: string | null = null;
+
+    if (session?.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('agency_id, role')
+        .eq('id', session.user.id)
+        .single();
+      userAgencyId = profile?.agency_id || null;
+      userRole = profile?.role || null;
+    }
+
     let query = supabase
       .from('fuel_entries')
       .select(`
         *,
         vehicle:vehicles(*, agency:agencies(*))
       `);
+
+    // Apply agency restriction for non-admin users
+    if (userRole !== 'admin' && userAgencyId) {
+      query = query.eq('agency_id', userAgencyId);
+    } else if (params?.agency_id) {
+      query = query.eq('agency_id', params.agency_id);
+    }
+
+    if (params?.vehicle_id) {
+      query = query.eq('vehicle_id', params.vehicle_id);
+    }
 
     if (params?.from) {
       query = query.gte('filled_at', params.from);
@@ -661,6 +709,21 @@ export const api = {
       total_amount: number;
     }>;
   }> {
+    // Get current user profile for agency restriction
+    const { data: { session } } = await supabase.auth.getSession();
+    let userAgencyId: number | null = null;
+    let userRole: string | null = null;
+
+    if (session?.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('agency_id, role')
+        .eq('id', session.user.id)
+        .single();
+      userAgencyId = profile?.agency_id || null;
+      userRole = profile?.role || null;
+    }
+
     const startOfYear = `${params.year}-01-01`;
     const endOfYear = `${params.year}-12-31`;
 
@@ -670,7 +733,10 @@ export const api = {
       .gte('filled_at', startOfYear)
       .lte('filled_at', endOfYear);
 
-    if (params.agency_id) {
+    // Apply agency restriction for non-admin users
+    if (userRole !== 'admin' && userAgencyId) {
+      query = query.eq('agency_id', userAgencyId);
+    } else if (params.agency_id) {
       query = query.eq('agency_id', params.agency_id);
     }
 
