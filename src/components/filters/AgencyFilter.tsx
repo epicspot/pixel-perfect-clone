@@ -34,14 +34,14 @@ export function AgencyFilter({ value, onChange, label = 'Agence', className }: A
         {label}
       </Label>
       <Select 
-        value={value || 'all'} 
-        onValueChange={(val) => onChange(val === 'all' ? '' : val)}
+        value={value || '_all'} 
+        onValueChange={(val) => onChange(val === '_all' ? '' : val)}
       >
         <SelectTrigger className="mt-1">
           <SelectValue placeholder="Toutes les agences" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Toutes les agences</SelectItem>
+          <SelectItem value="_all">Toutes les agences</SelectItem>
           {agencies?.map((a) => (
             <SelectItem key={a.id} value={a.id.toString()}>
               {a.name}

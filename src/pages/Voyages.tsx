@@ -93,13 +93,17 @@ const statusTransitions: Record<string, { next: string; label: string; icon: Rea
   cancelled: [],
 };
 
+// ID de l'agence Siège (central)
+const SIEGE_AGENCY_ID = '4';
+
 const Voyages = () => {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [editingTrip, setEditingTrip] = React.useState<Trip | null>(null);
-  const [adminAgencyFilter, setAdminAgencyFilter] = React.useState('');
+  // Admin voit le Siège par défaut
+  const [adminAgencyFilter, setAdminAgencyFilter] = React.useState(SIEGE_AGENCY_ID);
 
   const isAdmin = profile?.role === 'admin';
   const filterAgencyId = isAdmin 
