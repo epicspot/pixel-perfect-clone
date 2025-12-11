@@ -14,7 +14,8 @@ import {
   Users,
   Receipt,
   Wallet,
-  Building2
+  Building2,
+  ScanLine
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -26,17 +27,18 @@ import { hasRouteAccess, getRoleLabel, UserRole } from '@/lib/permissions';
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
   { to: '/tickets', icon: Ticket, label: 'Tickets' },
+  { to: '/controle-tickets', icon: ScanLine, label: 'Controle tickets' },
   { to: '/voyages', icon: Bus, label: 'Voyages' },
-  { to: '/cloture-caisse', icon: Wallet, label: 'Clôture caisse' },
+  { to: '/cloture-caisse', icon: Wallet, label: 'Cloture caisse' },
   { to: '/carburant', icon: Fuel, label: 'Carburant' },
   { to: '/maintenance', icon: Wrench, label: 'Maintenance' },
-  { to: '/couts-vehicules', icon: BarChart3, label: 'Coûts véhicules' },
+  { to: '/couts-vehicules', icon: BarChart3, label: 'Couts vehicules' },
   { to: '/rapports', icon: BarChart3, label: 'Rapports' },
   { to: '/staff', icon: Users, label: 'Personnel' },
-  { to: '/depenses', icon: Receipt, label: 'Dépenses' },
+  { to: '/depenses', icon: Receipt, label: 'Depenses' },
   { to: '/paie', icon: Wallet, label: 'Paie' },
   { to: '/admin', icon: Shield, label: 'Administration' },
-  { to: '/parametres', icon: Settings, label: 'Paramètres' },
+  { to: '/parametres', icon: Settings, label: 'Parametres' },
 ];
 
 export function Sidebar() {
