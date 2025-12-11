@@ -488,6 +488,8 @@ export type Database = {
           payroll_period_id: number | null
           staff_id: number | null
           updated_at: string
+          validated_at: string | null
+          validated_by: string | null
         }
         Insert: {
           allowances?: number
@@ -502,6 +504,8 @@ export type Database = {
           payroll_period_id?: number | null
           staff_id?: number | null
           updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
         }
         Update: {
           allowances?: number
@@ -516,6 +520,8 @@ export type Database = {
           payroll_period_id?: number | null
           staff_id?: number | null
           updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
         }
         Relationships: [
           {

@@ -24,6 +24,16 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -33,8 +43,9 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2, Download } from 'lucide-react';
+import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2, Download, Pencil, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { generatePayslipPdf, generatePeriodSummaryPdf, generateAllPeriodsStatsPdf } from '@/lib/payrollPdf';
 
 interface PayrollPeriod {
@@ -55,6 +66,8 @@ interface PayrollEntry {
   deductions: number;
   net_salary: number;
   paid_at: string | null;
+  validated_at: string | null;
+  validated_by: string | null;
 }
 
 interface Staff {
@@ -74,10 +87,15 @@ const formatCurrency = (value: number) =>
 
 export default function Paie() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('periods');
   const [periodDialogOpen, setPeriodDialogOpen] = useState(false);
   const [entryDialogOpen, setEntryDialogOpen] = useState(false);
+  const [editEntryDialogOpen, setEditEntryDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<PayrollPeriod | null>(null);
+  const [editingEntry, setEditingEntry] = useState<PayrollEntry | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<PayrollEntry | null>(null);
 
   const [periodForm, setPeriodForm] = useState({
     start_date: '',
@@ -87,6 +105,13 @@ export default function Paie() {
 
   const [entryForm, setEntryForm] = useState({
     staff_id: '',
+    base_salary: '',
+    bonuses: '0',
+    allowances: '0',
+    deductions: '0',
+  });
+
+  const [editForm, setEditForm] = useState({
     base_salary: '',
     bonuses: '0',
     allowances: '0',
@@ -219,9 +244,133 @@ export default function Paie() {
     },
   });
 
+  // Update entry mutation
+  const updateEntryMutation = useMutation({
+    mutationFn: async (data: { id: number; base_salary: number; bonuses: number; allowances: number; deductions: number }) => {
+      const net = data.base_salary + data.bonuses + data.allowances - data.deductions;
+      const { error } = await supabase
+        .from('payroll_entries')
+        .update({
+          base_salary: data.base_salary,
+          bonuses: data.bonuses,
+          allowances: data.allowances,
+          deductions: data.deductions,
+          net_salary: net,
+          validated_at: null,
+          validated_by: null,
+        })
+        .eq('id', data.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Fiche de paie modifiée');
+      queryClient.invalidateQueries({ queryKey: ['payroll-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-all-entries'] });
+      setEditEntryDialogOpen(false);
+      setEditingEntry(null);
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  // Delete entry mutation
+  const deleteEntryMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase
+        .from('payroll_entries')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Fiche de paie supprimée');
+      queryClient.invalidateQueries({ queryKey: ['payroll-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-all-entries'] });
+      setDeleteDialogOpen(false);
+      setEntryToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  // Validate entry mutation
+  const validateEntryMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase
+        .from('payroll_entries')
+        .update({
+          validated_at: new Date().toISOString(),
+          validated_by: user?.id,
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Fiche validée');
+      queryClient.invalidateQueries({ queryKey: ['payroll-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-all-entries'] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  // Invalidate entry validation mutation
+  const invalidateEntryMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase
+        .from('payroll_entries')
+        .update({
+          validated_at: null,
+          validated_by: null,
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Validation annulée');
+      queryClient.invalidateQueries({ queryKey: ['payroll-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-all-entries'] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  // Validate all entries mutation
+  const validateAllEntriesMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedPeriod) return;
+      const { error } = await supabase
+        .from('payroll_entries')
+        .update({
+          validated_at: new Date().toISOString(),
+          validated_by: user?.id,
+        })
+        .eq('payroll_period_id', selectedPeriod.id)
+        .is('validated_at', null);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Toutes les fiches validées');
+      queryClient.invalidateQueries({ queryKey: ['payroll-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-all-entries'] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
   // Close period mutation
   const closePeriodMutation = useMutation({
     mutationFn: async (id: number) => {
+      // Check if all entries are validated
+      const unvalidatedCount = entries?.filter(e => !e.validated_at).length || 0;
+      if (unvalidatedCount > 0) {
+        throw new Error(`${unvalidatedCount} fiche(s) non validée(s). Validez toutes les fiches avant de clôturer.`);
+      }
       const { error } = await supabase
         .from('payroll_periods')
         .update({ status: 'closed' })
@@ -432,132 +581,149 @@ export default function Paie() {
           <TabsContent value="entries" className="space-y-4">
             {selectedPeriod && (
               <>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
                     <h2 className="text-lg font-semibold">{selectedPeriod.label}</h2>
                     <p className="text-sm text-muted-foreground">
                       Total net: {formatCurrency(totalNet)} ({entries?.length || 0} fiches)
+                      {entries && entries.length > 0 && (
+                        <span className="ml-2">
+                          • {entries.filter(e => e.validated_at).length} validée(s)
+                        </span>
+                      )}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     {entries && entries.length > 0 && (
-                      <Button
-                        variant="outline"
-                        onClick={() => generatePeriodSummaryPdf(selectedPeriod, entries, staffList || [])}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Export PDF
-                      </Button>
-                    )}
-                  {selectedPeriod.status === 'open' && (
-                    <Dialog open={entryDialogOpen} onOpenChange={setEntryDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button>
-                          <Plus className="w-4 h-4 mr-2" />
-                          Ajouter fiche
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Nouvelle fiche de paie</DialogTitle>
-                        </DialogHeader>
-                        <form
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            createEntryMutation.mutate(entryForm);
-                          }}
-                          className="space-y-4"
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => generatePeriodSummaryPdf(selectedPeriod, entries, staffList || [])}
                         >
-                          <div>
-                            <Label>Employé *</Label>
-                            <Select
-                              value={entryForm.staff_id}
-                              onValueChange={handleStaffSelect}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Sélectionner" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {staffList?.map((s) => (
-                                  <SelectItem key={s.id} value={s.id.toString()}>
-                                    {s.full_name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
+                          <Download className="w-4 h-4 mr-2" />
+                          Export PDF
+                        </Button>
+                        {selectedPeriod.status === 'open' && entries.some(e => !e.validated_at) && (
+                          <Button
+                            variant="secondary"
+                            onClick={() => validateAllEntriesMutation.mutate()}
+                            disabled={validateAllEntriesMutation.isPending}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Tout valider
+                          </Button>
+                        )}
+                      </>
+                    )}
+                    {selectedPeriod.status === 'open' && (
+                      <Dialog open={entryDialogOpen} onOpenChange={setEntryDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Ajouter fiche
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Nouvelle fiche de paie</DialogTitle>
+                          </DialogHeader>
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              createEntryMutation.mutate(entryForm);
+                            }}
+                            className="space-y-4"
+                          >
                             <div>
-                              <Label>Salaire de base *</Label>
-                              <Input
-                                type="number"
-                                value={entryForm.base_salary}
-                                onChange={(e) =>
-                                  setEntryForm({ ...entryForm, base_salary: e.target.value })
-                                }
-                                required
-                              />
+                              <Label>Employé *</Label>
+                              <Select
+                                value={entryForm.staff_id}
+                                onValueChange={handleStaffSelect}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Sélectionner" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {staffList?.map((s) => (
+                                    <SelectItem key={s.id} value={s.id.toString()}>
+                                      {s.full_name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
-                            <div>
-                              <Label>Primes</Label>
-                              <Input
-                                type="number"
-                                value={entryForm.bonuses}
-                                onChange={(e) =>
-                                  setEntryForm({ ...entryForm, bonuses: e.target.value })
-                                }
-                              />
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <Label>Salaire de base *</Label>
+                                <Input
+                                  type="number"
+                                  value={entryForm.base_salary}
+                                  onChange={(e) =>
+                                    setEntryForm({ ...entryForm, base_salary: e.target.value })
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <Label>Primes</Label>
+                                <Input
+                                  type="number"
+                                  value={entryForm.bonuses}
+                                  onChange={(e) =>
+                                    setEntryForm({ ...entryForm, bonuses: e.target.value })
+                                  }
+                                />
+                              </div>
                             </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label>Indemnités</Label>
-                              <Input
-                                type="number"
-                                value={entryForm.allowances}
-                                onChange={(e) =>
-                                  setEntryForm({ ...entryForm, allowances: e.target.value })
-                                }
-                              />
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <Label>Indemnités</Label>
+                                <Input
+                                  type="number"
+                                  value={entryForm.allowances}
+                                  onChange={(e) =>
+                                    setEntryForm({ ...entryForm, allowances: e.target.value })
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <Label>Retenues</Label>
+                                <Input
+                                  type="number"
+                                  value={entryForm.deductions}
+                                  onChange={(e) =>
+                                    setEntryForm({ ...entryForm, deductions: e.target.value })
+                                  }
+                                />
+                              </div>
                             </div>
-                            <div>
-                              <Label>Retenues</Label>
-                              <Input
-                                type="number"
-                                value={entryForm.deductions}
-                                onChange={(e) =>
-                                  setEntryForm({ ...entryForm, deductions: e.target.value })
-                                }
-                              />
+                            <div className="p-3 rounded-lg bg-muted">
+                              <p className="text-sm text-muted-foreground">Net à payer</p>
+                              <p className="text-xl font-bold">
+                                {formatCurrency(
+                                  Number(entryForm.base_salary || 0) +
+                                    Number(entryForm.bonuses || 0) +
+                                    Number(entryForm.allowances || 0) -
+                                    Number(entryForm.deductions || 0)
+                                )}
+                              </p>
                             </div>
-                          </div>
-                          <div className="p-3 rounded-lg bg-muted">
-                            <p className="text-sm text-muted-foreground">Net à payer</p>
-                            <p className="text-xl font-bold">
-                              {formatCurrency(
-                                Number(entryForm.base_salary || 0) +
-                                  Number(entryForm.bonuses || 0) +
-                                  Number(entryForm.allowances || 0) -
-                                  Number(entryForm.deductions || 0)
-                              )}
-                            </p>
-                          </div>
-                          <div className="flex justify-end gap-2 pt-4">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => setEntryDialogOpen(false)}
-                            >
-                              Annuler
-                            </Button>
-                            <Button type="submit" disabled={createEntryMutation.isPending}>
-                              Ajouter
-                            </Button>
-                          </div>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
-                  )}
+                            <div className="flex justify-end gap-2 pt-4">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setEntryDialogOpen(false)}
+                              >
+                                Annuler
+                              </Button>
+                              <Button type="submit" disabled={createEntryMutation.isPending}>
+                                Ajouter
+                              </Button>
+                            </div>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                    )}
                   </div>
                 </div>
 
@@ -570,52 +736,121 @@ export default function Paie() {
                         ))}
                       </div>
                     ) : entries && entries.length > 0 ? (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Employé</TableHead>
-                            <TableHead className="text-right">Salaire base</TableHead>
-                            <TableHead className="text-right">Primes</TableHead>
-                            <TableHead className="text-right">Indemnités</TableHead>
-                            <TableHead className="text-right">Retenues</TableHead>
-                            <TableHead className="text-right">Net</TableHead>
-                            <TableHead className="w-[80px]">PDF</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {entries.map((entry) => (
-                            <TableRow key={entry.id}>
-                              <TableCell className="font-medium">
-                                {getStaffName(entry.staff_id)}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {formatCurrency(entry.base_salary)}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {formatCurrency(entry.bonuses)}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {formatCurrency(entry.allowances)}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {formatCurrency(entry.deductions)}
-                              </TableCell>
-                              <TableCell className="text-right font-bold">
-                                {formatCurrency(entry.net_salary)}
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => generatePayslipPdf(entry, selectedPeriod, getStaffName(entry.staff_id))}
-                                >
-                                  <Download className="w-4 h-4" />
-                                </Button>
-                              </TableCell>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Employé</TableHead>
+                              <TableHead className="text-right">Salaire base</TableHead>
+                              <TableHead className="text-right">Primes</TableHead>
+                              <TableHead className="text-right">Indemnités</TableHead>
+                              <TableHead className="text-right">Retenues</TableHead>
+                              <TableHead className="text-right">Net</TableHead>
+                              <TableHead className="text-center">Statut</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {entries.map((entry) => (
+                              <TableRow key={entry.id}>
+                                <TableCell className="font-medium">
+                                  {getStaffName(entry.staff_id)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {formatCurrency(entry.base_salary)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {formatCurrency(entry.bonuses)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {formatCurrency(entry.allowances)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {formatCurrency(entry.deductions)}
+                                </TableCell>
+                                <TableCell className="text-right font-bold">
+                                  {formatCurrency(entry.net_salary)}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {entry.validated_at ? (
+                                    <Badge variant="default" className="bg-green-600">
+                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                      Validée
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline">
+                                      En attente
+                                    </Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => generatePayslipPdf(entry, selectedPeriod, getStaffName(entry.staff_id))}
+                                      title="Télécharger PDF"
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </Button>
+                                    {selectedPeriod.status === 'open' && (
+                                      <>
+                                        {entry.validated_at ? (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => invalidateEntryMutation.mutate(entry.id)}
+                                            title="Annuler validation"
+                                          >
+                                            <XCircle className="w-4 h-4 text-orange-500" />
+                                          </Button>
+                                        ) : (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => validateEntryMutation.mutate(entry.id)}
+                                            title="Valider"
+                                          >
+                                            <CheckCircle className="w-4 h-4 text-green-500" />
+                                          </Button>
+                                        )}
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            setEditingEntry(entry);
+                                            setEditForm({
+                                              base_salary: entry.base_salary.toString(),
+                                              bonuses: entry.bonuses.toString(),
+                                              allowances: entry.allowances.toString(),
+                                              deductions: entry.deductions.toString(),
+                                            });
+                                            setEditEntryDialogOpen(true);
+                                          }}
+                                          title="Modifier"
+                                        >
+                                          <Pencil className="w-4 h-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            setEntryToDelete(entry);
+                                            setDeleteDialogOpen(true);
+                                          }}
+                                          title="Supprimer"
+                                        >
+                                          <Trash2 className="w-4 h-4 text-destructive" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
                     ) : (
                       <div className="text-center py-12">
                         <FileText className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
@@ -624,6 +859,133 @@ export default function Paie() {
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Edit Entry Dialog */}
+                <Dialog open={editEntryDialogOpen} onOpenChange={setEditEntryDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        Modifier la fiche de {editingEntry ? getStaffName(editingEntry.staff_id) : ''}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (editingEntry) {
+                          updateEntryMutation.mutate({
+                            id: editingEntry.id,
+                            base_salary: Number(editForm.base_salary),
+                            bonuses: Number(editForm.bonuses),
+                            allowances: Number(editForm.allowances),
+                            deductions: Number(editForm.deductions),
+                          });
+                        }
+                      }}
+                      className="space-y-4"
+                    >
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Salaire de base *</Label>
+                          <Input
+                            type="number"
+                            value={editForm.base_salary}
+                            onChange={(e) =>
+                              setEditForm({ ...editForm, base_salary: e.target.value })
+                            }
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label>Primes</Label>
+                          <Input
+                            type="number"
+                            value={editForm.bonuses}
+                            onChange={(e) =>
+                              setEditForm({ ...editForm, bonuses: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label>Indemnités</Label>
+                          <Input
+                            type="number"
+                            value={editForm.allowances}
+                            onChange={(e) =>
+                              setEditForm({ ...editForm, allowances: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label>Retenues</Label>
+                          <Input
+                            type="number"
+                            value={editForm.deductions}
+                            onChange={(e) =>
+                              setEditForm({ ...editForm, deductions: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-muted">
+                        <p className="text-sm text-muted-foreground">Net à payer</p>
+                        <p className="text-xl font-bold">
+                          {formatCurrency(
+                            Number(editForm.base_salary || 0) +
+                              Number(editForm.bonuses || 0) +
+                              Number(editForm.allowances || 0) -
+                              Number(editForm.deductions || 0)
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex justify-end gap-2 pt-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setEditEntryDialogOpen(false);
+                            setEditingEntry(null);
+                          }}
+                        >
+                          Annuler
+                        </Button>
+                        <Button type="submit" disabled={updateEntryMutation.isPending}>
+                          Enregistrer
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Delete Confirmation Dialog */}
+                <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Êtes-vous sûr de vouloir supprimer la fiche de paie de{' '}
+                        <strong>{entryToDelete ? getStaffName(entryToDelete.staff_id) : ''}</strong> ?
+                        Cette action est irréversible.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setEntryToDelete(null)}>
+                        Annuler
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => {
+                          if (entryToDelete) {
+                            deleteEntryMutation.mutate(entryToDelete.id);
+                          }
+                        }}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Supprimer
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </>
             )}
           </TabsContent>
