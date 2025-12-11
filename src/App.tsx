@@ -23,6 +23,7 @@ import Depenses from "./pages/Depenses";
 import Paie from "./pages/Paie";
 import VehicleCostDashboard from "./pages/VehicleCostDashboard";
 import TicketScan from "./pages/TicketScan";
+import SuiviSouches from "./pages/SuiviSouches";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import AccessDenied from "./pages/AccessDenied";
@@ -200,6 +201,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <TicketScan />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/suivi-souches"
+          element={
+            <ProtectedRoute>
+              <SuiviSouches />
             </ProtectedRoute>
           }
         />
