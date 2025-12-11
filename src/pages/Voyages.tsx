@@ -92,6 +92,7 @@ const Voyages = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [editingTrip, setEditingTrip] = React.useState<Trip | null>(null);
   const [adminAgencyFilter, setAdminAgencyFilter] = React.useState('');
 
   const isAdmin = profile?.role === 'admin';
@@ -412,7 +413,13 @@ const Voyages = () => {
                         >
                           <FileText className="w-3 h-3" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-7 w-7"
+                          onClick={() => setEditingTrip(trip)}
+                          title="Modifier le voyage"
+                        >
                           <Pencil className="w-3 h-3" />
                         </Button>
                         <AlertDialog>
@@ -463,6 +470,16 @@ const Voyages = () => {
             </Button>
           </div>
         )}
+        {/* Edit Trip Dialog */}
+        <EditTripDialog 
+          trip={editingTrip}
+          open={!!editingTrip}
+          onOpenChange={(open) => !open && setEditingTrip(null)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['trips'] });
+            setEditingTrip(null);
+          }}
+        />
       </div>
     </DashboardLayout>
   );
@@ -647,6 +664,189 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
               className="flex-1 bg-primary text-primary-foreground"
             >
               {isSubmitting ? 'Création...' : 'Créer le voyage'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Edit Trip Dialog
+interface EditTripDialogProps {
+  trip: Trip | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+}
+
+const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChange, onSuccess }) => {
+  const [routeId, setRouteId] = React.useState('');
+  const [vehicleId, setVehicleId] = React.useState('');
+  const [departureDate, setDepartureDate] = React.useState('');
+  const [departureTime, setDepartureTime] = React.useState('');
+  const [notes, setNotes] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  // Initialize form when trip changes
+  React.useEffect(() => {
+    if (trip) {
+      setRouteId(trip.route_id?.toString() || '');
+      setVehicleId(trip.vehicle_id?.toString() || '');
+      const dt = new Date(trip.departure_datetime);
+      setDepartureDate(dt.toISOString().split('T')[0]);
+      setDepartureTime(dt.toTimeString().slice(0, 5));
+      setNotes((trip as any).notes || '');
+    }
+  }, [trip]);
+
+  const { data: routes } = useQuery({
+    queryKey: ['routes'],
+    queryFn: () => api.getRoutes(),
+  });
+
+  const { data: vehicles } = useQuery({
+    queryKey: ['vehicles'],
+    queryFn: () => api.getVehicles(),
+  });
+
+  const selectedRoute = routes?.find(r => r.id.toString() === routeId);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!trip || !routeId || !vehicleId || !departureDate || !departureTime) {
+      toast({ title: 'Erreur', description: 'Veuillez remplir tous les champs obligatoires', variant: 'destructive' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const departureDatetime = `${departureDate}T${departureTime}:00`;
+      const { error } = await supabase
+        .from('trips')
+        .update({
+          route_id: Number(routeId),
+          vehicle_id: Number(vehicleId),
+          departure_datetime: departureDatetime,
+          notes: notes || null,
+        })
+        .eq('id', trip.id);
+
+      if (error) throw error;
+
+      toast({ title: 'Voyage modifié', description: `Modifications enregistrées` });
+      onSuccess();
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+
+  if (!trip) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Modifier le voyage</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Route & Vehicle */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Ligne *</Label>
+              <Select value={routeId} onValueChange={setRouteId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Sélectionner une ligne" />
+                </SelectTrigger>
+                <SelectContent>
+                  {routes?.map((route) => (
+                    <SelectItem key={route.id} value={route.id.toString()}>
+                      {route.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Véhicule *</Label>
+              <Select value={vehicleId} onValueChange={setVehicleId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Sélectionner un véhicule" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vehicles?.map((v) => (
+                    <SelectItem key={v.id} value={v.id.toString()}>
+                      {v.registration_number} ({v.seats} places)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Route Info */}
+          {selectedRoute && (
+            <div className="bg-muted/50 rounded-lg p-3 text-xs">
+              <p className="font-semibold text-card-foreground">{selectedRoute.name}</p>
+              <p className="text-muted-foreground mt-1">
+                {selectedRoute.departure_agency?.name} → {selectedRoute.arrival_agency?.name}
+              </p>
+              <p className="text-muted-foreground">
+                Prix de base: <span className="font-semibold text-card-foreground">{formatCurrency(selectedRoute.base_price)}</span>
+              </p>
+            </div>
+          )}
+
+          {/* Date & Time */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Date de départ *</Label>
+              <Input
+                type="date"
+                value={departureDate}
+                onChange={(e) => setDepartureDate(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Heure de départ *</Label>
+              <Input
+                type="time"
+                value={departureTime}
+                onChange={(e) => setDepartureTime(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <Label className="text-xs">Notes (optionnel)</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Infos complémentaires..."
+              rows={2}
+              className="mt-1"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+              Annuler
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting || !routeId || !vehicleId || !departureDate || !departureTime}
+              className="flex-1 bg-primary text-primary-foreground"
+            >
+              {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
             </Button>
           </div>
         </form>
