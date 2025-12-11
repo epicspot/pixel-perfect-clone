@@ -76,7 +76,7 @@ const formatCurrency = (value: number) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
 
 export default function Depenses() {
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -90,17 +90,28 @@ export default function Depenses() {
     description: '',
   });
 
-  // Fetch expenses
+  // Check if user is admin
+  const isAdmin = profile?.role === 'admin';
+
+  // Fetch expenses with agency restriction
   const { data: expenses, isLoading } = useQuery({
-    queryKey: ['expenses'],
+    queryKey: ['expenses', profile?.agency_id, isAdmin],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('expenses')
         .select('*')
         .order('expense_date', { ascending: false });
+
+      // Apply agency restriction for non-admin users
+      if (!isAdmin && profile?.agency_id) {
+        query = query.eq('agency_id', profile.agency_id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as Expense[];
     },
+    enabled: !!profile,
   });
 
   // Fetch categories
