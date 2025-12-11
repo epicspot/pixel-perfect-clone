@@ -9,15 +9,40 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FuelEntryForm } from '@/components/carburant/FuelEntryForm';
 import { FuelEntriesList } from '@/components/carburant/FuelEntriesList';
-import { Fuel, TrendingUp } from 'lucide-react';
+import { Fuel, TrendingUp, Building2, BarChart3 } from 'lucide-react';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Tooltip,
+  Legend,
+  Filler,
+} from 'chart.js';
+import { Bar, Line } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 const Carburant = () => {
   const [fromDate, setFromDate] = React.useState<string>('');
   const [toDate, setToDate] = React.useState<string>('');
   const [agencyId, setAgencyId] = React.useState<string>('');
+  const [year, setYear] = React.useState<number>(new Date().getFullYear());
   const [appliedFrom, setAppliedFrom] = React.useState<string | undefined>();
   const [appliedTo, setAppliedTo] = React.useState<string | undefined>();
   const [appliedAgency, setAppliedAgency] = React.useState<number | undefined>();
+  const [appliedYear, setAppliedYear] = React.useState<number>(new Date().getFullYear());
 
   const { data: agencies } = useQuery({
     queryKey: ['agencies'],
@@ -40,9 +65,19 @@ const Carburant = () => {
     }),
   });
 
+  const { data: monthlyStats, isLoading: loadingMonthly } = useQuery({
+    queryKey: ['fuel-stats-monthly', appliedYear, appliedAgency],
+    queryFn: () => api.getFuelStatsPerMonth({
+      year: appliedYear,
+      agency_id: appliedAgency,
+    }),
+  });
+
   const handleApplyFilter = () => {
     setAppliedFrom(fromDate || undefined);
     setAppliedTo(toDate || undefined);
+    setAppliedAgency(agencyId ? Number(agencyId) : undefined);
+    setAppliedYear(year);
   };
 
   const formatCurrency = (value: number) =>
@@ -53,14 +88,74 @@ const Carburant = () => {
 
   const isLoading = loadingSummary || loadingVehicle;
 
+  // Chart data for monthly costs
+  const costChartData = {
+    labels: monthlyStats?.data.map(m => m.month_label) || [],
+    datasets: [
+      {
+        label: 'Coût carburant (F CFA)',
+        data: monthlyStats?.data.map(m => m.total_amount) || [],
+        backgroundColor: 'hsl(var(--primary) / 0.9)',
+        borderRadius: 4,
+      },
+    ],
+  };
+
+  // Chart data for monthly liters
+  const litersChartData = {
+    labels: monthlyStats?.data.map(m => m.month_label) || [],
+    datasets: [
+      {
+        label: 'Litres consommés',
+        data: monthlyStats?.data.map(m => m.total_liters) || [],
+        borderColor: 'hsl(var(--primary))',
+        backgroundColor: 'hsl(var(--primary) / 0.1)',
+        fill: true,
+        tension: 0.25,
+        pointRadius: 3,
+        pointBackgroundColor: 'hsl(var(--primary))',
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: 'hsl(var(--popover))',
+        titleColor: 'hsl(var(--popover-foreground))',
+        bodyColor: 'hsl(var(--popover-foreground))',
+        borderColor: 'hsl(var(--border))',
+        borderWidth: 1,
+        padding: 12,
+        bodyFont: { size: 12 },
+        titleFont: { size: 12, weight: 'bold' as const },
+      },
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { font: { size: 11 }, color: 'hsl(var(--muted-foreground))' },
+      },
+      y: {
+        grid: { color: 'hsl(var(--border) / 0.5)' },
+        ticks: { font: { size: 11 }, color: 'hsl(var(--muted-foreground))' },
+      },
+    },
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-display font-bold text-foreground">Carburant</h1>
+            <h1 className="text-2xl font-display font-bold text-foreground">Carburant & Parc</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Statistiques et gestion des entrées de carburant
+              Suivi des consommations et coûts carburant
             </p>
           </div>
           <FuelEntryForm />
@@ -69,24 +164,6 @@ const Carburant = () => {
         {/* Filters */}
         <div className="bg-card rounded-xl border border-border p-4 flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[140px]">
-            <Label className="text-xs">Du</Label>
-            <Input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="mt-1"
-            />
-          </div>
-          <div className="flex-1 min-w-[140px]">
-            <Label className="text-xs">Au</Label>
-            <Input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="mt-1"
-            />
-          </div>
-          <div className="flex-1 min-w-[180px]">
             <Label className="text-xs">Agence</Label>
             <Select value={agencyId} onValueChange={setAgencyId}>
               <SelectTrigger className="mt-1">
@@ -100,6 +177,33 @@ const Carburant = () => {
               </SelectContent>
             </Select>
           </div>
+          <div className="flex-1 min-w-[120px]">
+            <Label className="text-xs">Du</Label>
+            <Input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <div className="flex-1 min-w-[120px]">
+            <Label className="text-xs">Au</Label>
+            <Input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <div className="flex-none w-[100px]">
+            <Label className="text-xs">Année (graphique)</Label>
+            <Input
+              type="number"
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value) || new Date().getFullYear())}
+              className="mt-1"
+            />
+          </div>
           <Button onClick={handleApplyFilter} size="sm">
             Appliquer
           </Button>
@@ -107,8 +211,8 @@ const Carburant = () => {
 
         {/* Global Stats */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
               <div key={i} className="bg-card rounded-xl border border-border p-4">
                 <Skeleton className="h-4 w-24 mb-2" />
                 <Skeleton className="h-8 w-32" />
@@ -116,22 +220,58 @@ const Carburant = () => {
             ))}
           </div>
         ) : summaryStats && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <StatCard
-              title="Total Litres"
+              title="Total carburant (L)"
               value={formatNumber(summaryStats.global.total_liters) + ' L'}
               icon={Fuel}
             />
             <StatCard
-              title="Montant Total"
+              title="Coût total (F CFA)"
               value={formatCurrency(summaryStats.global.total_amount)}
               icon={TrendingUp}
             />
             <StatCard
-              title="Prix Moyen / Litre"
+              title="Prix moyen / litre"
               value={formatCurrency(summaryStats.global.average_liter_price)}
-              icon={Fuel}
+              icon={BarChart3}
             />
+            <StatCard
+              title="Agences consommatrices"
+              value={String(summaryStats.per_agency?.length || 0)}
+              icon={Building2}
+            />
+          </div>
+        )}
+
+        {/* Monthly Charts */}
+        {monthlyStats && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-card rounded-xl border border-border p-4">
+              <h3 className="text-sm font-semibold text-card-foreground mb-4">
+                Coût carburant par mois ({monthlyStats.year})
+              </h3>
+              <div className="h-[250px]">
+                {loadingMonthly ? (
+                  <Skeleton className="h-full w-full" />
+                ) : (
+                  <Bar data={costChartData} options={chartOptions} />
+                )}
+              </div>
+            </div>
+
+            <div className="bg-card rounded-xl border border-border p-4">
+              <h3 className="text-sm font-semibold text-card-foreground mb-4">
+                Quantités consommées (L) par mois
+              </h3>
+              <div className="h-[250px]">
+                {loadingMonthly ? (
+                  <Skeleton className="h-full w-full" />
+                ) : (
+                  <Line data={litersChartData} options={chartOptions} />
+                )}
+              </div>
+            </div>
           </div>
         )}
 
