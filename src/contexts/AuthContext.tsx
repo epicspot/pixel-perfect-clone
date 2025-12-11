@@ -8,6 +8,7 @@ interface Profile {
   email: string;
   role: 'admin' | 'manager' | 'cashier' | 'accountant' | 'mechanic';
   agency_id: number | null;
+  agency_name?: string | null;
 }
 
 interface AuthContextType {
@@ -32,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*, agency:agencies(name)')
       .eq('id', userId)
       .maybeSingle();
 
@@ -40,7 +41,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Error fetching profile:', error);
       return null;
     }
-    return data as Profile | null;
+    
+    if (data) {
+      return {
+        ...data,
+        agency_name: (data.agency as any)?.name || null,
+      } as Profile;
+    }
+    return null;
   };
 
   useEffect(() => {
