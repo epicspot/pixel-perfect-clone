@@ -52,15 +52,27 @@ export interface Ticket {
   created_at: string;
 }
 
+export interface Staff {
+  id: number;
+  first_name: string;
+  last_name: string;
+  full_name?: string;
+  staff_type: string;
+}
+
 export interface Trip {
   id: number;
   route_id: number;
   vehicle_id: number;
+  driver_id?: number;
+  assistant_id?: number;
   departure_datetime: string;
   arrival_datetime?: string;
   status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
   route?: RouteRow;
   vehicle?: Vehicle;
+  driver?: Staff;
+  assistant?: Staff;
   available_seats?: number;
 }
 
@@ -357,7 +369,9 @@ export const api = {
           departure_agency:agencies!routes_departure_agency_id_fkey(*),
           arrival_agency:agencies!routes_arrival_agency_id_fkey(*)
         ),
-        vehicle:vehicles(*, agency:agencies(*))
+        vehicle:vehicles(*, agency:agencies(*)),
+        driver:staff!trips_driver_id_fkey(id, first_name, last_name, full_name, staff_type),
+        assistant:staff!trips_assistant_id_fkey(id, first_name, last_name, full_name, staff_type)
       `, { count: 'exact' })
       .order('departure_datetime', { ascending: false });
 

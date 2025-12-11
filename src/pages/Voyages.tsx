@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { Plus, MapPin, Clock, Users, Calendar, Bus, Search, Pencil, Trash2, FileText, Play, UserCheck, ArrowRight, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, MapPin, Clock, Users, Calendar, Bus, Search, Pencil, Trash2, FileText, Play, UserCheck, ArrowRight, CheckCircle, XCircle, User } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -329,6 +329,30 @@ const Voyages = () => {
                       <span>{new Date(trip.departure_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
+
+                  {/* Driver and Assistant */}
+                  {(trip.driver || trip.assistant) && (
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-3 pb-3 border-b border-border">
+                      {trip.driver && (
+                        <div className="flex items-center gap-1.5">
+                          <User className="w-3 h-3 text-primary" />
+                          <span className="font-medium text-foreground">
+                            {trip.driver.full_name || `${trip.driver.first_name} ${trip.driver.last_name}`}
+                          </span>
+                          <span className="text-muted-foreground">(Chauffeur)</span>
+                        </div>
+                      )}
+                      {trip.assistant && (
+                        <div className="flex items-center gap-1.5">
+                          <User className="w-3 h-3 text-orange-500" />
+                          <span className="font-medium text-foreground">
+                            {trip.assistant.full_name || `${trip.assistant.first_name} ${trip.assistant.last_name}`}
+                          </span>
+                          <span className="text-muted-foreground">(Assistant)</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Capacity indicator */}
                   {(() => {
