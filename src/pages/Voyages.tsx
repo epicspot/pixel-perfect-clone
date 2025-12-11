@@ -575,10 +575,16 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
   const [notes, setNotes] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  const { data: routes } = useQuery({
+  const { data: allRoutes } = useQuery({
     queryKey: ['routes'],
     queryFn: () => api.getRoutes(),
   });
+
+  // Filter routes: exclude routes departing from Siège (administrative only)
+  const routes = React.useMemo(() => {
+    if (!allRoutes) return [];
+    return allRoutes.filter(r => r.departure_agency_id !== Number(SIEGE_AGENCY_ID));
+  }, [allRoutes]);
 
   // Fetch vehicles
   const { data: allVehicles } = useQuery({
@@ -912,10 +918,16 @@ const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChang
     }
   }, [trip]);
 
-  const { data: routes } = useQuery({
+  const { data: allRoutes } = useQuery({
     queryKey: ['routes'],
     queryFn: () => api.getRoutes(),
   });
+
+  // Filter routes: exclude routes departing from Siège (administrative only)
+  const routes = React.useMemo(() => {
+    if (!allRoutes) return [];
+    return allRoutes.filter(r => r.departure_agency_id !== Number(SIEGE_AGENCY_ID));
+  }, [allRoutes]);
 
   const { data: allVehicles } = useQuery({
     queryKey: ['vehicles'],
