@@ -695,12 +695,12 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Chauffeur</Label>
-              <Select value={driverId} onValueChange={setDriverId}>
+              <Select value={driverId || "_none"} onValueChange={(v) => setDriverId(v === "_none" ? "" : v)}>
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Sélectionner un chauffeur" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Non assigné</SelectItem>
+                  <SelectItem value="_none">Non assigné</SelectItem>
                   {drivers.map((d) => (
                     <SelectItem key={d.id} value={d.id.toString()}>
                       {getStaffName(d)} {(d.agency as any)?.name ? `(${(d.agency as any).name})` : ''}
@@ -711,12 +711,12 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
             </div>
             <div>
               <Label className="text-xs">Assistant</Label>
-              <Select value={assistantId} onValueChange={setAssistantId}>
+              <Select value={assistantId || "_none"} onValueChange={(v) => setAssistantId(v === "_none" ? "" : v)}>
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Sélectionner un assistant" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Non assigné</SelectItem>
+                  <SelectItem value="_none">Non assigné</SelectItem>
                   {assistants.map((a) => (
                     <SelectItem key={a.id} value={a.id.toString()}>
                       {getStaffName(a)} {(a.agency as any)?.name ? `(${(a.agency as any).name})` : ''}
@@ -946,12 +946,12 @@ const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChang
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Chauffeur</Label>
-              <Select value={driverId} onValueChange={setDriverId}>
+              <Select value={driverId || "_none"} onValueChange={(v) => setDriverId(v === "_none" ? "" : v)}>
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Sélectionner un chauffeur" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Non assigné</SelectItem>
+                  <SelectItem value="_none">Non assigné</SelectItem>
                   {drivers.map((d) => (
                     <SelectItem key={d.id} value={d.id.toString()}>
                       {getStaffName(d)} {(d.agency as any)?.name ? `(${(d.agency as any).name})` : ''}
@@ -962,12 +962,12 @@ const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChang
             </div>
             <div>
               <Label className="text-xs">Assistant</Label>
-              <Select value={assistantId} onValueChange={setAssistantId}>
+              <Select value={assistantId || "_none"} onValueChange={(v) => setAssistantId(v === "_none" ? "" : v)}>
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Sélectionner un assistant" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Non assigné</SelectItem>
+                  <SelectItem value="_none">Non assigné</SelectItem>
                   {assistants.map((a) => (
                     <SelectItem key={a.id} value={a.id.toString()}>
                       {getStaffName(a)} {(a.agency as any)?.name ? `(${(a.agency as any).name})` : ''}
