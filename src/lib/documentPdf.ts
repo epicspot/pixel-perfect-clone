@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import QRCode from 'qrcode';
 
 const formatCurrency = (value: number) => {
   // Use manual formatting to avoid encoding issues with jsPDF
@@ -57,24 +58,40 @@ interface TripData {
 
 const getPaymentMethodLabel = (method?: string) => {
   switch (method) {
-    case 'cash': return 'Espèces';
+    case 'cash': return 'Especes';
     case 'mobile_money': return 'Mobile Money';
     case 'card': return 'Carte bancaire';
     case 'bank_transfer': return 'Virement';
-    default: return method || 'Espèces';
+    default: return method || 'Especes';
   }
 };
 
-// Generate individual ticket receipt
-export const generateTicketPdf = (ticket: TicketData, companyName = 'Transport Express') => {
+// Generate QR code as base64 data URL
+const generateQRCode = async (data: string): Promise<string> => {
+  try {
+    return await QRCode.toDataURL(data, {
+      width: 100,
+      margin: 1,
+      color: { dark: '#000000', light: '#ffffff' }
+    });
+  } catch (error) {
+    console.error('QR Code generation error:', error);
+    return '';
+  }
+};
+
+// Generate individual ticket receipt with tear-off stub and QR code
+export const generateTicketPdf = async (ticket: TicketData, companyName = 'Transport Express') => {
   const doc = new jsPDF({
-    format: [80, 200], // Receipt format (80mm width)
+    format: [80, 280], // Longer receipt format for stub
     unit: 'mm',
   });
   
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 10;
 
+  // ========== MAIN TICKET SECTION ==========
+  
   // Header
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
@@ -107,7 +124,7 @@ export const generateTicketPdf = (ticket: TicketData, companyName = 'Transport E
 
   if (ticket.customer_phone) {
     doc.setFont('helvetica', 'bold');
-    doc.text('Tél:', 5, y);
+    doc.text('Tel:', 5, y);
     doc.setFont('helvetica', 'normal');
     doc.text(ticket.customer_phone, 25, y);
     y += 5;
@@ -125,7 +142,7 @@ export const generateTicketPdf = (ticket: TicketData, companyName = 'Transport E
 
     if (ticket.trip.departure_datetime) {
       doc.setFont('helvetica', 'bold');
-      doc.text('Départ:', 5, y);
+      doc.text('Depart:', 5, y);
       doc.setFont('helvetica', 'normal');
       doc.text(format(new Date(ticket.trip.departure_datetime), 'dd/MM/yyyy HH:mm'), 25, y);
       y += 5;
@@ -133,7 +150,7 @@ export const generateTicketPdf = (ticket: TicketData, companyName = 'Transport E
 
     if (ticket.trip.vehicle) {
       doc.setFont('helvetica', 'bold');
-      doc.text('Véhicule:', 5, y);
+      doc.text('Vehicule:', 5, y);
       doc.setFont('helvetica', 'normal');
       doc.text(ticket.trip.vehicle.registration_number || '-', 25, y);
       y += 5;
@@ -142,7 +159,7 @@ export const generateTicketPdf = (ticket: TicketData, companyName = 'Transport E
 
   if (ticket.seat_number) {
     doc.setFont('helvetica', 'bold');
-    doc.text('Siège:', 5, y);
+    doc.text('Siege:', 5, y);
     doc.setFont('helvetica', 'normal');
     doc.text(ticket.seat_number, 25, y);
     y += 5;
@@ -182,13 +199,81 @@ export const generateTicketPdf = (ticket: TicketData, companyName = 'Transport E
   doc.line(5, y, pageWidth - 5, y);
   y += 6;
 
-  // Footer
+  // Footer main section
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100);
-  doc.text('Merci de votre confiance!', pageWidth / 2, y, { align: 'center' });
+  doc.text('Conservez ce ticket jusqu\'a destination', pageWidth / 2, y, { align: 'center' });
   y += 4;
-  doc.text(`Imprimé le ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth / 2, y, { align: 'center' });
+  doc.text(`Imprime le ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth / 2, y, { align: 'center' });
+  y += 10;
+
+  // ========== TEAR LINE (DASHED) ==========
+  doc.setTextColor(0);
+  doc.setDrawColor(0);
+  doc.setLineDashPattern([2, 2], 0);
+  doc.line(0, y, pageWidth, y);
+  y += 2;
+  
+  // Scissors icon text
+  doc.setFontSize(8);
+  doc.text('- - - - - - COUPON CONTROLE - - - - - -', pageWidth / 2, y, { align: 'center' });
+  y += 2;
+  
+  doc.line(0, y, pageWidth, y);
+  doc.setLineDashPattern([], 0); // Reset to solid line
+  y += 8;
+
+  // ========== CONTROL STUB SECTION ==========
+  
+  // QR Code
+  const qrData = JSON.stringify({
+    ref: ticket.reference || `TKT-${ticket.id}`,
+    client: ticket.customer_name || 'Anonyme',
+    montant: ticket.price || ticket.total_amount || 0,
+    trajet: ticket.trip?.route?.name || '',
+    depart: ticket.trip?.departure_datetime || '',
+    vehicule: ticket.trip?.vehicle?.registration_number || '',
+  });
+
+  const qrCodeDataUrl = await generateQRCode(qrData);
+  
+  if (qrCodeDataUrl) {
+    const qrSize = 25;
+    doc.addImage(qrCodeDataUrl, 'PNG', (pageWidth - qrSize) / 2, y, qrSize, qrSize);
+    y += qrSize + 5;
+  }
+
+  // Stub ticket info
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text(ticket.reference || `#${ticket.id}`, pageWidth / 2, y, { align: 'center' });
+  y += 5;
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(ticket.customer_name || 'Anonyme', pageWidth / 2, y, { align: 'center' });
+  y += 4;
+
+  if (ticket.trip?.route) {
+    doc.text(ticket.trip.route.name || '-', pageWidth / 2, y, { align: 'center' });
+    y += 4;
+  }
+
+  if (ticket.trip?.departure_datetime) {
+    doc.text(format(new Date(ticket.trip.departure_datetime), 'dd/MM/yyyy HH:mm'), pageWidth / 2, y, { align: 'center' });
+    y += 4;
+  }
+
+  doc.setFont('helvetica', 'bold');
+  doc.text(formatCurrency(ticket.price || ticket.total_amount || 0), pageWidth / 2, y, { align: 'center' });
+  y += 6;
+
+  // Stub footer
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100);
+  doc.text('A detacher lors du controle', pageWidth / 2, y, { align: 'center' });
 
   // Save
   const filename = `ticket_${ticket.reference || ticket.id}.pdf`;
