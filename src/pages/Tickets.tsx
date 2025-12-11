@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { Search, Plus, Filter, Ticket, TrendingUp, Bus } from 'lucide-react';
+import { Search, Plus, Filter, Ticket, TrendingUp, Bus, Printer } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -35,6 +35,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { generateTicketPdf } from '@/lib/documentPdf';
 
 const statusConfig = {
   paid: { label: 'Payé', className: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-800' },
@@ -182,6 +183,7 @@ const Tickets = () => {
                 <TableHead className="font-semibold text-xs">Paiement</TableHead>
                 <TableHead className="font-semibold text-xs text-right">Montant</TableHead>
                 <TableHead className="font-semibold text-xs text-center">Statut</TableHead>
+                <TableHead className="font-semibold text-xs text-center w-[60px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -194,6 +196,7 @@ const Tickets = () => {
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-8" /></TableCell>
                   </TableRow>
                 ))
               ) : (
@@ -223,6 +226,16 @@ const Tickets = () => {
                         <Badge variant="outline" className={cn('text-[10px]', status.className)}>
                           {status.label}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => generateTicketPdf(ticket)}
+                          title="Imprimer le ticket"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
