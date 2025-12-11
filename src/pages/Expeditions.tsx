@@ -11,12 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Package, Truck, Search, Eye, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Package, Truck, Search, Eye, CheckCircle, XCircle, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { logAudit } from '@/lib/audit';
+import { generateShipmentPdf } from '@/lib/documentPdf';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -457,8 +458,17 @@ export default function Expeditions() {
                               variant="ghost"
                               size="icon"
                               onClick={() => setSelectedShipment(shipment)}
+                              title="Voir détails"
                             >
                               <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => generateShipmentPdf(shipment as any)}
+                              title="Imprimer bordereau"
+                            >
+                              <Printer className="w-4 h-4" />
                             </Button>
                             {shipment.status === 'pending' && (
                               <Button

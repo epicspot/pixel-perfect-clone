@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { Search, Plus, Filter, Ticket, TrendingUp, Bus, Printer, XCircle, RotateCcw, Eye, MoreHorizontal } from 'lucide-react';
+import { Search, Plus, Filter, Ticket, TrendingUp, Bus, Printer, XCircle, RotateCcw, Eye, MoreHorizontal, Package } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -295,6 +296,13 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
   const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>('cash');
   const [price, setPrice] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  
+  // Excess baggage state
+  const [hasExcessBaggage, setHasExcessBaggage] = React.useState(false);
+  const [baggageWeight, setBaggageWeight] = React.useState('');
+  const [baggageDescription, setBaggageDescription] = React.useState('');
+  const [baggagePricePerKg, setBaggagePricePerKg] = React.useState('500');
+  const [baggageBasePrice, setBaggageBasePrice] = React.useState('1000');
 
   const { data: tripsData } = useQuery({
     queryKey: ['trips'],
@@ -342,6 +350,12 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
   const selectedCapacity = selectedTrip ? getTripCapacity(selectedTrip) : null;
   const basePrice = selectedTrip?.route?.base_price || 0;
   const effectivePrice = price ? Number(price) : basePrice;
+
+  // Calculate baggage total
+  const baggageTotal = hasExcessBaggage 
+    ? (parseFloat(baggageWeight) || 0) * (parseFloat(baggagePricePerKg) || 0) + (parseFloat(baggageBasePrice) || 0)
+    : 0;
+  const totalWithBaggage = effectivePrice + baggageTotal;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -407,6 +421,34 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
         audit.ticketSale(newTicket.id, reference, effectivePrice, newTicket.agency_id);
       }
 
+      // Create excess baggage shipment if applicable
+      if (hasExcessBaggage && newTicket && parseFloat(baggageWeight) > 0) {
+        const departureAgencyId = (selectedTrip?.route?.departure_agency as any)?.id;
+        const arrivalAgencyId = (selectedTrip?.route?.arrival_agency as any)?.id;
+        const bagReference = `BAG-${agencyCode}-${year}-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
+        
+        await supabase.from('shipments').insert({
+          reference: bagReference,
+          type: 'excess_baggage',
+          trip_id: Number(tripId),
+          ticket_id: newTicket.id,
+          departure_agency_id: departureAgencyId,
+          arrival_agency_id: arrivalAgencyId,
+          sender_name: customerName.trim(),
+          sender_phone: customerPhone.trim() || null,
+          receiver_name: customerName.trim(),
+          receiver_phone: customerPhone.trim() || null,
+          description: baggageDescription || 'Bagage excédentaire',
+          weight_kg: parseFloat(baggageWeight) || 0,
+          quantity: 1,
+          price_per_kg: parseFloat(baggagePricePerKg) || 0,
+          base_price: parseFloat(baggageBasePrice) || 0,
+          total_amount: baggageTotal,
+          is_excess_baggage: true,
+          status: 'pending',
+        });
+      }
+
       // Impression automatique du ticket
       const ticketForPrint = {
         ...newTicket,
@@ -418,7 +460,10 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
       };
       await generateTicketPdf(ticketForPrint);
 
-      toast({ title: 'Ticket vendu', description: `Ticket ${reference} créé et imprimé pour ${customerName}` });
+      const message = hasExcessBaggage 
+        ? `Ticket ${reference} créé avec bagage excédentaire pour ${customerName}`
+        : `Ticket ${reference} créé et imprimé pour ${customerName}`;
+      toast({ title: 'Ticket vendu', description: message });
       onSuccess();
       onOpenChange(false);
       resetForm();
@@ -435,6 +480,11 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
     setCustomerPhone('');
     setPaymentMethod('cash');
     setPrice('');
+    setHasExcessBaggage(false);
+    setBaggageWeight('');
+    setBaggageDescription('');
+    setBaggagePricePerKg('500');
+    setBaggageBasePrice('1000');
   };
 
   const formatCurrency = (value: number) =>
@@ -592,11 +642,90 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
             </div>
           </div>
 
+          {/* Excess Baggage Option */}
+          <div className="border-t border-border pt-3">
+            <div className="flex items-center space-x-2 mb-3">
+              <Checkbox 
+                id="excess-baggage" 
+                checked={hasExcessBaggage}
+                onCheckedChange={(checked) => setHasExcessBaggage(checked as boolean)}
+              />
+              <label 
+                htmlFor="excess-baggage" 
+                className="text-sm font-medium cursor-pointer flex items-center gap-2"
+              >
+                <Package className="w-4 h-4" />
+                Ajouter un bagage excédentaire
+              </label>
+            </div>
+            
+            {hasExcessBaggage && (
+              <div className="bg-muted/50 rounded-lg p-3 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Poids (kg)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={baggageWeight}
+                      onChange={(e) => setBaggageWeight(e.target.value)}
+                      placeholder="Ex: 5"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Prix/kg (F)</Label>
+                    <Input
+                      type="number"
+                      value={baggagePricePerKg}
+                      onChange={(e) => setBaggagePricePerKg(e.target.value)}
+                      placeholder="500"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Frais de base (F)</Label>
+                  <Input
+                    type="number"
+                    value={baggageBasePrice}
+                    onChange={(e) => setBaggageBasePrice(e.target.value)}
+                    placeholder="1000"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Description</Label>
+                  <Input
+                    value={baggageDescription}
+                    onChange={(e) => setBaggageDescription(e.target.value)}
+                    placeholder="Description du bagage"
+                    className="mt-1"
+                  />
+                </div>
+                {baggageTotal > 0 && (
+                  <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                    <span className="text-xs text-muted-foreground">Sous-total bagage</span>
+                    <span className="font-semibold text-sm">{formatCurrency(baggageTotal)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Total */}
           <div className="border-t border-border pt-3">
+            {hasExcessBaggage && baggageTotal > 0 && (
+              <div className="flex items-center justify-between mb-2 text-sm">
+                <span className="text-muted-foreground">Ticket</span>
+                <span>{formatCurrency(effectivePrice)}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Montant total</span>
-              <span className="text-xl font-bold text-card-foreground">{formatCurrency(effectivePrice)}</span>
+              <span className="text-xs text-muted-foreground">
+                {hasExcessBaggage && baggageTotal > 0 ? 'Montant total (ticket + bagage)' : 'Montant total'}
+              </span>
+              <span className="text-xl font-bold text-card-foreground">{formatCurrency(totalWithBaggage)}</span>
             </div>
           </div>
 
