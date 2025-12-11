@@ -301,13 +301,45 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
     queryFn: () => api.getTrips(),
   });
 
+  // Fetch ticket counts for all trips
+  const { data: ticketCounts } = useQuery({
+    queryKey: ['trip-ticket-counts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tickets')
+        .select('trip_id')
+        .in('status', ['paid', 'reserved']);
+      
+      if (error) throw error;
+      
+      // Count tickets per trip
+      const counts: Record<number, number> = {};
+      data?.forEach(ticket => {
+        if (ticket.trip_id) {
+          counts[ticket.trip_id] = (counts[ticket.trip_id] || 0) + 1;
+        }
+      });
+      return counts;
+    },
+  });
+
   // Filter trips available for sale (only planned, scheduled, or boarding)
   const allTrips = tripsData?.data || [];
   const trips = allTrips.filter(t => {
     const status = t.status as string;
     return status === 'planned' || status === 'scheduled' || status === 'boarding';
   });
+
+  // Helper to get trip capacity info
+  const getTripCapacity = (trip: any) => {
+    const capacity = trip.vehicle?.seats || 50;
+    const soldCount = ticketCounts?.[trip.id] || 0;
+    const remaining = capacity - soldCount;
+    return { capacity, soldCount, remaining, isFull: remaining <= 0 };
+  };
+
   const selectedTrip = trips.find(t => t.id.toString() === tripId);
+  const selectedCapacity = selectedTrip ? getTripCapacity(selectedTrip) : null;
   const basePrice = selectedTrip?.route?.base_price || 0;
   const effectivePrice = price ? Number(price) : basePrice;
 
@@ -318,8 +350,30 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
       return;
     }
 
+    // Check capacity before sale
+    if (selectedCapacity?.isFull) {
+      toast({ title: 'Bus complet', description: 'Ce voyage est complet. Aucune place disponible.', variant: 'destructive' });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      // Double-check capacity with fresh data
+      const { count, error: countError } = await supabase
+        .from('tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('trip_id', Number(tripId))
+        .in('status', ['paid', 'reserved']);
+      
+      if (countError) throw countError;
+      
+      const capacity = selectedTrip?.vehicle?.seats || 50;
+      if ((count || 0) >= capacity) {
+        toast({ title: 'Bus complet', description: 'Ce voyage vient de se remplir. Veuillez choisir un autre voyage.', variant: 'destructive' });
+        setIsSubmitting(false);
+        return;
+      }
+
       const reference = `TKT-${Date.now().toString(36).toUpperCase()}`;
       const { data: newTicket, error } = await supabase.from('tickets').insert({
         trip_id: Number(tripId),
@@ -394,26 +448,69 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
                 <SelectValue placeholder="Sélectionner un voyage" />
               </SelectTrigger>
               <SelectContent>
-                {trips.map((trip) => (
-                  <SelectItem key={trip.id} value={trip.id.toString()}>
-                    {trip.route?.name || 'Route inconnue'} - {new Date(trip.departure_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                  </SelectItem>
-                ))}
+                {trips.map((trip) => {
+                  const { remaining, isFull, capacity, soldCount } = getTripCapacity(trip);
+                  return (
+                    <SelectItem 
+                      key={trip.id} 
+                      value={trip.id.toString()}
+                      disabled={isFull}
+                      className={cn(isFull && 'opacity-50')}
+                    >
+                      <div className="flex items-center justify-between w-full gap-2">
+                        <span>{trip.route?.name || 'Route inconnue'} - {new Date(trip.departure_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className={cn(
+                          'text-[10px] px-1.5 py-0.5 rounded-full font-medium',
+                          isFull 
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
+                            : remaining <= 5 
+                              ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                              : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        )}>
+                          {isFull ? 'COMPLET' : `${remaining} places`}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
 
           {/* Trip Info */}
-          {selectedTrip && (
-            <div className="bg-muted/50 rounded-lg p-3 text-xs">
+          {selectedTrip && selectedCapacity && (
+            <div className="bg-muted/50 rounded-lg p-3 text-xs space-y-2">
               <p className="font-semibold text-card-foreground">{selectedTrip.route?.name}</p>
-              <p className="text-muted-foreground mt-1">
+              <p className="text-muted-foreground">
                 Départ: {new Date(selectedTrip.departure_datetime).toLocaleString('fr-FR')}
               </p>
               <p className="text-muted-foreground">
                 Véhicule: {selectedTrip.vehicle?.registration_number || 'Non assigné'}
               </p>
-              <p className="text-muted-foreground">
+              
+              {/* Capacity indicator */}
+              <div className="pt-2 border-t border-border/50">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-muted-foreground">Places</span>
+                  <span className={cn(
+                    'font-semibold',
+                    selectedCapacity.remaining <= 5 ? 'text-orange-600' : 'text-green-600'
+                  )}>
+                    {selectedCapacity.remaining} / {selectedCapacity.capacity} disponibles
+                  </span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                  <div 
+                    className={cn(
+                      'h-full transition-all',
+                      selectedCapacity.remaining <= 5 ? 'bg-orange-500' : 'bg-green-500'
+                    )}
+                    style={{ width: `${(selectedCapacity.soldCount / selectedCapacity.capacity) * 100}%` }}
+                  />
+                </div>
+              </div>
+              
+              <p className="text-muted-foreground pt-1">
                 Prix de base: <span className="font-semibold text-card-foreground">{formatCurrency(basePrice)}</span>
               </p>
             </div>
