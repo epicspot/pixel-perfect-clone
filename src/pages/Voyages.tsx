@@ -518,6 +518,8 @@ interface NewTripDialogProps {
 const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuccess }) => {
   const [routeId, setRouteId] = React.useState('');
   const [vehicleId, setVehicleId] = React.useState('');
+  const [driverId, setDriverId] = React.useState('');
+  const [assistantId, setAssistantId] = React.useState('');
   const [departureDate, setDepartureDate] = React.useState('');
   const [departureTime, setDepartureTime] = React.useState('');
   const [notes, setNotes] = React.useState('');
@@ -533,6 +535,24 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
     queryFn: () => api.getVehicles(),
   });
 
+  // Fetch drivers and assistants from staff table
+  const { data: staff } = useQuery({
+    queryKey: ['staff-for-trips'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('staff')
+        .select('id, first_name, last_name, full_name, staff_type, agency:agencies(name)')
+        .eq('is_active', true)
+        .in('staff_type', ['driver', 'assistant'])
+        .order('first_name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const drivers = staff?.filter(s => s.staff_type === 'driver') || [];
+  const assistants = staff?.filter(s => s.staff_type === 'assistant') || [];
+
   const selectedRoute = routes?.find(r => r.id.toString() === routeId);
 
   const today = new Date().toISOString().split('T')[0];
@@ -547,13 +567,20 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
     setIsSubmitting(true);
     try {
       const departureDatetime = `${departureDate}T${departureTime}:00`;
-      await api.createTrip({
+      
+      const { error } = await supabase.from('trips').insert({
         route_id: Number(routeId),
         vehicle_id: Number(vehicleId),
+        driver_id: driverId ? Number(driverId) : null,
+        assistant_id: assistantId ? Number(assistantId) : null,
         departure_datetime: departureDatetime,
-        status: 'scheduled',
+        status: 'planned',
+        notes: notes || null,
       });
 
+      if (error) throw error;
+
+      audit.tripCreate(0, selectedRoute?.name || 'Nouveau voyage');
       toast({ title: 'Voyage créé', description: `Départ prévu le ${departureDate} à ${departureTime}` });
       onSuccess();
       onOpenChange(false);
@@ -568,6 +595,8 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
   const resetForm = () => {
     setRouteId('');
     setVehicleId('');
+    setDriverId('');
+    setAssistantId('');
     setDepartureDate('');
     setDepartureTime('');
     setNotes('');
@@ -575,6 +604,8 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+
+  const getStaffName = (s: any) => s.full_name || `${s.first_name} ${s.last_name}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -584,7 +615,7 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
           Nouveau voyage
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Création de voyage</DialogTitle>
         </DialogHeader>
@@ -635,6 +666,42 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
               </p>
             </div>
           )}
+
+          {/* Driver & Assistant */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Chauffeur</Label>
+              <Select value={driverId} onValueChange={setDriverId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Sélectionner un chauffeur" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Non assigné</SelectItem>
+                  {drivers.map((d) => (
+                    <SelectItem key={d.id} value={d.id.toString()}>
+                      {getStaffName(d)} {(d.agency as any)?.name ? `(${(d.agency as any).name})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Assistant</Label>
+              <Select value={assistantId} onValueChange={setAssistantId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Sélectionner un assistant" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Non assigné</SelectItem>
+                  {assistants.map((a) => (
+                    <SelectItem key={a.id} value={a.id.toString()}>
+                      {getStaffName(a)} {(a.agency as any)?.name ? `(${(a.agency as any).name})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           {/* Date & Time */}
           <div className="grid grid-cols-2 gap-3">
@@ -706,6 +773,8 @@ interface EditTripDialogProps {
 const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChange, onSuccess }) => {
   const [routeId, setRouteId] = React.useState('');
   const [vehicleId, setVehicleId] = React.useState('');
+  const [driverId, setDriverId] = React.useState('');
+  const [assistantId, setAssistantId] = React.useState('');
   const [departureDate, setDepartureDate] = React.useState('');
   const [departureTime, setDepartureTime] = React.useState('');
   const [notes, setNotes] = React.useState('');
@@ -716,6 +785,8 @@ const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChang
     if (trip) {
       setRouteId(trip.route_id?.toString() || '');
       setVehicleId(trip.vehicle_id?.toString() || '');
+      setDriverId((trip as any).driver_id?.toString() || '');
+      setAssistantId((trip as any).assistant_id?.toString() || '');
       const dt = new Date(trip.departure_datetime);
       setDepartureDate(dt.toISOString().split('T')[0]);
       setDepartureTime(dt.toTimeString().slice(0, 5));
@@ -733,7 +804,27 @@ const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChang
     queryFn: () => api.getVehicles(),
   });
 
+  // Fetch drivers and assistants from staff table
+  const { data: staff } = useQuery({
+    queryKey: ['staff-for-trips'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('staff')
+        .select('id, first_name, last_name, full_name, staff_type, agency:agencies(name)')
+        .eq('is_active', true)
+        .in('staff_type', ['driver', 'assistant'])
+        .order('first_name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const drivers = staff?.filter(s => s.staff_type === 'driver') || [];
+  const assistants = staff?.filter(s => s.staff_type === 'assistant') || [];
+
   const selectedRoute = routes?.find(r => r.id.toString() === routeId);
+
+  const getStaffName = (s: any) => s.full_name || `${s.first_name} ${s.last_name}`;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -750,6 +841,8 @@ const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChang
         .update({
           route_id: Number(routeId),
           vehicle_id: Number(vehicleId),
+          driver_id: driverId ? Number(driverId) : null,
+          assistant_id: assistantId ? Number(assistantId) : null,
           departure_datetime: departureDatetime,
           notes: notes || null,
         })
@@ -773,7 +866,7 @@ const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChang
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Modifier le voyage</DialogTitle>
         </DialogHeader>
@@ -824,6 +917,42 @@ const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChang
               </p>
             </div>
           )}
+
+          {/* Driver & Assistant */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Chauffeur</Label>
+              <Select value={driverId} onValueChange={setDriverId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Sélectionner un chauffeur" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Non assigné</SelectItem>
+                  {drivers.map((d) => (
+                    <SelectItem key={d.id} value={d.id.toString()}>
+                      {getStaffName(d)} {(d.agency as any)?.name ? `(${(d.agency as any).name})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Assistant</Label>
+              <Select value={assistantId} onValueChange={setAssistantId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Sélectionner un assistant" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Non assigné</SelectItem>
+                  {assistants.map((a) => (
+                    <SelectItem key={a.id} value={a.id.toString()}>
+                      {getStaffName(a)} {(a.agency as any)?.name ? `(${(a.agency as any).name})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           {/* Date & Time */}
           <div className="grid grid-cols-2 gap-3">
