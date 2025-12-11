@@ -165,12 +165,12 @@ const Carburant = () => {
         <div className="bg-card rounded-xl border border-border p-4 flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[140px]">
             <Label className="text-xs">Agence</Label>
-            <Select value={agencyId} onValueChange={setAgencyId}>
+            <Select value={agencyId} onValueChange={(val) => setAgencyId(val === 'all' ? '' : val)}>
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Toutes les agences" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Toutes les agences</SelectItem>
+                <SelectItem value="all">Toutes les agences</SelectItem>
                 {agencies?.map((a) => (
                   <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>
                 ))}
