@@ -4,12 +4,10 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 const formatCurrency = (value: number) => {
-  const formatted = new Intl.NumberFormat('fr-FR', { 
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-    useGrouping: true 
-  }).format(Math.round(value));
-  return `${formatted} F CFA`;
+  // Use manual formatting to avoid encoding issues with jsPDF
+  const rounded = Math.round(value);
+  const formatted = rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return formatted + ' F CFA';
 };
 
 interface TicketData {
