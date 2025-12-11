@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { hasRouteAccess, getRoleLabel, UserRole } from '@/lib/permissions';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
@@ -28,12 +29,12 @@ const navItems = [
   { to: '/cloture-caisse', icon: Wallet, label: 'Clôture caisse' },
   { to: '/carburant', icon: Fuel, label: 'Carburant' },
   { to: '/maintenance', icon: Wrench, label: 'Maintenance' },
-  { to: '/couts-vehicules', icon: BarChart3, label: 'Coûts véhicules', adminOnly: true },
+  { to: '/couts-vehicules', icon: BarChart3, label: 'Coûts véhicules' },
   { to: '/rapports', icon: BarChart3, label: 'Rapports' },
-  { to: '/staff', icon: Users, label: 'Personnel', adminOnly: true },
-  { to: '/depenses', icon: Receipt, label: 'Dépenses', adminOnly: true },
-  { to: '/paie', icon: Wallet, label: 'Paie', adminOnly: true },
-  { to: '/admin', icon: Shield, label: 'Administration', adminOnly: true },
+  { to: '/staff', icon: Users, label: 'Personnel' },
+  { to: '/depenses', icon: Receipt, label: 'Dépenses' },
+  { to: '/paie', icon: Wallet, label: 'Paie' },
+  { to: '/admin', icon: Shield, label: 'Administration' },
   { to: '/parametres', icon: Settings, label: 'Paramètres' },
 ];
 
@@ -92,14 +93,14 @@ export function Sidebar() {
       {!collapsed && profile && (
         <div className="px-4 py-3 border-b border-sidebar-border">
           <p className="text-sm font-medium text-sidebar-foreground truncate">{profile.name}</p>
-          <p className="text-xs text-sidebar-foreground/60 capitalize">{profile.role}</p>
+          <p className="text-xs text-sidebar-foreground/60">{getRoleLabel(profile.role)}</p>
         </div>
       )}
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
         {navItems
-          .filter((item) => !item.adminOnly || profile?.role === 'admin')
+          .filter((item) => hasRouteAccess(profile?.role as UserRole, item.to))
           .map((item) => (
           <NavLink
             key={item.to}
