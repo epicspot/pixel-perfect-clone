@@ -32,8 +32,11 @@ import {
   Calendar,
   MapPin,
   User,
-  QrCode
+  QrCode,
+  AlertTriangle,
+  XCircle
 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -240,6 +243,17 @@ const SuiviSouches = () => {
   const totalCollected = trips?.reduce((sum, t) => sum + t.stubs_collected, 0) || 0;
   const collectionRate = totalTickets > 0 ? Math.round((totalCollected / totalTickets) * 100) : 0;
 
+  // Trips with missing stubs (departed trips with incomplete collection)
+  const tripsWithMissingStubs = trips?.filter(trip => {
+    const tripDate = new Date(trip.departure_datetime);
+    const now = new Date();
+    const hoursSinceDeparture = (now.getTime() - tripDate.getTime()) / (1000 * 60 * 60);
+    // Show alert if trip departed more than 2 hours ago and has missing stubs
+    return hoursSinceDeparture > 2 && 
+           trip.tickets_sold > 0 && 
+           trip.stubs_collected < trip.tickets_sold;
+  }) || [];
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -255,6 +269,55 @@ const SuiviSouches = () => {
             </p>
           </div>
         </div>
+
+        {/* Alerts for missing stubs */}
+        {tripsWithMissingStubs.length > 0 && (
+          <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle className="font-semibold">
+              {tripsWithMissingStubs.length} voyage{tripsWithMissingStubs.length > 1 ? 's' : ''} avec souches manquantes
+            </AlertTitle>
+            <AlertDescription className="mt-2">
+              <div className="space-y-2">
+                {tripsWithMissingStubs.slice(0, 5).map(trip => {
+                  const missing = trip.tickets_sold - trip.stubs_collected;
+                  return (
+                    <div 
+                      key={trip.id} 
+                      className="flex items-center justify-between p-2 rounded-lg bg-background/50 text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <XCircle className="w-4 h-4 text-destructive" />
+                        <span className="font-medium">{trip.route?.name}</span>
+                        <span className="text-muted-foreground">
+                          ({formatDate(trip.departure_datetime)})
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="destructive" className="text-xs">
+                          {missing} souche{missing > 1 ? 's' : ''} manquante{missing > 1 ? 's' : ''}
+                        </Badge>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => openDetails(trip)}
+                          className="h-7 px-2"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {tripsWithMissingStubs.length > 5 && (
+                  <p className="text-xs text-muted-foreground text-center pt-1">
+                    Et {tripsWithMissingStubs.length - 5} autre{tripsWithMissingStubs.length - 5 > 1 ? 's' : ''} voyage{tripsWithMissingStubs.length - 5 > 1 ? 's' : ''}...
+                  </p>
+                )}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -297,15 +360,34 @@ const SuiviSouches = () => {
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className={cn(tripsWithMissingStubs.length > 0 && "border-destructive/50")}>
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                  <QrCode className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center",
+                  tripsWithMissingStubs.length > 0 
+                    ? "bg-destructive/10" 
+                    : "bg-orange-100 dark:bg-orange-900/30"
+                )}>
+                  {tripsWithMissingStubs.length > 0 ? (
+                    <AlertTriangle className="w-5 h-5 text-destructive" />
+                  ) : (
+                    <QrCode className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                  )}
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Taux collecte</p>
-                  <p className="text-xl font-bold">{collectionRate}%</p>
+                  <p className="text-xs text-muted-foreground">
+                    {tripsWithMissingStubs.length > 0 ? 'Alertes' : 'Taux collecte'}
+                  </p>
+                  <p className={cn(
+                    "text-xl font-bold",
+                    tripsWithMissingStubs.length > 0 && "text-destructive"
+                  )}>
+                    {tripsWithMissingStubs.length > 0 
+                      ? tripsWithMissingStubs.length 
+                      : `${collectionRate}%`
+                    }
+                  </p>
                 </div>
               </div>
             </CardContent>
