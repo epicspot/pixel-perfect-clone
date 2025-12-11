@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { getRoleLabel, getRoleColorClasses, UserRole } from '@/lib/permissions';
 
 type Tab = 'agencies' | 'routes' | 'vehicles' | 'users';
 
@@ -566,16 +567,6 @@ const UsersTab = () => {
     setDialogOpen(true);
   };
 
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'admin': return 'Admin';
-      case 'manager': return 'Manager';
-      case 'cashier': return 'Guichetier';
-      case 'accountant': return 'Comptable';
-      case 'mechanic': return 'Mécanicien';
-      default: return role;
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -604,11 +595,9 @@ const UsersTab = () => {
                   <TableCell className="font-medium">{u.name}</TableCell>
                   <TableCell>{u.email}</TableCell>
                   <TableCell>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      u.role === 'admin' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
-                      u.role === 'manager' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                      'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
-                    }`}>{getRoleLabel(u.role)}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${getRoleColorClasses(u.role)}`}>
+                      {getRoleLabel(u.role)}
+                    </span>
                   </TableCell>
                   <TableCell>{u.agency?.name || '(Central)'}</TableCell>
                   <TableCell className="text-right">

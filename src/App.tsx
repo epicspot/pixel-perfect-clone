@@ -2,8 +2,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { hasRouteAccess, UserRole } from "@/lib/permissions";
 import Index from "./pages/Index";
 import Tickets from "./pages/Tickets";
 import Voyages from "./pages/Voyages";
@@ -25,9 +26,10 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-// Protected route wrapper
+// Protected route wrapper with role-based access
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, profile } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -39,6 +41,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Check role-based access
+  const hasAccess = hasRouteAccess(profile?.role as UserRole, location.pathname);
+  if (!hasAccess) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
