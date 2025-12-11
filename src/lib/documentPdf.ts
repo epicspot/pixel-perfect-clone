@@ -203,7 +203,7 @@ export const generateTicketPdf = async (ticket: TicketData, companyName = 'Trans
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100);
-  doc.text('Conservez ce ticket jusqu\'a destination', pageWidth / 2, y, { align: 'center' });
+  doc.text('PARTIE PASSAGER - A conserver', pageWidth / 2, y, { align: 'center' });
   y += 4;
   doc.text(`Imprime le ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth / 2, y, { align: 'center' });
   y += 10;
@@ -213,18 +213,26 @@ export const generateTicketPdf = async (ticket: TicketData, companyName = 'Trans
   doc.setDrawColor(0);
   doc.setLineDashPattern([2, 2], 0);
   doc.line(0, y, pageWidth, y);
-  y += 2;
+  y += 3;
   
   // Scissors icon text
-  doc.setFontSize(8);
-  doc.text('- - - - - - COUPON CONTROLE - - - - - -', pageWidth / 2, y, { align: 'center' });
-  y += 2;
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DETACHER ICI LORS DE L\'EMBARQUEMENT', pageWidth / 2, y, { align: 'center' });
+  y += 3;
   
   doc.line(0, y, pageWidth, y);
   doc.setLineDashPattern([], 0); // Reset to solid line
   y += 8;
 
-  // ========== CONTROL STUB SECTION ==========
+  // ========== BOARDING STUB SECTION (For Convoyeur) ==========
+  
+  // Header
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0);
+  doc.text('SOUCHE EMBARQUEMENT', pageWidth / 2, y, { align: 'center' });
+  y += 5;
   
   // QR Code
   const qrData = JSON.stringify({
@@ -239,9 +247,9 @@ export const generateTicketPdf = async (ticket: TicketData, companyName = 'Trans
   const qrCodeDataUrl = await generateQRCode(qrData);
   
   if (qrCodeDataUrl) {
-    const qrSize = 25;
+    const qrSize = 22;
     doc.addImage(qrCodeDataUrl, 'PNG', (pageWidth - qrSize) / 2, y, qrSize, qrSize);
-    y += qrSize + 5;
+    y += qrSize + 4;
   }
 
   // Stub ticket info
@@ -265,6 +273,11 @@ export const generateTicketPdf = async (ticket: TicketData, companyName = 'Trans
     y += 4;
   }
 
+  if (ticket.trip?.vehicle) {
+    doc.text(`Vehicule: ${ticket.trip.vehicle.registration_number || '-'}`, pageWidth / 2, y, { align: 'center' });
+    y += 4;
+  }
+
   doc.setFont('helvetica', 'bold');
   doc.text(formatCurrency(ticket.price || ticket.total_amount || 0), pageWidth / 2, y, { align: 'center' });
   y += 6;
@@ -273,7 +286,9 @@ export const generateTicketPdf = async (ticket: TicketData, companyName = 'Trans
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100);
-  doc.text('A detacher lors du controle', pageWidth / 2, y, { align: 'center' });
+  doc.text('CONVOYEUR: Conserver cette souche', pageWidth / 2, y, { align: 'center' });
+  y += 3;
+  doc.text('Scanner le QR pour controle', pageWidth / 2, y, { align: 'center' });
 
   // Save
   const filename = `ticket_${ticket.reference || ticket.id}.pdf`;
