@@ -721,6 +721,36 @@ export type Database = {
           },
         ]
       }
+      ticket_scans: {
+        Row: {
+          id: number
+          is_valid: boolean
+          notes: string | null
+          scanned_at: string
+          scanned_by: string | null
+          ticket_data: Json
+          ticket_reference: string
+        }
+        Insert: {
+          id?: number
+          is_valid?: boolean
+          notes?: string | null
+          scanned_at?: string
+          scanned_by?: string | null
+          ticket_data: Json
+          ticket_reference: string
+        }
+        Update: {
+          id?: number
+          is_valid?: boolean
+          notes?: string | null
+          scanned_at?: string
+          scanned_by?: string | null
+          ticket_data?: Json
+          ticket_reference?: string
+        }
+        Relationships: []
+      }
       tickets: {
         Row: {
           agency_id: number | null
