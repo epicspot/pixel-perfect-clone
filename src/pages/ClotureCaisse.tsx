@@ -35,14 +35,17 @@ export default function ClotureCaisse() {
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
-  // Fetch today's tickets for the current user
+  // Check if user is admin
+  const isAdmin = profile?.role === 'admin';
+
+  // Fetch today's tickets for the current user (with agency restriction)
   const { data: todayTickets, isLoading: loadingTickets } = useQuery({
-    queryKey: ['today-tickets', session?.user?.id, selectedDate],
+    queryKey: ['today-tickets', session?.user?.id, selectedDate, profile?.agency_id],
     queryFn: async () => {
       const startDate = startOfDay(new Date(selectedDate)).toISOString();
       const endDate = endOfDay(new Date(selectedDate)).toISOString();
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('tickets')
         .select('*')
         .eq('seller_id', session?.user?.id)
@@ -50,27 +53,44 @@ export default function ClotureCaisse() {
         .lte('sold_at', endDate)
         .eq('status', 'paid');
 
+      // Apply agency restriction for non-admin users
+      if (!isAdmin && profile?.agency_id) {
+        query = query.eq('agency_id', profile.agency_id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
-    enabled: !!session?.user?.id,
+    enabled: !!session?.user?.id && !!profile,
   });
 
-  // Fetch existing closures
+  // Fetch existing closures (with agency restriction for viewing)
   const { data: closures, isLoading: loadingClosures } = useQuery({
-    queryKey: ['cash-closures', session?.user?.id],
+    queryKey: ['cash-closures', session?.user?.id, profile?.agency_id, isAdmin],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('cash_closures')
         .select('*')
-        .eq('user_id', session?.user?.id)
         .order('closure_date', { ascending: false })
         .limit(10);
 
+      // For non-admin users, show only their own closures
+      // Admins can see all closures (or filter by agency if needed)
+      if (!isAdmin) {
+        query = query.eq('user_id', session?.user?.id);
+      }
+
+      // Apply agency restriction
+      if (!isAdmin && profile?.agency_id) {
+        query = query.eq('agency_id', profile.agency_id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
-    enabled: !!session?.user?.id,
+    enabled: !!session?.user?.id && !!profile,
   });
 
   // Calculate totals
