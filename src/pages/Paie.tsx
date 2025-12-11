@@ -45,7 +45,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2, Download, Pencil, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2, Download, Pencil, Trash2, CheckCircle, XCircle, Banknote } from 'lucide-react';
 import { generatePayslipPdf, generatePeriodSummaryPdf, generateAllPeriodsStatsPdf } from '@/lib/payrollPdf';
 
 interface PayrollPeriod {
@@ -66,6 +66,7 @@ interface PayrollEntry {
   deductions: number;
   net_salary: number;
   paid_at: string | null;
+  payment_method: string | null;
   validated_at: string | null;
   validated_by: string | null;
 }
@@ -96,6 +97,8 @@ export default function Paie() {
   const [selectedPeriod, setSelectedPeriod] = useState<PayrollPeriod | null>(null);
   const [editingEntry, setEditingEntry] = useState<PayrollEntry | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<PayrollEntry | null>(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [entryToPay, setEntryToPay] = useState<PayrollEntry | null>(null);
 
   const [periodForm, setPeriodForm] = useState({
     start_date: '',
@@ -116,6 +119,11 @@ export default function Paie() {
     bonuses: '0',
     allowances: '0',
     deductions: '0',
+  });
+
+  const [paymentForm, setPaymentForm] = useState({
+    payment_method: 'cash',
+    paid_at: new Date().toISOString().split('T')[0],
   });
 
   // Fetch periods
@@ -386,8 +394,65 @@ export default function Paie() {
     },
   });
 
+  // Mark entry as paid mutation
+  const markPaidMutation = useMutation({
+    mutationFn: async (data: { id: number; payment_method: string; paid_at: string }) => {
+      const { error } = await supabase
+        .from('payroll_entries')
+        .update({
+          payment_method: data.payment_method,
+          paid_at: data.paid_at,
+        })
+        .eq('id', data.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Paiement enregistré');
+      queryClient.invalidateQueries({ queryKey: ['payroll-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-all-entries'] });
+      setPaymentDialogOpen(false);
+      setEntryToPay(null);
+      setPaymentForm({ payment_method: 'cash', paid_at: new Date().toISOString().split('T')[0] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  // Cancel payment mutation
+  const cancelPaymentMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase
+        .from('payroll_entries')
+        .update({
+          payment_method: null,
+          paid_at: null,
+        })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Paiement annulé');
+      queryClient.invalidateQueries({ queryKey: ['payroll-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-all-entries'] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
   const getStaffName = (id: number) =>
     staffList?.find((s) => s.id === id)?.full_name || '-';
+
+  const getPaymentMethodLabel = (method: string | null) => {
+    switch (method) {
+      case 'cash': return 'Espèces';
+      case 'mobile_money': return 'Mobile Money';
+      case 'card': return 'Carte';
+      case 'bank_transfer': return 'Virement';
+      default: return method || '-';
+    }
+  };
 
   const handleStaffSelect = (staffId: string) => {
     const staff = staffList?.find((s) => s.id === Number(staffId));
@@ -746,7 +811,8 @@ export default function Paie() {
                               <TableHead className="text-right">Indemnités</TableHead>
                               <TableHead className="text-right">Retenues</TableHead>
                               <TableHead className="text-right">Net</TableHead>
-                              <TableHead className="text-center">Statut</TableHead>
+                              <TableHead className="text-center">Validation</TableHead>
+                              <TableHead className="text-center">Paiement</TableHead>
                               <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -783,6 +849,25 @@ export default function Paie() {
                                     </Badge>
                                   )}
                                 </TableCell>
+                                <TableCell className="text-center">
+                                  {entry.paid_at ? (
+                                    <div className="space-y-1">
+                                      <Badge variant="default" className="bg-blue-600">
+                                        <Banknote className="w-3 h-3 mr-1" />
+                                        Payé
+                                      </Badge>
+                                      <p className="text-xs text-muted-foreground">
+                                        {getPaymentMethodLabel(entry.payment_method)}
+                                        <br />
+                                        {format(new Date(entry.paid_at), 'dd/MM/yyyy')}
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <Badge variant="secondary">
+                                      Non payé
+                                    </Badge>
+                                  )}
+                                </TableCell>
                                 <TableCell>
                                   <div className="flex justify-end gap-1">
                                     <Button
@@ -793,6 +878,34 @@ export default function Paie() {
                                     >
                                       <Download className="w-4 h-4" />
                                     </Button>
+                                    {/* Payment actions - available for validated entries */}
+                                    {entry.validated_at && !entry.paid_at && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setEntryToPay(entry);
+                                          setPaymentForm({
+                                            payment_method: 'cash',
+                                            paid_at: new Date().toISOString().split('T')[0],
+                                          });
+                                          setPaymentDialogOpen(true);
+                                        }}
+                                        title="Enregistrer le paiement"
+                                      >
+                                        <Banknote className="w-4 h-4 text-blue-500" />
+                                      </Button>
+                                    )}
+                                    {entry.paid_at && selectedPeriod.status === 'open' && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => cancelPaymentMutation.mutate(entry.id)}
+                                        title="Annuler le paiement"
+                                      >
+                                        <XCircle className="w-4 h-4 text-orange-500" />
+                                      </Button>
+                                    )}
                                     {selectedPeriod.status === 'open' && (
                                       <>
                                         {entry.validated_at ? (
@@ -801,8 +914,9 @@ export default function Paie() {
                                             size="sm"
                                             onClick={() => invalidateEntryMutation.mutate(entry.id)}
                                             title="Annuler validation"
+                                            disabled={!!entry.paid_at}
                                           >
-                                            <XCircle className="w-4 h-4 text-orange-500" />
+                                            <CheckCircle className="w-4 h-4 text-green-500" />
                                           </Button>
                                         ) : (
                                           <Button
@@ -811,7 +925,7 @@ export default function Paie() {
                                             onClick={() => validateEntryMutation.mutate(entry.id)}
                                             title="Valider"
                                           >
-                                            <CheckCircle className="w-4 h-4 text-green-500" />
+                                            <CheckCircle className="w-4 h-4 text-muted-foreground" />
                                           </Button>
                                         )}
                                         <Button
@@ -828,6 +942,7 @@ export default function Paie() {
                                             setEditEntryDialogOpen(true);
                                           }}
                                           title="Modifier"
+                                          disabled={!!entry.paid_at}
                                         >
                                           <Pencil className="w-4 h-4" />
                                         </Button>
@@ -839,6 +954,7 @@ export default function Paie() {
                                             setDeleteDialogOpen(true);
                                           }}
                                           title="Supprimer"
+                                          disabled={!!entry.paid_at}
                                         >
                                           <Trash2 className="w-4 h-4 text-destructive" />
                                         </Button>
@@ -952,6 +1068,83 @@ export default function Paie() {
                         </Button>
                         <Button type="submit" disabled={updateEntryMutation.isPending}>
                           Enregistrer
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Payment Dialog */}
+                <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        Enregistrer le paiement - {entryToPay ? getStaffName(entryToPay.staff_id) : ''}
+                      </DialogTitle>
+                    </DialogHeader>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (entryToPay) {
+                          markPaidMutation.mutate({
+                            id: entryToPay.id,
+                            payment_method: paymentForm.payment_method,
+                            paid_at: paymentForm.paid_at,
+                          });
+                        }
+                      }}
+                      className="space-y-4"
+                    >
+                      <div className="p-4 rounded-lg bg-muted">
+                        <p className="text-sm text-muted-foreground">Montant net à payer</p>
+                        <p className="text-2xl font-bold text-primary">
+                          {formatCurrency(entryToPay?.net_salary || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <Label>Méthode de paiement *</Label>
+                        <Select
+                          value={paymentForm.payment_method}
+                          onValueChange={(value) =>
+                            setPaymentForm({ ...paymentForm, payment_method: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sélectionner" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cash">Espèces</SelectItem>
+                            <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                            <SelectItem value="bank_transfer">Virement bancaire</SelectItem>
+                            <SelectItem value="card">Carte bancaire</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Date de paiement *</Label>
+                        <Input
+                          type="date"
+                          value={paymentForm.paid_at}
+                          onChange={(e) =>
+                            setPaymentForm({ ...paymentForm, paid_at: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2 pt-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setPaymentDialogOpen(false);
+                            setEntryToPay(null);
+                          }}
+                        >
+                          Annuler
+                        </Button>
+                        <Button type="submit" disabled={markPaidMutation.isPending}>
+                          <Banknote className="w-4 h-4 mr-2" />
+                          Confirmer le paiement
                         </Button>
                       </div>
                     </form>
