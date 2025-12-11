@@ -371,7 +371,7 @@ export const api = {
     const { data, error, count } = await query;
     if (error) throw new Error(error.message);
     
-    // Filter by agency (via vehicle) for non-admin users
+    // Filter by agency (via vehicle) for non-admin users (managers included)
     let filteredData = data || [];
     const targetAgencyId = (userRole !== 'admin' && userAgencyId) ? userAgencyId : params?.agency_id;
     
@@ -817,7 +817,14 @@ export const api = {
   },
 
   // Dashboard Stats
-  async getDashboardStats(params?: { from?: string; to?: string }): Promise<DashboardStats> {
+  async getDashboardStats(params?: { from?: string; to?: string; agency_id?: number }): Promise<DashboardStats> {
+    // Get current user profile for agency restriction
+    const { agencyId: userAgencyId, role: userRole } = await getUserAgencyRestriction();
+    
+    // Determine which agency to filter by
+    // Admin: use params.agency_id or all; Others: use their agency
+    const targetAgencyId = userRole === 'admin' ? params?.agency_id : userAgencyId;
+    
     const today = new Date().toISOString().split('T')[0];
     const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
     const endOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0];
@@ -826,34 +833,54 @@ export const api = {
     const periodEnd = params?.to || endOfMonth;
 
     // Today's tickets
-    const { data: todayTickets } = await supabase
+    let todayTicketsQuery = supabase
       .from('tickets')
-      .select('price')
+      .select('price, agency_id')
       .eq('status', 'paid')
       .gte('sold_at', `${today}T00:00:00`)
       .lte('sold_at', `${today}T23:59:59`);
+    
+    if (targetAgencyId) {
+      todayTicketsQuery = todayTicketsQuery.eq('agency_id', targetAgencyId);
+    }
+    
+    const { data: todayTickets } = await todayTicketsQuery;
 
-    // Today's trips
-    const { count: todayTripsCount } = await supabase
+    // Today's trips - filter by route's departure agency
+    const { data: todayTrips } = await supabase
       .from('trips')
-      .select('*', { count: 'exact', head: true })
+      .select('*, route:routes(departure_agency_id)')
       .gte('departure_datetime', `${today}T00:00:00`)
       .lte('departure_datetime', `${today}T23:59:59`);
+    
+    const filteredTodayTrips = targetAgencyId 
+      ? (todayTrips || []).filter((t: any) => t.route?.departure_agency_id === targetAgencyId)
+      : (todayTrips || []);
 
-    // Period tickets with trip info
-    const { data: periodTickets } = await supabase
+    // Period tickets with agency info
+    let periodTicketsQuery = supabase
       .from('tickets')
-      .select('*')
+      .select('*, agency:agencies(name)')
       .eq('status', 'paid')
       .gte('sold_at', periodStart)
       .lte('sold_at', periodEnd);
+    
+    if (targetAgencyId) {
+      periodTicketsQuery = periodTicketsQuery.eq('agency_id', targetAgencyId);
+    }
+    
+    const { data: periodTickets } = await periodTicketsQuery;
 
     // Period trips
-    const { count: periodTripsCount } = await supabase
+    const { data: periodTrips } = await supabase
       .from('trips')
-      .select('*', { count: 'exact', head: true })
+      .select('*, route:routes(departure_agency_id)')
       .gte('departure_datetime', periodStart)
       .lte('departure_datetime', periodEnd);
+    
+    const filteredPeriodTrips = targetAgencyId
+      ? (periodTrips || []).filter((t: any) => t.route?.departure_agency_id === targetAgencyId)
+      : (periodTrips || []);
 
     // Process data
     const todaySales = (todayTickets || []).reduce((sum, t: any) => sum + Number(t.price), 0);
@@ -871,6 +898,22 @@ export const api = {
       }
     });
 
+    // Group by agency for per_agency stats
+    const agencyMap = new Map<number, { agency_id: number; agency_name: string; total_amount: number; tickets_count: number }>();
+    (periodTickets || []).forEach((t: any) => {
+      if (t.agency_id) {
+        const existing = agencyMap.get(t.agency_id) || {
+          agency_id: t.agency_id,
+          agency_name: (t.agency as any)?.name || `Agence ${t.agency_id}`,
+          total_amount: 0,
+          tickets_count: 0,
+        };
+        existing.total_amount += Number(t.price);
+        existing.tickets_count += 1;
+        agencyMap.set(t.agency_id, existing);
+      }
+    });
+
     // Recent tickets
     const recentTickets = (periodTickets || [])
       .sort((a: any, b: any) => new Date(b.sold_at || 0).getTime() - new Date(a.sold_at || 0).getTime())
@@ -881,23 +924,23 @@ export const api = {
         price: Number(t.price),
         payment_method: t.payment_method || 'cash',
         customer_name: t.customer_name || '',
-        agency_name: '',
+        agency_name: (t.agency as any)?.name || '',
       }));
 
     return {
       today: {
         sales_amount: todaySales,
         tickets_count: (todayTickets || []).length,
-        trips_count: todayTripsCount || 0,
+        trips_count: filteredTodayTrips.length,
       },
       period: {
         sales_amount: periodSales,
         tickets_count: (periodTickets || []).length,
-        trips_count: periodTripsCount || 0,
+        trips_count: filteredPeriodTrips.length,
         start: periodStart,
         end: periodEnd,
       },
-      per_agency: [],
+      per_agency: Array.from(agencyMap.values()).sort((a, b) => b.total_amount - a.total_amount),
       daily_sales: Array.from(dailySalesMap.values()).sort((a, b) => a.date.localeCompare(b.date)),
       daily_trips: [],
       recent_tickets: recentTickets,

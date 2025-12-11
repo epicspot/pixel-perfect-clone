@@ -5,12 +5,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TrendingUp, Ticket, Bus, Users } from 'lucide-react';
+import { AgencyFilter } from '@/components/filters/AgencyFilter';
 
 type PeriodType = 'today' | 'week' | 'month';
 
 const Index = () => {
   const { profile } = useAuth();
   const [period, setPeriod] = React.useState<PeriodType>('month');
+  const [selectedAgencyId, setSelectedAgencyId] = React.useState<string>('');
 
   const getDateRange = React.useCallback((p: PeriodType) => {
     const now = new Date();
@@ -33,11 +35,25 @@ const Index = () => {
   const dateRange = React.useMemo(() => getDateRange(period), [period, getDateRange]);
 
   const { data: stats, isLoading, error } = useQuery({
-    queryKey: ['dashboard-stats', dateRange.from, dateRange.to],
-    queryFn: () => api.getDashboardStats({ from: dateRange.from, to: dateRange.to }),
+    queryKey: ['dashboard-stats', dateRange.from, dateRange.to, selectedAgencyId],
+    queryFn: () => api.getDashboardStats({ 
+      from: dateRange.from, 
+      to: dateRange.to,
+      agency_id: selectedAgencyId ? Number(selectedAgencyId) : undefined
+    }),
   });
 
+  const isAdmin = profile?.role === 'admin';
+
   const isAdminView = ['admin', 'manager', 'accountant'].includes(profile?.role ?? '');
+
+  // Subtitle based on context
+  const getSubtitle = () => {
+    if (!isAdminView) return 'Vue simplifiée – ventes et voyages';
+    if (!isAdmin && profile?.agency_name) return `Données de ${profile.agency_name}`;
+    if (selectedAgencyId) return 'Vue filtrée par agence';
+    return 'Vue globale de toutes les agences';
+  };
 
   return (
     <DashboardLayout>
@@ -49,10 +65,21 @@ const Index = () => {
               Tableau de bord
             </h1>
             <p className="text-muted-foreground text-xs md:text-sm mt-1">
-              {isAdminView ? 'Vue globale des agences et des ventes' : 'Vue simplifiée – ventes et voyages'}
+              {getSubtitle()}
             </p>
           </div>
         </div>
+
+        {/* Agency Filter for Admin */}
+        {isAdmin && (
+          <div className="flex justify-end">
+            <AgencyFilter
+              value={selectedAgencyId}
+              onChange={setSelectedAgencyId}
+              className="w-48"
+            />
+          </div>
+        )}
 
         {/* KPIs + Period Selector */}
         <section className="space-y-4">
