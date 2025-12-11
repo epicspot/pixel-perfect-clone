@@ -519,7 +519,8 @@ const UsersTab = () => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ name: '', email: '', role: 'cashier', agency_id: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'cashier', agency_id: '' });
+  const [isCreating, setIsCreating] = useState(false);
 
   const { data: agencies = [] } = useQuery({
     queryKey: ['agencies'],
@@ -539,40 +540,105 @@ const UsersTab = () => {
     },
   });
 
-  const saveMutation = useMutation({
+  const createUserMutation = useMutation({
+    mutationFn: async () => {
+      // Create user via Supabase Auth
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: {
+          data: {
+            name: form.name,
+            role: form.role,
+          },
+          emailRedirectTo: `${window.location.origin}/`,
+        },
+      });
+
+      if (signUpError) throw signUpError;
+      if (!authData.user) throw new Error('Erreur lors de la création de l\'utilisateur');
+
+      // Update the profile with agency_id after creation
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          agency_id: form.agency_id ? parseInt(form.agency_id) : null,
+        })
+        .eq('id', authData.user.id);
+
+      if (profileError) throw profileError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      setDialogOpen(false);
+      resetForm();
+      toast.success('Utilisateur créé avec succès');
+    },
+    onError: (error: any) => {
+      if (error.message?.includes('already registered')) {
+        toast.error('Cet email est déjà utilisé');
+      } else {
+        toast.error(error.message);
+      }
+    },
+  });
+
+  const updateMutation = useMutation({
     mutationFn: async () => {
       const payload = {
         name: form.name,
         role: form.role,
         agency_id: form.agency_id ? parseInt(form.agency_id) : null,
       };
-      if (editing) {
-        const { error } = await supabase.from('profiles').update(payload).eq('id', editing.id);
-        if (error) throw error;
-      }
+      const { error } = await supabase.from('profiles').update(payload).eq('id', editing.id);
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
       setDialogOpen(false);
-      setEditing(null);
-      setForm({ name: '', email: '', role: 'cashier', agency_id: '' });
+      resetForm();
       toast.success('Profil modifié');
     },
     onError: (error: any) => toast.error(error.message),
   });
 
-  const openEdit = (user: any) => {
-    setEditing(user);
-    setForm({ name: user.name, email: user.email, role: user.role, agency_id: user.agency_id?.toString() || '' });
+  const resetForm = () => {
+    setEditing(null);
+    setIsCreating(false);
+    setForm({ name: '', email: '', password: '', role: 'cashier', agency_id: '' });
+  };
+
+  const openCreate = () => {
+    resetForm();
+    setIsCreating(true);
     setDialogOpen(true);
   };
 
+  const openEdit = (user: any) => {
+    setEditing(user);
+    setIsCreating(false);
+    setForm({ name: user.name, email: user.email, password: '', role: user.role, agency_id: user.agency_id?.toString() || '' });
+    setDialogOpen(true);
+  };
+
+  const handleSave = () => {
+    if (isCreating) {
+      createUserMutation.mutate();
+    } else {
+      updateMutation.mutate();
+    }
+  };
+
+  const isPending = createUserMutation.isPending || updateMutation.isPending;
+  const canSubmit = isCreating 
+    ? form.name && form.email && form.password && form.password.length >= 6
+    : form.name;
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-semibold">Utilisateurs ({users.length})</h2>
-        <p className="text-sm text-muted-foreground">Les utilisateurs se créent via l'inscription</p>
+        <Button onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" /> Ajouter</Button>
       </div>
 
       <Card>
@@ -615,10 +681,33 @@ const UsersTab = () => {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Modifier l'utilisateur</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{isCreating ? 'Nouvel utilisateur' : 'Modifier l\'utilisateur'}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2"><Label>Nom</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-            <div className="grid gap-2"><Label>Email</Label><Input type="email" value={form.email} disabled className="bg-muted" /></div>
+            <div className="grid gap-2">
+              <Label>Nom *</Label>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Email *</Label>
+              <Input 
+                type="email" 
+                value={form.email} 
+                onChange={(e) => setForm({ ...form, email: e.target.value })} 
+                disabled={!isCreating}
+                className={!isCreating ? 'bg-muted' : ''}
+              />
+            </div>
+            {isCreating && (
+              <div className="grid gap-2">
+                <Label>Mot de passe * (min. 6 caractères)</Label>
+                <Input 
+                  type="password" 
+                  value={form.password} 
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  placeholder="••••••"
+                />
+              </div>
+            )}
             <div className="grid gap-2">
               <Label>Rôle</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
@@ -645,7 +734,9 @@ const UsersTab = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={!form.name || saveMutation.isPending}>{saveMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}</Button>
+            <Button onClick={handleSave} disabled={!canSubmit || isPending}>
+              {isPending ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
