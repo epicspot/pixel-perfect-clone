@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { Plus, MapPin, Clock, Users, Calendar, Bus, Search, Pencil, Trash2, FileText, Play, UserCheck, ArrowRight, CheckCircle, XCircle, User } from 'lucide-react';
+import { Plus, MapPin, Clock, Users, Calendar, Bus, Search, Pencil, Trash2, FileText, Play, UserCheck, ArrowRight, CheckCircle, XCircle, User, UserCog } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -17,7 +17,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -328,31 +334,19 @@ const Voyages = () => {
                       <Clock className="w-3 h-3" />
                       <span>{new Date(trip.departure_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
+                    {trip.vehicle && (
+                      <div className="flex items-center gap-1.5">
+                        <Bus className="w-3 h-3" />
+                        <span className="font-medium">{trip.vehicle.registration_number}</span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Driver and Assistant */}
-                  {(trip.driver || trip.assistant) && (
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-3 pb-3 border-b border-border">
-                      {trip.driver && (
-                        <div className="flex items-center gap-1.5">
-                          <User className="w-3 h-3 text-primary" />
-                          <span className="font-medium text-foreground">
-                            {trip.driver.full_name || `${trip.driver.first_name} ${trip.driver.last_name}`}
-                          </span>
-                          <span className="text-muted-foreground">(Chauffeur)</span>
-                        </div>
-                      )}
-                      {trip.assistant && (
-                        <div className="flex items-center gap-1.5">
-                          <User className="w-3 h-3 text-orange-500" />
-                          <span className="font-medium text-foreground">
-                            {trip.assistant.full_name || `${trip.assistant.first_name} ${trip.assistant.last_name}`}
-                          </span>
-                          <span className="text-muted-foreground">(Assistant)</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {/* Driver and Assistant with quick edit */}
+                  <CrewQuickEdit 
+                    trip={trip} 
+                    onSuccess={() => queryClient.invalidateQueries({ queryKey: ['trips'] })} 
+                  />
 
                   {/* Capacity indicator */}
                   {(() => {
@@ -1028,6 +1022,161 @@ const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChang
         </form>
       </DialogContent>
     </Dialog>
+  );
+};
+
+// Crew Quick Edit Component
+interface CrewQuickEditProps {
+  trip: Trip;
+  onSuccess: () => void;
+}
+
+const CrewQuickEdit: React.FC<CrewQuickEditProps> = ({ trip, onSuccess }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [driverId, setDriverId] = React.useState('');
+  const [assistantId, setAssistantId] = React.useState('');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setDriverId((trip as any).driver_id?.toString() || '');
+      setAssistantId((trip as any).assistant_id?.toString() || '');
+    }
+  }, [isOpen, trip]);
+
+  const { data: staff } = useQuery({
+    queryKey: ['staff-for-trips'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('staff')
+        .select('id, first_name, last_name, full_name, staff_type, agency:agencies(name)')
+        .eq('is_active', true)
+        .in('staff_type', ['driver', 'assistant'])
+        .order('first_name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const drivers = staff?.filter(s => s.staff_type === 'driver') || [];
+  const assistants = staff?.filter(s => s.staff_type === 'assistant') || [];
+
+  const getStaffName = (s: any) => s.full_name || `${s.first_name} ${s.last_name}`;
+
+  const handleSave = async () => {
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('trips')
+        .update({
+          driver_id: driverId ? Number(driverId) : null,
+          assistant_id: assistantId ? Number(assistantId) : null,
+        })
+        .eq('id', trip.id);
+
+      if (error) throw error;
+
+      toast({ title: 'Équipage mis à jour' });
+      onSuccess();
+      setIsOpen(false);
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs mb-3 pb-3 border-b border-border">
+      <div className="flex flex-wrap items-center gap-3 text-muted-foreground flex-1 min-w-0">
+        {trip.driver ? (
+          <div className="flex items-center gap-1.5">
+            <User className="w-3 h-3 text-primary flex-shrink-0" />
+            <span className="font-medium text-foreground truncate">
+              {trip.driver.full_name || `${trip.driver.first_name} ${trip.driver.last_name}`}
+            </span>
+          </div>
+        ) : (
+          <span className="text-muted-foreground italic">Pas de chauffeur</span>
+        )}
+        {trip.assistant ? (
+          <div className="flex items-center gap-1.5">
+            <User className="w-3 h-3 text-orange-500 flex-shrink-0" />
+            <span className="font-medium text-foreground truncate">
+              {trip.assistant.full_name || `${trip.assistant.first_name} ${trip.assistant.last_name}`}
+            </span>
+          </div>
+        ) : (
+          <span className="text-muted-foreground italic">Pas d'assistant</span>
+        )}
+      </div>
+      
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 flex-shrink-0">
+            <UserCog className="w-3.5 h-3.5 text-muted-foreground" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-72 p-3" align="end">
+          <div className="space-y-3">
+            <h4 className="font-medium text-sm">Modifier l'équipage</h4>
+            
+            <div>
+              <Label className="text-xs">Chauffeur</Label>
+              <Select value={driverId || "_none"} onValueChange={(v) => setDriverId(v === "_none" ? "" : v)}>
+                <SelectTrigger className="mt-1 h-8 text-xs">
+                  <SelectValue placeholder="Sélectionner" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">Non assigné</SelectItem>
+                  {drivers.map((d) => (
+                    <SelectItem key={d.id} value={d.id.toString()}>
+                      {getStaffName(d)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label className="text-xs">Assistant</Label>
+              <Select value={assistantId || "_none"} onValueChange={(v) => setAssistantId(v === "_none" ? "" : v)}>
+                <SelectTrigger className="mt-1 h-8 text-xs">
+                  <SelectValue placeholder="Sélectionner" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">Non assigné</SelectItem>
+                  {assistants.map((a) => (
+                    <SelectItem key={a.id} value={a.id.toString()}>
+                      {getStaffName(a)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex gap-2 pt-1">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex-1 h-7 text-xs"
+                onClick={() => setIsOpen(false)}
+              >
+                Annuler
+              </Button>
+              <Button 
+                size="sm" 
+                className="flex-1 h-7 text-xs"
+                onClick={handleSave}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 };
 
