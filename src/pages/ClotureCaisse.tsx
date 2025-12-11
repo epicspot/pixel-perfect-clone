@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from 'sonner';
 import { Calculator, CheckCircle, Clock, AlertTriangle, Wallet, CreditCard, Smartphone } from 'lucide-react';
+import { audit } from '@/lib/audit';
 import {
   Table,
   TableBody,
@@ -141,7 +142,8 @@ export default function ClotureCaisse() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      audit.cashClosureCreate(data.id, totals.total, profile?.agency_id);
       toast.success('Clôture de caisse enregistrée');
       queryClient.invalidateQueries({ queryKey: ['cash-closures'] });
     },

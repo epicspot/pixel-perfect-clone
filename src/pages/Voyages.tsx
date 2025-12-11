@@ -40,6 +40,7 @@ import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from '@/hooks/use-toast';
 import { generateTripManifestPdf } from '@/lib/documentPdf';
 import { supabase } from '@/integrations/supabase/client';
+import { audit } from '@/lib/audit';
 
 const statusConfig = {
   scheduled: { label: 'Programmé', className: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-800' },
@@ -78,8 +79,12 @@ const Voyages = () => {
   const inProgressTrips = trips.filter(t => t.status === 'in_progress');
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => api.deleteTrip(id),
-    onSuccess: () => {
+    mutationFn: async (trip: Trip) => {
+      await api.deleteTrip(trip.id);
+      return trip;
+    },
+    onSuccess: (trip) => {
+      audit.tripDelete(trip.id, trip.route?.name || 'Voyage');
       toast({ title: 'Voyage supprimé' });
       queryClient.invalidateQueries({ queryKey: ['trips'] });
     },
@@ -272,7 +277,7 @@ const Voyages = () => {
                             <AlertDialogFooter>
                               <AlertDialogCancel>Annuler</AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() => deleteMutation.mutate(trip.id)}
+                                onClick={() => deleteMutation.mutate(trip)}
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
                                 Supprimer

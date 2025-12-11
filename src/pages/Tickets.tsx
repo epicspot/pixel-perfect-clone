@@ -36,6 +36,7 @@ import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { generateTicketPdf } from '@/lib/documentPdf';
+import { audit } from '@/lib/audit';
 
 const statusConfig = {
   paid: { label: 'Payé', className: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-800' },
@@ -303,6 +304,11 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
       }).select().single();
 
       if (error) throw error;
+
+      // Log audit for ticket sale
+      if (newTicket) {
+        audit.ticketSale(newTicket.id, reference, effectivePrice, newTicket.agency_id);
+      }
 
       // Impression automatique du ticket
       const ticketForPrint = {

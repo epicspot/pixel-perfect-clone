@@ -46,6 +46,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from 'sonner';
 import { Plus, Receipt, Pencil, Trash2, Search, TrendingDown } from 'lucide-react';
+import { audit } from '@/lib/audit';
 
 interface Expense {
   id: number;
@@ -166,7 +167,7 @@ export default function Depenses() {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: async (data: typeof form) => {
-      const { error } = await supabase.from('expenses').insert({
+      const { data: newExpense, error } = await supabase.from('expenses').insert({
         agency_id: data.agency_id ? Number(data.agency_id) : null,
         category_id: data.category_id ? Number(data.category_id) : null,
         vehicle_id: data.vehicle_id ? Number(data.vehicle_id) : null,
@@ -174,10 +175,13 @@ export default function Depenses() {
         amount: Number(data.amount),
         description: data.description || null,
         recorded_by: session?.user?.id,
-      });
+      }).select().single();
       if (error) throw error;
+      return { expense: newExpense, formData: data };
     },
-    onSuccess: () => {
+    onSuccess: ({ expense, formData }) => {
+      const categoryName = categories?.find(c => c.id === Number(formData.category_id))?.name || 'Autre';
+      audit.expenseCreate(expense.id, Number(formData.amount), categoryName, expense.agency_id);
       toast.success('Dépense enregistrée');
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       resetForm();
@@ -215,11 +219,13 @@ export default function Depenses() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const { error } = await supabase.from('expenses').delete().eq('id', id);
+    mutationFn: async (expense: Expense) => {
+      const { error } = await supabase.from('expenses').delete().eq('id', expense.id);
       if (error) throw error;
+      return expense;
     },
-    onSuccess: () => {
+    onSuccess: (expense) => {
+      audit.expenseDelete(expense.id, expense.amount, expense.agency_id);
       toast.success('Dépense supprimée');
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
     },
@@ -484,7 +490,7 @@ export default function Depenses() {
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Annuler</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => deleteMutation.mutate(expense.id)}
+                                  onClick={() => deleteMutation.mutate(expense)}
                                 >
                                   Supprimer
                                 </AlertDialogAction>

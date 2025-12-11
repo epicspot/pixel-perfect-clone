@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRoleLabel, getRoleColorClasses, UserRole } from '@/lib/permissions';
+import { audit } from '@/lib/audit';
 
 type Tab = 'agencies' | 'routes' | 'vehicles' | 'users';
 
@@ -569,6 +570,7 @@ const UsersTab = () => {
       if (profileError) throw profileError;
     },
     onSuccess: () => {
+      audit.userCreate(form.name, getRoleLabel(form.role));
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
       setDialogOpen(false);
       resetForm();
@@ -594,6 +596,7 @@ const UsersTab = () => {
       if (error) throw error;
     },
     onSuccess: () => {
+      audit.userUpdate(form.name, `rôle: ${getRoleLabel(form.role)}`);
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
       setDialogOpen(false);
       resetForm();
@@ -636,6 +639,7 @@ const UsersTab = () => {
 
   const handleDelete = (user: any) => {
     if (window.confirm(`Supprimer l'utilisateur "${user.name}" ?`)) {
+      audit.userDelete(user.name);
       deleteMutation.mutate(user.id);
     }
   };

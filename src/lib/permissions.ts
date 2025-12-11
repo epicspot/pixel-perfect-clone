@@ -28,6 +28,7 @@ export const roleRoutePermissions: Record<UserRole, string[]> = {
     '/depenses',
     '/paie',
     '/admin',
+    '/audit',
     '/parametres',
   ],
   manager: [

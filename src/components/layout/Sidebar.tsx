@@ -16,7 +16,8 @@ import {
   Wallet,
   Building2,
   ScanLine,
-  ClipboardList
+  ClipboardList,
+  ScrollText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ const navItems = [
   { to: '/depenses', icon: Receipt, label: 'Depenses' },
   { to: '/paie', icon: Wallet, label: 'Paie' },
   { to: '/admin', icon: Shield, label: 'Administration' },
+  { to: '/audit', icon: ScrollText, label: 'Journal audit' },
   { to: '/parametres', icon: Settings, label: 'Parametres' },
 ];
 
