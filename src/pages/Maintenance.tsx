@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from 'sonner';
-import { Pencil, Trash2, Plus, X, Wrench, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Pencil, Trash2, Plus, X, Wrench, CheckCircle, Clock, AlertCircle, AlertTriangle, TrendingUp, Car, DollarSign } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Progress } from '@/components/ui/progress';
 
 const Maintenance = () => {
   const { user, profile } = useAuth();
@@ -51,6 +53,78 @@ const Maintenance = () => {
       agency_id: filterAgencyId,
     }),
   });
+
+  // Fetch ALL maintenance orders for dashboard stats (unfiltered by status/type)
+  const { data: allMaintenanceData } = useQuery({
+    queryKey: ['maintenance-orders-all', filterAgencyId],
+    queryFn: () => api.getMaintenanceOrders({
+      agency_id: filterAgencyId,
+    }),
+  });
+
+  // Calculate dashboard stats
+  const dashboardStats = React.useMemo(() => {
+    const allOrders = allMaintenanceData?.data || [];
+    
+    // Total counts
+    const totalOrders = allOrders.length;
+    const openOrders = allOrders.filter(o => o.status === 'open' || o.status === 'in_progress').length;
+    const closedOrders = allOrders.filter(o => o.status === 'closed').length;
+    const correctiveOrders = allOrders.filter(o => o.type === 'corrective').length;
+    const preventiveOrders = allOrders.filter(o => o.type === 'preventive').length;
+    
+    // Total costs
+    const totalCost = allOrders.reduce((sum, o) => sum + (o.total_cost || 0), 0);
+    const correctiveCost = allOrders.filter(o => o.type === 'corrective').reduce((sum, o) => sum + (o.total_cost || 0), 0);
+    
+    // Vehicle breakdown frequency (corrective maintenance only)
+    const vehicleBreakdowns: Record<number, { 
+      count: number; 
+      totalCost: number; 
+      vehicle: Vehicle | undefined;
+      lastOrder: MaintenanceOrder | undefined;
+    }> = {};
+    
+    allOrders.forEach(order => {
+      if (order.type === 'corrective' && order.vehicle_id) {
+        if (!vehicleBreakdowns[order.vehicle_id]) {
+          vehicleBreakdowns[order.vehicle_id] = { 
+            count: 0, 
+            totalCost: 0, 
+            vehicle: order.vehicle,
+            lastOrder: order 
+          };
+        }
+        vehicleBreakdowns[order.vehicle_id].count++;
+        vehicleBreakdowns[order.vehicle_id].totalCost += order.total_cost || 0;
+        // Track most recent order
+        if (!vehicleBreakdowns[order.vehicle_id].lastOrder || 
+            new Date(order.opened_at) > new Date(vehicleBreakdowns[order.vehicle_id].lastOrder!.opened_at)) {
+          vehicleBreakdowns[order.vehicle_id].lastOrder = order;
+        }
+      }
+    });
+    
+    // Sort vehicles by breakdown count
+    const vehicleRanking = Object.entries(vehicleBreakdowns)
+      .map(([id, data]) => ({ vehicleId: Number(id), ...data }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5); // Top 5
+    
+    const maxBreakdowns = vehicleRanking.length > 0 ? vehicleRanking[0].count : 1;
+    
+    return {
+      totalOrders,
+      openOrders,
+      closedOrders,
+      correctiveOrders,
+      preventiveOrders,
+      totalCost,
+      correctiveCost,
+      vehicleRanking,
+      maxBreakdowns,
+    };
+  }, [allMaintenanceData]);
 
   const createMutation = useMutation({
     mutationFn: (data: Partial<MaintenanceOrder>) => api.createMaintenanceOrder(data),
@@ -169,6 +243,136 @@ const Maintenance = () => {
             <Plus className="w-4 h-4 mr-1" /> Nouvel ordre
           </Button>
         </div>
+
+        {/* Dashboard Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-card rounded-xl border border-border p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                <Wrench className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total ordres</p>
+                <p className="text-xl font-bold text-card-foreground">{dashboardStats.totalOrders}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-card rounded-xl border border-border p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">En cours</p>
+                <p className="text-xl font-bold text-card-foreground">{dashboardStats.openOrders}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-card rounded-xl border border-border p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Correctifs</p>
+                <p className="text-xl font-bold text-card-foreground">{dashboardStats.correctiveOrders}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-card rounded-xl border border-border p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Coût total</p>
+                <p className="text-lg font-bold text-card-foreground">{formatCurrency(dashboardStats.totalCost)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Vehicles with frequent breakdowns */}
+        {dashboardStats.vehicleRanking.length > 0 && (
+          <div className="bg-card rounded-xl border border-border p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertTriangle className="w-5 h-5 text-orange-500" />
+              <h3 className="text-sm font-semibold text-card-foreground">
+                Véhicules en panne fréquente
+              </h3>
+            </div>
+            <div className="space-y-3">
+              {dashboardStats.vehicleRanking.map((item, index) => {
+                const percentage = (item.count / dashboardStats.maxBreakdowns) * 100;
+                const isHighRisk = item.count >= 3;
+                
+                return (
+                  <div key={item.vehicleId} className="flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
+                      #{index + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <Car className="w-4 h-4 text-muted-foreground" />
+                          <span className="font-medium text-sm text-card-foreground">
+                            {item.vehicle?.registration_number || `Véhicule #${item.vehicleId}`}
+                          </span>
+                          {item.vehicle?.brand && (
+                            <span className="text-xs text-muted-foreground">
+                              ({item.vehicle.brand} {item.vehicle.model})
+                            </span>
+                          )}
+                          {isHighRisk && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 font-medium">
+                              RISQUE ÉLEVÉ
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs">
+                          <span className="text-muted-foreground">
+                            {item.count} panne{item.count > 1 ? 's' : ''}
+                          </span>
+                          <span className="font-medium text-orange-600">
+                            {formatCurrency(item.totalCost)}
+                          </span>
+                        </div>
+                      </div>
+                      <Progress 
+                        value={percentage} 
+                        className="h-2"
+                        // @ts-ignore
+                        indicatorClassName={isHighRisk ? 'bg-red-500' : item.count >= 2 ? 'bg-orange-500' : 'bg-yellow-500'}
+                      />
+                      {item.lastOrder && (
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          Dernière panne: {formatDate(item.lastOrder.opened_at)} — {item.lastOrder.title}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Cost breakdown */}
+            <div className="mt-4 pt-4 border-t border-border flex flex-wrap gap-4 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-orange-500" />
+                <span className="text-muted-foreground">Coût correctif:</span>
+                <span className="font-semibold text-card-foreground">{formatCurrency(dashboardStats.correctiveCost)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-blue-500" />
+                <span className="text-muted-foreground">Coût préventif:</span>
+                <span className="font-semibold text-card-foreground">{formatCurrency(dashboardStats.totalCost - dashboardStats.correctiveCost)}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="bg-card rounded-xl border border-border p-4 flex flex-wrap gap-3">
