@@ -19,11 +19,13 @@ import ClotureCaisse from "./pages/ClotureCaisse";
 import Staff from "./pages/Staff";
 import Depenses from "./pages/Depenses";
 import Paie from "./pages/Paie";
+import VehicleCostDashboard from "./pages/VehicleCostDashboard";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -46,22 +48,135 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={<Auth />} />
-      <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-      <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
-      <Route path="/voyages" element={<ProtectedRoute><Voyages /></ProtectedRoute>} />
-      <Route path="/rapports" element={<ProtectedRoute><Rapports /></ProtectedRoute>} />
-      <Route path="/rapports/agence" element={<ProtectedRoute><ReportAgency /></ProtectedRoute>} />
-      <Route path="/rapports/lignes" element={<ProtectedRoute><ReportRoutes /></ProtectedRoute>} />
-      <Route path="/rapports/caisse" element={<ProtectedRoute><ReportCashiers /></ProtectedRoute>} />
-      <Route path="/parametres" element={<ProtectedRoute><Parametres /></ProtectedRoute>} />
-      <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-      <Route path="/maintenance" element={<ProtectedRoute><Maintenance /></ProtectedRoute>} />
-      <Route path="/carburant" element={<ProtectedRoute><Carburant /></ProtectedRoute>} />
-      <Route path="/cloture-caisse" element={<ProtectedRoute><ClotureCaisse /></ProtectedRoute>} />
-      <Route path="/staff" element={<ProtectedRoute><Staff /></ProtectedRoute>} />
-      <Route path="/depenses" element={<ProtectedRoute><Depenses /></ProtectedRoute>} />
-      <Route path="/paie" element={<ProtectedRoute><Paie /></ProtectedRoute>} />
-      <Route path="*" element={<NotFound />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Index />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tickets"
+        element={
+          <ProtectedRoute>
+            <Tickets />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/voyages"
+        element={
+          <ProtectedRoute>
+            <Voyages />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rapports"
+        element={
+          <ProtectedRoute>
+            <Rapports />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rapports/agence"
+        element={
+          <ProtectedRoute>
+            <ReportAgency />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rapports/lignes"
+        element={
+          <ProtectedRoute>
+            <ReportRoutes />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rapports/caisse"
+        element={
+          <ProtectedRoute>
+            <ReportCashiers />
+          </ProtectedRoute>
+        }
+      />
+        <Route
+          path="/parametres"
+          element={
+            <ProtectedRoute>
+              <Parametres />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <Admin />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/maintenance"
+          element={
+            <ProtectedRoute>
+              <Maintenance />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/carburant"
+          element={
+            <ProtectedRoute>
+              <Carburant />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cloture-caisse"
+          element={
+            <ProtectedRoute>
+              <ClotureCaisse />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff"
+          element={
+            <ProtectedRoute>
+              <Staff />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/depenses"
+          element={
+            <ProtectedRoute>
+              <Depenses />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/paie"
+          element={
+            <ProtectedRoute>
+              <Paie />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/couts-vehicules"
+          element={
+            <ProtectedRoute>
+              <VehicleCostDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
