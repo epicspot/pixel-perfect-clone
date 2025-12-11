@@ -34,7 +34,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Calendar, Users, Wallet, FileText } from 'lucide-react';
+import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2 } from 'lucide-react';
 
 interface PayrollPeriod {
   id: number;
@@ -60,6 +60,12 @@ interface Staff {
   id: number;
   full_name: string;
   base_salary: number | null;
+  agency_id: number | null;
+}
+
+interface Agency {
+  id: number;
+  name: string;
 }
 
 const formatCurrency = (value: number) =>
@@ -120,11 +126,36 @@ export default function Paie() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('staff')
-        .select('id, full_name, base_salary')
+        .select('id, full_name, base_salary, agency_id')
         .eq('is_active', true)
         .order('full_name');
       if (error) throw error;
       return data as Staff[];
+    },
+  });
+
+  // Fetch agencies
+  const { data: agencies } = useQuery({
+    queryKey: ['agencies'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agencies')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return data as Agency[];
+    },
+  });
+
+  // Fetch all payroll entries with staff info for stats
+  const { data: allEntries, isLoading: loadingAllEntries } = useQuery({
+    queryKey: ['payroll-all-entries'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payroll_entries')
+        .select('*, staff:staff(full_name, agency_id)');
+      if (error) throw error;
+      return data;
     },
   });
 
@@ -243,6 +274,10 @@ export default function Paie() {
             <TabsTrigger value="entries" disabled={!selectedPeriod}>
               <FileText className="w-4 h-4 mr-2" />
               Fiches de paie
+            </TabsTrigger>
+            <TabsTrigger value="stats">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Statistiques
             </TabsTrigger>
           </TabsList>
 
@@ -569,6 +604,226 @@ export default function Paie() {
                 </Card>
               </>
             )}
+          </TabsContent>
+
+          {/* Stats Tab */}
+          <TabsContent value="stats" className="space-y-6">
+            {/* Global KPIs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Total périodes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">{periods?.length || 0}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Total fiches
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">{allEntries?.length || 0}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Masse salariale totale
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold text-primary">
+                    {formatCurrency(
+                      allEntries?.reduce((sum, e) => sum + Number(e.net_salary), 0) || 0
+                    )}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Employés payés
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl font-bold">
+                    {new Set(allEntries?.map((e) => e.staff_id)).size || 0}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Stats by Period */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Récapitulatif par période
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loadingPeriods || loadingAllEntries ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-12 w-full" />
+                    ))}
+                  </div>
+                ) : periods && periods.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Période</TableHead>
+                        <TableHead>Dates</TableHead>
+                        <TableHead className="text-right">Fiches</TableHead>
+                        <TableHead className="text-right">Salaire base</TableHead>
+                        <TableHead className="text-right">Primes</TableHead>
+                        <TableHead className="text-right">Net total</TableHead>
+                        <TableHead>Statut</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {periods.map((period) => {
+                        const periodEntries = allEntries?.filter(
+                          (e) => e.payroll_period_id === period.id
+                        ) || [];
+                        const totalBase = periodEntries.reduce(
+                          (sum, e) => sum + Number(e.base_salary),
+                          0
+                        );
+                        const totalBonuses = periodEntries.reduce(
+                          (sum, e) => sum + Number(e.bonuses),
+                          0
+                        );
+                        const totalNet = periodEntries.reduce(
+                          (sum, e) => sum + Number(e.net_salary),
+                          0
+                        );
+                        return (
+                          <TableRow key={period.id}>
+                            <TableCell className="font-medium">{period.label}</TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {format(new Date(period.start_date), 'dd/MM')} -{' '}
+                              {format(new Date(period.end_date), 'dd/MM/yyyy')}
+                            </TableCell>
+                            <TableCell className="text-right">{periodEntries.length}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(totalBase)}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(totalBonuses)}</TableCell>
+                            <TableCell className="text-right font-bold">
+                              {formatCurrency(totalNet)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={period.status === 'open' ? 'default' : 'secondary'}>
+                                {period.status === 'open' ? 'Ouverte' : 'Clôturée'}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Aucune période disponible
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Stats by Agency */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5" />
+                  Récapitulatif par agence
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loadingAllEntries ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-12 w-full" />
+                    ))}
+                  </div>
+                ) : agencies && agencies.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Agence</TableHead>
+                        <TableHead className="text-right">Employés</TableHead>
+                        <TableHead className="text-right">Fiches</TableHead>
+                        <TableHead className="text-right">Masse salariale</TableHead>
+                        <TableHead className="text-right">Moyenne/employé</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {agencies.map((agency) => {
+                        const agencyEntries = allEntries?.filter(
+                          (e: any) => e.staff?.agency_id === agency.id
+                        ) || [];
+                        const uniqueStaff = new Set(agencyEntries.map((e) => e.staff_id)).size;
+                        const totalNet = agencyEntries.reduce(
+                          (sum, e) => sum + Number(e.net_salary),
+                          0
+                        );
+                        const avgPerStaff = uniqueStaff > 0 ? totalNet / uniqueStaff : 0;
+
+                        if (agencyEntries.length === 0) return null;
+
+                        return (
+                          <TableRow key={agency.id}>
+                            <TableCell className="font-medium">{agency.name}</TableCell>
+                            <TableCell className="text-right">{uniqueStaff}</TableCell>
+                            <TableCell className="text-right">{agencyEntries.length}</TableCell>
+                            <TableCell className="text-right font-bold">
+                              {formatCurrency(totalNet)}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                              {formatCurrency(avgPerStaff)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {/* Entries without agency */}
+                      {(() => {
+                        const noAgencyEntries = allEntries?.filter(
+                          (e: any) => !e.staff?.agency_id
+                        ) || [];
+                        if (noAgencyEntries.length === 0) return null;
+                        const uniqueStaff = new Set(noAgencyEntries.map((e) => e.staff_id)).size;
+                        const totalNet = noAgencyEntries.reduce(
+                          (sum, e) => sum + Number(e.net_salary),
+                          0
+                        );
+                        return (
+                          <TableRow>
+                            <TableCell className="font-medium text-muted-foreground">
+                              Sans agence
+                            </TableCell>
+                            <TableCell className="text-right">{uniqueStaff}</TableCell>
+                            <TableCell className="text-right">{noAgencyEntries.length}</TableCell>
+                            <TableCell className="text-right font-bold">
+                              {formatCurrency(totalNet)}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                              {formatCurrency(uniqueStaff > 0 ? totalNet / uniqueStaff : 0)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })()}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Aucune donnée disponible
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
