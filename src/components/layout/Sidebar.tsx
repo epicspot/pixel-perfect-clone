@@ -115,7 +115,9 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
-        {navItems.map((item) => (
+        {navItems
+          .filter((item) => hasRouteAccess(profile?.role as UserRole, item.to))
+          .map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
