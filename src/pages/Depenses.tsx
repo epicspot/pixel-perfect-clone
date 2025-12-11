@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from 'sonner';
 import { Plus, Receipt, Pencil, Trash2, Search, TrendingDown } from 'lucide-react';
 
@@ -81,6 +82,7 @@ export default function Depenses() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [adminAgencyFilter, setAdminAgencyFilter] = useState('');
   const [form, setForm] = useState({
     agency_id: '',
     category_id: '',
@@ -92,18 +94,25 @@ export default function Depenses() {
 
   // Check if user is admin
   const isAdmin = profile?.role === 'admin';
+  
+  // Determine which agency_id to filter by
+  const filterAgencyId = isAdmin 
+    ? (adminAgencyFilter ? Number(adminAgencyFilter) : undefined)
+    : profile?.agency_id || undefined;
 
   // Fetch expenses with agency restriction
   const { data: expenses, isLoading } = useQuery({
-    queryKey: ['expenses', profile?.agency_id, isAdmin],
+    queryKey: ['expenses', filterAgencyId, isAdmin],
     queryFn: async () => {
       let query = supabase
         .from('expenses')
         .select('*')
         .order('expense_date', { ascending: false });
 
-      // Apply agency restriction for non-admin users
-      if (!isAdmin && profile?.agency_id) {
+      // Apply agency filter
+      if (filterAgencyId) {
+        query = query.eq('agency_id', filterAgencyId);
+      } else if (!isAdmin && profile?.agency_id) {
         query = query.eq('agency_id', profile.agency_id);
       }
 
@@ -397,15 +406,22 @@ export default function Depenses() {
           </Dialog>
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3 items-end">
+          <AgencyFilter 
+            value={adminAgencyFilter} 
+            onChange={setAdminAgencyFilter}
+            className="min-w-[180px]"
           />
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
 
         {/* Table */}

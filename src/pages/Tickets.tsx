@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, Trip, Vehicle } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -50,13 +52,20 @@ const paymentConfig: Record<string, { label: string; className: string }> = {
 type PaymentMethod = 'cash' | 'mobile_money' | 'card' | 'other';
 
 const Tickets = () => {
+  const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [adminAgencyFilter, setAdminAgencyFilter] = React.useState('');
+
+  const isAdmin = profile?.role === 'admin';
+  const filterAgencyId = isAdmin 
+    ? (adminAgencyFilter ? Number(adminAgencyFilter) : undefined)
+    : profile?.agency_id || undefined;
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['tickets'],
-    queryFn: () => api.getTickets(),
+    queryKey: ['tickets', filterAgencyId],
+    queryFn: () => api.getTickets({ agency_id: filterAgencyId }),
   });
 
   const tickets = data?.data || [];
@@ -135,7 +144,12 @@ const Tickets = () => {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-end">
+          <AgencyFilter 
+            value={adminAgencyFilter} 
+            onChange={setAdminAgencyFilter}
+            className="min-w-[180px]"
+          />
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input 

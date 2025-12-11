@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, Trip } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from '@/hooks/use-toast';
 
 const statusConfig = {
@@ -45,13 +47,20 @@ const statusConfig = {
 };
 
 const Voyages = () => {
+  const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [adminAgencyFilter, setAdminAgencyFilter] = React.useState('');
+
+  const isAdmin = profile?.role === 'admin';
+  const filterAgencyId = isAdmin 
+    ? (adminAgencyFilter ? Number(adminAgencyFilter) : undefined)
+    : profile?.agency_id || undefined;
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['trips'],
-    queryFn: () => api.getTrips(),
+    queryKey: ['trips', filterAgencyId],
+    queryFn: () => api.getTrips({ agency_id: filterAgencyId }),
   });
 
   const trips = data?.data || [];
@@ -125,14 +134,21 @@ const Voyages = () => {
         </div>
 
         {/* Search */}
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Rechercher un voyage..." 
-            className="pl-10 bg-card border-border"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+        <div className="flex flex-wrap gap-3 items-end">
+          <AgencyFilter 
+            value={adminAgencyFilter} 
+            onChange={setAdminAgencyFilter}
+            className="min-w-[180px]"
           />
+          <div className="relative max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input 
+              placeholder="Rechercher un voyage..." 
+              className="pl-10 bg-card border-border"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
 
         {error && (
