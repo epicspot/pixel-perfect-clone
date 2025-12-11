@@ -22,6 +22,7 @@ import Staff from "./pages/Staff";
 import Depenses from "./pages/Depenses";
 import Paie from "./pages/Paie";
 import VehicleCostDashboard from "./pages/VehicleCostDashboard";
+import TicketScan from "./pages/TicketScan";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import AccessDenied from "./pages/AccessDenied";
@@ -191,6 +192,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <VehicleCostDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/controle-tickets"
+          element={
+            <ProtectedRoute>
+              <TicketScan />
             </ProtectedRoute>
           }
         />
