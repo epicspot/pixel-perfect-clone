@@ -231,7 +231,7 @@ const Tickets = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => generateTicketPdf(ticket)}
+                          onClick={async () => await generateTicketPdf(ticket)}
                           title="Imprimer le ticket"
                         >
                           <Printer className="w-4 h-4" />
@@ -313,7 +313,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
           departure_datetime: selectedTrip.departure_datetime,
         } : undefined,
       };
-      generateTicketPdf(ticketForPrint);
+      await generateTicketPdf(ticketForPrint);
 
       toast({ title: 'Ticket vendu', description: `Ticket ${reference} créé et imprimé pour ${customerName}` });
       onSuccess();
