@@ -23,6 +23,7 @@ import Paie from "./pages/Paie";
 import VehicleCostDashboard from "./pages/VehicleCostDashboard";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import AccessDenied from "./pages/AccessDenied";
 
 const queryClient = new QueryClient();
 
@@ -46,7 +47,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // Check role-based access
   const hasAccess = hasRouteAccess(profile?.role as UserRole, location.pathname);
   if (!hasAccess) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/acces-refuse" replace />;
   }
 
   return <>{children}</>;
@@ -184,6 +185,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/acces-refuse" element={<AccessDenied />} />
         <Route path="*" element={<NotFound />} />
     </Routes>
   );
