@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { Plus, MapPin, Clock, Users, Calendar, Bus, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, MapPin, Clock, Users, Calendar, Bus, Search, Pencil, Trash2, FileText } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -38,6 +38,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from '@/hooks/use-toast';
+import { generateTripManifestPdf } from '@/lib/documentPdf';
+import { supabase } from '@/integrations/supabase/client';
 
 const statusConfig = {
   scheduled: { label: 'Programmé', className: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-800' },
@@ -85,6 +87,23 @@ const Voyages = () => {
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
     },
   });
+
+  const handlePrintManifest = async (trip: Trip) => {
+    try {
+      const { data: tickets, error } = await supabase
+        .from('tickets')
+        .select('*')
+        .eq('trip_id', trip.id)
+        .eq('status', 'paid');
+
+      if (error) throw error;
+
+      generateTripManifestPdf(trip as any, tickets || []);
+      toast({ title: 'Manifeste généré', description: 'Le PDF a été téléchargé.' });
+    } catch (error: any) {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -225,6 +244,15 @@ const Voyages = () => {
                         {trip.vehicle.brand && ` • ${trip.vehicle.brand}`}
                       </p>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-7 w-7"
+                          onClick={() => handlePrintManifest(trip)}
+                          title="Imprimer le manifeste"
+                        >
+                          <FileText className="w-3 h-3" />
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7">
                           <Pencil className="w-3 h-3" />
                         </Button>
