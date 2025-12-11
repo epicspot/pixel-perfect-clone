@@ -34,7 +34,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2 } from 'lucide-react';
+import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2, Download } from 'lucide-react';
+import { generatePayslipPdf, generatePeriodSummaryPdf, generateAllPeriodsStatsPdf } from '@/lib/payrollPdf';
 
 interface PayrollPeriod {
   id: number;
@@ -438,6 +439,16 @@ export default function Paie() {
                       Total net: {formatCurrency(totalNet)} ({entries?.length || 0} fiches)
                     </p>
                   </div>
+                  <div className="flex gap-2">
+                    {entries && entries.length > 0 && (
+                      <Button
+                        variant="outline"
+                        onClick={() => generatePeriodSummaryPdf(selectedPeriod, entries, staffList || [])}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Export PDF
+                      </Button>
+                    )}
                   {selectedPeriod.status === 'open' && (
                     <Dialog open={entryDialogOpen} onOpenChange={setEntryDialogOpen}>
                       <DialogTrigger asChild>
@@ -547,6 +558,7 @@ export default function Paie() {
                       </DialogContent>
                     </Dialog>
                   )}
+                  </div>
                 </div>
 
                 <Card>
@@ -567,6 +579,7 @@ export default function Paie() {
                             <TableHead className="text-right">Indemnités</TableHead>
                             <TableHead className="text-right">Retenues</TableHead>
                             <TableHead className="text-right">Net</TableHead>
+                            <TableHead className="w-[80px]">PDF</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -590,6 +603,15 @@ export default function Paie() {
                               <TableCell className="text-right font-bold">
                                 {formatCurrency(entry.net_salary)}
                               </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => generatePayslipPdf(entry, selectedPeriod, getStaffName(entry.staff_id))}
+                                >
+                                  <Download className="w-4 h-4" />
+                                </Button>
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -608,6 +630,18 @@ export default function Paie() {
 
           {/* Stats Tab */}
           <TabsContent value="stats" className="space-y-6">
+            {/* Export button */}
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                disabled={!periods || periods.length === 0}
+                onClick={() => generateAllPeriodsStatsPdf(periods || [], allEntries || [], agencies || [], staffList || [])}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export rapport PDF
+              </Button>
+            </div>
+
             {/* Global KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card>
