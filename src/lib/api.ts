@@ -652,6 +652,50 @@ export const api = {
     if (error) throw new Error(error.message);
   },
 
+  async getFuelStatsPerMonth(params: { year: number; agency_id?: number }): Promise<{
+    year: number;
+    data: Array<{
+      month: number;
+      month_label: string;
+      total_liters: number;
+      total_amount: number;
+    }>;
+  }> {
+    const startOfYear = `${params.year}-01-01`;
+    const endOfYear = `${params.year}-12-31`;
+
+    let query = supabase
+      .from('fuel_entries')
+      .select('*')
+      .gte('filled_at', startOfYear)
+      .lte('filled_at', endOfYear);
+
+    if (params.agency_id) {
+      query = query.eq('agency_id', params.agency_id);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    const monthLabels = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+    const monthlyData = Array.from({ length: 12 }, (_, i) => ({
+      month: i + 1,
+      month_label: monthLabels[i],
+      total_liters: 0,
+      total_amount: 0,
+    }));
+
+    (data || []).forEach((e: any) => {
+      if (e.filled_at) {
+        const month = new Date(e.filled_at).getMonth();
+        monthlyData[month].total_liters += Number(e.liters);
+        monthlyData[month].total_amount += Number(e.total_amount);
+      }
+    });
+
+    return { year: params.year, data: monthlyData };
+  },
+
   // Dashboard Stats
   async getDashboardStats(params?: { from?: string; to?: string }): Promise<DashboardStats> {
     const today = new Date().toISOString().split('T')[0];
