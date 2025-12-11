@@ -17,7 +17,8 @@ import {
   Building2,
   ScanLine,
   ClipboardList,
-  ScrollText
+  ScrollText,
+  Download
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -140,7 +141,19 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="p-4 border-t border-sidebar-border space-y-2">
+        <NavLink
+          to="/install"
+          className={({ isActive }) => cn(
+            "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 w-full",
+            isActive 
+              ? "bg-sidebar-primary text-sidebar-primary-foreground" 
+              : "text-sidebar-foreground/70 hover:text-primary hover:bg-primary/10"
+          )}
+        >
+          <Download className={cn("w-5 h-5 flex-shrink-0", collapsed && "mx-auto")} />
+          {!collapsed && <span className="font-medium">Installer l'app</span>}
+        </NavLink>
         <button
           onClick={handleLogout}
           className={cn(
