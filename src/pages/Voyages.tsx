@@ -376,15 +376,37 @@ const Voyages = () => {
                   {/* Status Actions */}
                   {(statusTransitions[trip.status as string] || []).length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
-                      {(statusTransitions[trip.status as string] || []).map((transition) => (
-                        <Button
-                          key={transition.next}
-                          variant="outline"
-                          size="sm"
-                          className={cn('text-xs h-7 gap-1', transition.color)}
-                          onClick={() => statusMutation.mutate({
-                            tripId: trip.id,
-                            newStatus: transition.next,
+                      {(statusTransitions[trip.status as string] || []).map((transition) => {
+                        // Check if user can mark as arrived (must be at destination agency)
+                        const canMarkArrived = transition.next !== 'arrived' || 
+                          isAdmin || 
+                          profile?.agency_id === trip.route?.arrival_agency?.id;
+
+                        if (!canMarkArrived) {
+                          return (
+                            <Button
+                              key={transition.next}
+                              variant="outline"
+                              size="sm"
+                              className="text-xs h-7 gap-1 text-muted-foreground cursor-not-allowed opacity-50"
+                              disabled
+                              title="Seule l'agence de destination peut marquer l'arrivée"
+                            >
+                              {transition.icon}
+                              {transition.label}
+                            </Button>
+                          );
+                        }
+
+                        return (
+                          <Button
+                            key={transition.next}
+                            variant="outline"
+                            size="sm"
+                            className={cn('text-xs h-7 gap-1', transition.color)}
+                            onClick={() => statusMutation.mutate({
+                              tripId: trip.id,
+                              newStatus: transition.next,
                             oldStatus: trip.status,
                             routeName: trip.route?.name || 'Voyage'
                           })}
@@ -393,7 +415,8 @@ const Voyages = () => {
                           {transition.icon}
                           {transition.label}
                         </Button>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                   
