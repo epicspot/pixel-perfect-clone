@@ -13,7 +13,8 @@ import {
   Fuel,
   Users,
   Receipt,
-  Wallet
+  Wallet,
+  Building2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -94,6 +95,17 @@ export function Sidebar() {
         <div className="px-4 py-3 border-b border-sidebar-border">
           <p className="text-sm font-medium text-sidebar-foreground truncate">{profile.name}</p>
           <p className="text-xs text-sidebar-foreground/60">{getRoleLabel(profile.role)}</p>
+          {profile.agency_name ? (
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <Building2 className="w-3 h-3 text-primary" />
+              <span className="text-xs font-medium text-primary truncate">{profile.agency_name}</span>
+            </div>
+          ) : profile.role === 'admin' ? (
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <Building2 className="w-3 h-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Toutes les agences</span>
+            </div>
+          ) : null}
         </div>
       )}
 
