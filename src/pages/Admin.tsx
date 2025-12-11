@@ -71,7 +71,7 @@ const AgenciesTab = () => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ name: '', city: '', address: '', phone: '' });
+  const [form, setForm] = useState({ name: '', code: '', city: '', address: '', phone: '' });
 
   const { data: agencies = [], isLoading } = useQuery({
     queryKey: ['agencies'],
@@ -84,11 +84,18 @@ const AgenciesTab = () => {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const payload = {
+        name: form.name,
+        code: form.code.toUpperCase() || null,
+        city: form.city || null,
+        address: form.address || null,
+        phone: form.phone || null,
+      };
       if (editing) {
-        const { error } = await supabase.from('agencies').update(form).eq('id', editing.id);
+        const { error } = await supabase.from('agencies').update(payload).eq('id', editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('agencies').insert(form);
+        const { error } = await supabase.from('agencies').insert(payload);
         if (error) throw error;
       }
     },
@@ -115,12 +122,18 @@ const AgenciesTab = () => {
 
   const resetForm = () => {
     setEditing(null);
-    setForm({ name: '', city: '', address: '', phone: '' });
+    setForm({ name: '', code: '', city: '', address: '', phone: '' });
   };
 
   const openEdit = (agency: any) => {
     setEditing(agency);
-    setForm({ name: agency.name, city: agency.city || '', address: agency.address || '', phone: agency.phone || '' });
+    setForm({ 
+      name: agency.name, 
+      code: agency.code || '', 
+      city: agency.city || '', 
+      address: agency.address || '', 
+      phone: agency.phone || '' 
+    });
     setDialogOpen(true);
   };
 
@@ -138,9 +151,9 @@ const AgenciesTab = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Code</TableHead>
                 <TableHead>Nom</TableHead>
                 <TableHead>Ville</TableHead>
-                <TableHead>Adresse</TableHead>
                 <TableHead>Téléphone</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -148,10 +161,14 @@ const AgenciesTab = () => {
             <TableBody>
               {agencies.map((a: any) => (
                 <TableRow key={a.id}>
+                  <TableCell>
+                    <span className="font-mono text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                      {a.code || '—'}
+                    </span>
+                  </TableCell>
                   <TableCell className="font-medium">{a.name}</TableCell>
-                  <TableCell>{a.city || '-'}</TableCell>
-                  <TableCell>{a.address || '-'}</TableCell>
-                  <TableCell>{a.phone || '-'}</TableCell>
+                  <TableCell>{a.city || '—'}</TableCell>
+                  <TableCell>{a.phone || '—'}</TableCell>
                   <TableCell className="text-right space-x-2">
                     <Button variant="ghost" size="sm" onClick={() => openEdit(a)}><Pencil className="w-4 h-4" /></Button>
                     <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { if (window.confirm(`Supprimer "${a.name}" ?`)) deleteMutation.mutate(a.id); }}><Trash2 className="w-4 h-4" /></Button>
@@ -168,12 +185,28 @@ const AgenciesTab = () => {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editing ? 'Modifier l\'agence' : 'Nouvelle agence'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? "Modifier l'agence" : 'Nouvelle agence'}</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2"><Label>Nom *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-            <div className="grid gap-2"><Label>Ville</Label><Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
-            <div className="grid gap-2"><Label>Adresse</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
-            <div className="grid gap-2"><Label>Téléphone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Nom *</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Ouagadougou Centre" />
+              </div>
+              <div className="grid gap-2">
+                <Label>Code (3 lettres) *</Label>
+                <Input 
+                  value={form.code} 
+                  onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().slice(0, 5) })} 
+                  placeholder="Ex: OUA"
+                  maxLength={5}
+                  className="font-mono uppercase"
+                />
+                <p className="text-[10px] text-muted-foreground">Utilisé pour la numérotation des tickets</p>
+              </div>
+            </div>
+            <div className="grid gap-2"><Label>Ville</Label><Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Ex: Ouagadougou" /></div>
+            <div className="grid gap-2"><Label>Adresse</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Ex: Avenue Kwame Nkrumah" /></div>
+            <div className="grid gap-2"><Label>Téléphone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="Ex: +226 70 00 00 00" /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>

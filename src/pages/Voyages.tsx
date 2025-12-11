@@ -104,11 +104,40 @@ const Voyages = () => {
     queryFn: () => api.getTrips({ agency_id: filterAgencyId }),
   });
 
+  // Fetch ticket counts for all trips
+  const { data: ticketCounts } = useQuery({
+    queryKey: ['trip-ticket-counts-voyages'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tickets')
+        .select('trip_id')
+        .in('status', ['paid', 'reserved']);
+      
+      if (error) throw error;
+      
+      const counts: Record<number, number> = {};
+      data?.forEach(ticket => {
+        if (ticket.trip_id) {
+          counts[ticket.trip_id] = (counts[ticket.trip_id] || 0) + 1;
+        }
+      });
+      return counts;
+    },
+  });
+
   const trips = data?.data || [];
   const filteredTrips = trips.filter(t => 
     t.route?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.vehicle?.registration_number?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Helper to get trip capacity
+  const getTripCapacity = (trip: any) => {
+    const capacity = trip.vehicle?.seats || 50;
+    const soldCount = ticketCounts?.[trip.id] || 0;
+    const remaining = capacity - soldCount;
+    return { capacity, soldCount, remaining, isFull: remaining <= 0 };
+  };
 
   // Stats
   const today = new Date().toISOString().split('T')[0];
@@ -300,17 +329,48 @@ const Voyages = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-lg font-bold text-card-foreground">
-                      {trip.route?.base_price?.toLocaleString() || '—'} F
-                    </span>
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <Users className="w-3 h-3 text-muted-foreground" />
-                      <span className="font-medium text-card-foreground">
-                        {trip.vehicle?.seats || '—'} places
-                      </span>
-                    </div>
-                  </div>
+                  {/* Capacity indicator */}
+                  {(() => {
+                    const { capacity, soldCount, remaining, isFull } = getTripCapacity(trip);
+                    const fillPercentage = (soldCount / capacity) * 100;
+                    return (
+                      <div className="mb-3">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-lg font-bold text-card-foreground">
+                            {trip.route?.base_price?.toLocaleString() || '—'} F
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <Users className="w-3 h-3 text-muted-foreground" />
+                            <span className={cn(
+                              'text-xs font-semibold',
+                              isFull ? 'text-red-600' : remaining <= 5 ? 'text-orange-600' : 'text-green-600'
+                            )}>
+                              {soldCount}/{capacity}
+                            </span>
+                            <span className={cn(
+                              'text-[10px] px-1.5 py-0.5 rounded-full font-medium',
+                              isFull 
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
+                                : remaining <= 5 
+                                  ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                                  : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            )}>
+                              {isFull ? 'COMPLET' : `${remaining} dispo`}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                          <div 
+                            className={cn(
+                              'h-full transition-all',
+                              isFull ? 'bg-red-500' : remaining <= 5 ? 'bg-orange-500' : 'bg-green-500'
+                            )}
+                            style={{ width: `${Math.min(fillPercentage, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
                   
                   {/* Status Actions */}
                   {(statusTransitions[trip.status as string] || []).length > 0 && (
