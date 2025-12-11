@@ -659,6 +659,39 @@ export type Database = {
           },
         ]
       }
+      shipment_pricing: {
+        Row: {
+          base_price: number
+          created_at: string
+          description: string | null
+          id: number
+          is_active: boolean
+          price_per_kg: number
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          base_price?: number
+          created_at?: string
+          description?: string | null
+          id?: number
+          is_active?: boolean
+          price_per_kg?: number
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          base_price?: number
+          created_at?: string
+          description?: string | null
+          id?: number
+          is_active?: boolean
+          price_per_kg?: number
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shipments: {
         Row: {
           arrival_agency_id: number | null

@@ -304,6 +304,28 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
   const [baggagePricePerKg, setBaggagePricePerKg] = React.useState('500');
   const [baggageBasePrice, setBaggageBasePrice] = React.useState('1000');
 
+  // Fetch baggage pricing from database
+  const { data: baggagePricing } = useQuery({
+    queryKey: ['baggage-pricing'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('shipment_pricing')
+        .select('*')
+        .eq('type', 'excess_baggage')
+        .single();
+      if (error) return null;
+      return data;
+    },
+  });
+
+  // Initialize baggage pricing when data loads
+  React.useEffect(() => {
+    if (baggagePricing) {
+      setBaggagePricePerKg(baggagePricing.price_per_kg.toString());
+      setBaggageBasePrice(baggagePricing.base_price.toString());
+    }
+  }, [baggagePricing]);
+
   const { data: tripsData } = useQuery({
     queryKey: ['trips'],
     queryFn: () => api.getTrips(),
