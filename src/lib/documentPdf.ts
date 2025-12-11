@@ -3,8 +3,14 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
+const formatCurrency = (value: number) => {
+  const formatted = new Intl.NumberFormat('fr-FR', { 
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+    useGrouping: true 
+  }).format(Math.round(value));
+  return `${formatted} F CFA`;
+};
 
 interface TicketData {
   id: number;
