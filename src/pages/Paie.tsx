@@ -98,6 +98,7 @@ export default function Paie() {
   const [editingEntry, setEditingEntry] = useState<PayrollEntry | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<PayrollEntry | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [bulkPaymentDialogOpen, setBulkPaymentDialogOpen] = useState(false);
   const [entryToPay, setEntryToPay] = useState<PayrollEntry | null>(null);
 
   const [periodForm, setPeriodForm] = useState({
@@ -441,6 +442,39 @@ export default function Paie() {
     },
   });
 
+  // Bulk payment mutation
+  const bulkPaymentMutation = useMutation({
+    mutationFn: async (data: { payment_method: string; paid_at: string }) => {
+      if (!selectedPeriod || !entries) return;
+      const validatedUnpaidIds = entries
+        .filter(e => e.validated_at && !e.paid_at)
+        .map(e => e.id);
+      
+      if (validatedUnpaidIds.length === 0) {
+        throw new Error('Aucune fiche à payer');
+      }
+
+      const { error } = await supabase
+        .from('payroll_entries')
+        .update({
+          payment_method: data.payment_method,
+          paid_at: data.paid_at,
+        })
+        .in('id', validatedUnpaidIds);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Toutes les fiches validées ont été payées');
+      queryClient.invalidateQueries({ queryKey: ['payroll-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-all-entries'] });
+      setBulkPaymentDialogOpen(false);
+      setPaymentForm({ payment_method: 'cash', paid_at: new Date().toISOString().split('T')[0] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
   const getStaffName = (id: number) =>
     staffList?.find((s) => s.id === id)?.full_name || '-';
 
@@ -676,6 +710,21 @@ export default function Paie() {
                           >
                             <CheckCircle className="w-4 h-4 mr-2" />
                             Tout valider
+                          </Button>
+                        )}
+                        {entries.some(e => e.validated_at && !e.paid_at) && (
+                          <Button
+                            variant="default"
+                            onClick={() => {
+                              setPaymentForm({
+                                payment_method: 'cash',
+                                paid_at: new Date().toISOString().split('T')[0],
+                              });
+                              setBulkPaymentDialogOpen(true);
+                            }}
+                          >
+                            <Banknote className="w-4 h-4 mr-2" />
+                            Tout payer ({entries.filter(e => e.validated_at && !e.paid_at).length})
                           </Button>
                         )}
                       </>
@@ -1145,6 +1194,81 @@ export default function Paie() {
                         <Button type="submit" disabled={markPaidMutation.isPending}>
                           <Banknote className="w-4 h-4 mr-2" />
                           Confirmer le paiement
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Bulk Payment Dialog */}
+                <Dialog open={bulkPaymentDialogOpen} onOpenChange={setBulkPaymentDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Paiement groupé</DialogTitle>
+                    </DialogHeader>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        bulkPaymentMutation.mutate({
+                          payment_method: paymentForm.payment_method,
+                          paid_at: paymentForm.paid_at,
+                        });
+                      }}
+                      className="space-y-4"
+                    >
+                      <div className="p-4 rounded-lg bg-muted">
+                        <p className="text-sm text-muted-foreground">Fiches à payer</p>
+                        <p className="text-2xl font-bold">
+                          {entries?.filter(e => e.validated_at && !e.paid_at).length || 0} fiches
+                        </p>
+                        <p className="text-lg font-semibold text-primary mt-1">
+                          Total: {formatCurrency(
+                            entries?.filter(e => e.validated_at && !e.paid_at)
+                              .reduce((sum, e) => sum + e.net_salary, 0) || 0
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <Label>Méthode de paiement *</Label>
+                        <Select
+                          value={paymentForm.payment_method}
+                          onValueChange={(value) =>
+                            setPaymentForm({ ...paymentForm, payment_method: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sélectionner" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cash">Espèces</SelectItem>
+                            <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                            <SelectItem value="bank_transfer">Virement bancaire</SelectItem>
+                            <SelectItem value="card">Carte bancaire</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Date de paiement *</Label>
+                        <Input
+                          type="date"
+                          value={paymentForm.paid_at}
+                          onChange={(e) =>
+                            setPaymentForm({ ...paymentForm, paid_at: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2 pt-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setBulkPaymentDialogOpen(false)}
+                        >
+                          Annuler
+                        </Button>
+                        <Button type="submit" disabled={bulkPaymentMutation.isPending}>
+                          <Banknote className="w-4 h-4 mr-2" />
+                          Confirmer le paiement groupé
                         </Button>
                       </div>
                     </form>
