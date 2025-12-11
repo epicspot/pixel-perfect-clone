@@ -156,6 +156,25 @@ export interface FuelStats {
   }>;
 }
 
+// Helper function to get current user's agency restriction
+async function getUserAgencyRestriction(): Promise<{ agencyId: number | null; role: string | null }> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) {
+    return { agencyId: null, role: null };
+  }
+  
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('agency_id, role')
+    .eq('id', session.user.id)
+    .single();
+  
+  return {
+    agencyId: profile?.agency_id || null,
+    role: profile?.role || null
+  };
+}
+
 // API Functions
 export const api = {
   // Agencies
@@ -326,7 +345,10 @@ export const api = {
   },
 
   // Trips
-  async getTrips(params?: { from?: string; to?: string }): Promise<{ data: Trip[]; total: number }> {
+  async getTrips(params?: { from?: string; to?: string; agency_id?: number }): Promise<{ data: Trip[]; total: number }> {
+    // Get current user profile for agency restriction
+    const { agencyId: userAgencyId, role: userRole } = await getUserAgencyRestriction();
+
     let query = supabase
       .from('trips')
       .select(`
@@ -348,7 +370,19 @@ export const api = {
 
     const { data, error, count } = await query;
     if (error) throw new Error(error.message);
-    return { data: (data || []) as unknown as Trip[], total: count || 0 };
+    
+    // Filter by agency (via vehicle) for non-admin users
+    let filteredData = data || [];
+    const targetAgencyId = (userRole !== 'admin' && userAgencyId) ? userAgencyId : params?.agency_id;
+    
+    if (targetAgencyId) {
+      filteredData = filteredData.filter((trip: any) => 
+        trip.vehicle?.agency_id === targetAgencyId ||
+        trip.route?.departure_agency_id === targetAgencyId
+      );
+    }
+    
+    return { data: filteredData as unknown as Trip[], total: targetAgencyId ? filteredData.length : (count || 0) };
   },
 
   async createTrip(trip: {
@@ -391,11 +425,21 @@ export const api = {
   },
 
   // Tickets
-  async getTickets(params?: { from?: string; to?: string }): Promise<{ data: Ticket[]; total: number }> {
+  async getTickets(params?: { from?: string; to?: string; agency_id?: number }): Promise<{ data: Ticket[]; total: number }> {
+    // Get current user profile for agency restriction
+    const { agencyId: userAgencyId, role: userRole } = await getUserAgencyRestriction();
+
     let query = supabase
       .from('tickets')
-      .select('*', { count: 'exact' })
+      .select('*, agency:agencies(*)', { count: 'exact' })
       .order('sold_at', { ascending: false });
+
+    // Apply agency restriction for non-admin users
+    if (userRole !== 'admin' && userAgencyId) {
+      query = query.eq('agency_id', userAgencyId);
+    } else if (params?.agency_id) {
+      query = query.eq('agency_id', params.agency_id);
+    }
 
     if (params?.from) {
       query = query.gte('sold_at', params.from);
@@ -410,7 +454,10 @@ export const api = {
   },
 
   // Maintenance Orders
-  async getMaintenanceOrders(params?: { status?: string; type?: string }): Promise<{ data: MaintenanceOrder[]; total: number }> {
+  async getMaintenanceOrders(params?: { status?: string; type?: string; agency_id?: number }): Promise<{ data: MaintenanceOrder[]; total: number }> {
+    // Get current user profile for agency restriction
+    const { agencyId: userAgencyId, role: userRole } = await getUserAgencyRestriction();
+
     let query = supabase
       .from('maintenance_orders')
       .select(`
@@ -418,6 +465,13 @@ export const api = {
         vehicle:vehicles(*, agency:agencies(*))
       `, { count: 'exact' })
       .order('opened_at', { ascending: false });
+
+    // Apply agency restriction for non-admin users
+    if (userRole !== 'admin' && userAgencyId) {
+      query = query.eq('agency_id', userAgencyId);
+    } else if (params?.agency_id) {
+      query = query.eq('agency_id', params.agency_id);
+    }
 
     if (params?.status) {
       query = query.eq('status', params.status);
