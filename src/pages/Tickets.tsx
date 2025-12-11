@@ -301,7 +301,12 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
     queryFn: () => api.getTrips(),
   });
 
-  const trips = tripsData?.data || [];
+  // Filter trips available for sale (only planned, scheduled, or boarding)
+  const allTrips = tripsData?.data || [];
+  const trips = allTrips.filter(t => {
+    const status = t.status as string;
+    return status === 'planned' || status === 'scheduled' || status === 'boarding';
+  });
   const selectedTrip = trips.find(t => t.id.toString() === tripId);
   const basePrice = selectedTrip?.route?.base_price || 0;
   const effectivePrice = price ? Number(price) : basePrice;

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { Plus, MapPin, Clock, Users, Calendar, Bus, Search, Pencil, Trash2, FileText } from 'lucide-react';
+import { Plus, MapPin, Clock, Users, Calendar, Bus, Search, Pencil, Trash2, FileText, Play, UserCheck, ArrowRight, CheckCircle, XCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -36,17 +36,55 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from '@/hooks/use-toast';
 import { generateTripManifestPdf } from '@/lib/documentPdf';
 import { supabase } from '@/integrations/supabase/client';
 import { audit } from '@/lib/audit';
 
-const statusConfig = {
-  scheduled: { label: 'Programmé', className: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-800' },
-  in_progress: { label: 'En cours', className: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-800' },
-  completed: { label: 'Terminé', className: 'bg-muted text-muted-foreground border-border' },
+// Trip lifecycle statuses
+const statusConfig: Record<string, { label: string; className: string; icon?: React.ReactNode }> = {
+  planned: { label: 'Programmé', className: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-800' },
+  boarding: { label: 'Embarquement', className: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 border-yellow-100 dark:border-yellow-800' },
+  departed: { label: 'En route', className: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-800' },
+  arrived: { label: 'Arrivé', className: 'bg-muted text-muted-foreground border-border' },
   cancelled: { label: 'Annulé', className: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-100 dark:border-red-800' },
+  // Legacy statuses mapping
+  scheduled: { label: 'Programmé', className: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-100 dark:border-blue-800' },
+  in_progress: { label: 'En route', className: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-800' },
+  completed: { label: 'Arrivé', className: 'bg-muted text-muted-foreground border-border' },
+};
+
+// Status transitions
+const statusTransitions: Record<string, { next: string; label: string; icon: React.ReactNode; color: string }[]> = {
+  planned: [
+    { next: 'boarding', label: 'Ouvrir embarquement', icon: <UserCheck className="w-4 h-4" />, color: 'text-yellow-600' },
+    { next: 'cancelled', label: 'Annuler', icon: <XCircle className="w-4 h-4" />, color: 'text-destructive' },
+  ],
+  scheduled: [
+    { next: 'boarding', label: 'Ouvrir embarquement', icon: <UserCheck className="w-4 h-4" />, color: 'text-yellow-600' },
+    { next: 'cancelled', label: 'Annuler', icon: <XCircle className="w-4 h-4" />, color: 'text-destructive' },
+  ],
+  boarding: [
+    { next: 'departed', label: 'Départ effectué', icon: <ArrowRight className="w-4 h-4" />, color: 'text-green-600' },
+    { next: 'cancelled', label: 'Annuler', icon: <XCircle className="w-4 h-4" />, color: 'text-destructive' },
+  ],
+  departed: [
+    { next: 'arrived', label: 'Marquer arrivé', icon: <CheckCircle className="w-4 h-4" />, color: 'text-muted-foreground' },
+  ],
+  in_progress: [
+    { next: 'arrived', label: 'Marquer arrivé', icon: <CheckCircle className="w-4 h-4" />, color: 'text-muted-foreground' },
+  ],
+  arrived: [],
+  completed: [],
+  cancelled: [],
 };
 
 const Voyages = () => {
@@ -75,8 +113,31 @@ const Voyages = () => {
   // Stats
   const today = new Date().toISOString().split('T')[0];
   const todayTrips = trips.filter(t => t.departure_datetime?.startsWith(today));
-  const scheduledTrips = trips.filter(t => t.status === 'scheduled');
-  const inProgressTrips = trips.filter(t => t.status === 'in_progress');
+  const plannedTrips = trips.filter(t => (t.status as string) === 'planned' || t.status === 'scheduled');
+  const boardingTrips = trips.filter(t => (t.status as string) === 'boarding');
+  const departedTrips = trips.filter(t => (t.status as string) === 'departed' || t.status === 'in_progress');
+
+  // Status change mutation
+  const statusMutation = useMutation({
+    mutationFn: async ({ tripId, newStatus, oldStatus, routeName }: { tripId: number; newStatus: string; oldStatus: string; routeName: string }) => {
+      const updateData: any = { status: newStatus };
+      if (newStatus === 'arrived') {
+        updateData.arrival_datetime = new Date().toISOString();
+      }
+      const { error } = await supabase.from('trips').update(updateData).eq('id', tripId);
+      if (error) throw error;
+      return { tripId, newStatus, oldStatus, routeName };
+    },
+    onSuccess: ({ tripId, newStatus, oldStatus, routeName }) => {
+      audit.tripStatusChange(tripId, routeName, oldStatus, newStatus);
+      const statusLabel = statusConfig[newStatus]?.label || newStatus;
+      toast({ title: 'Statut mis à jour', description: `Le voyage est maintenant "${statusLabel}"` });
+      queryClient.invalidateQueries({ queryKey: ['trips'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+    },
+  });
 
   const deleteMutation = useMutation({
     mutationFn: async (trip: Trip) => {
@@ -143,7 +204,16 @@ const Voyages = () => {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Programmés</p>
-              <p className="text-xl font-bold text-card-foreground">{scheduledTrips.length}</p>
+              <p className="text-xl font-bold text-card-foreground">{plannedTrips.length}</p>
+            </div>
+          </div>
+          <div className="bg-card rounded-2xl border border-border p-4 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 flex items-center justify-center">
+              <UserCheck className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Embarquement</p>
+              <p className="text-xl font-bold text-card-foreground">{boardingTrips.length}</p>
             </div>
           </div>
           <div className="bg-card rounded-2xl border border-border p-4 flex items-center gap-4">
@@ -151,8 +221,8 @@ const Voyages = () => {
               <Bus className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">En cours</p>
-              <p className="text-xl font-bold text-card-foreground">{inProgressTrips.length}</p>
+              <p className="text-xs text-muted-foreground">En route</p>
+              <p className="text-xl font-bold text-card-foreground">{departedTrips.length}</p>
             </div>
           </div>
         </div>
@@ -241,6 +311,30 @@ const Voyages = () => {
                       </span>
                     </div>
                   </div>
+                  
+                  {/* Status Actions */}
+                  {(statusTransitions[trip.status as string] || []).length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {(statusTransitions[trip.status as string] || []).map((transition) => (
+                        <Button
+                          key={transition.next}
+                          variant="outline"
+                          size="sm"
+                          className={cn('text-xs h-7 gap-1', transition.color)}
+                          onClick={() => statusMutation.mutate({
+                            tripId: trip.id,
+                            newStatus: transition.next,
+                            oldStatus: trip.status,
+                            routeName: trip.route?.name || 'Voyage'
+                          })}
+                          disabled={statusMutation.isPending}
+                        >
+                          {transition.icon}
+                          {transition.label}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
                   
                   {trip.vehicle && (
                     <div className="pt-3 border-t border-border flex items-center justify-between">
