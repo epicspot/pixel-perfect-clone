@@ -25,6 +25,7 @@ import VehicleCostDashboard from "./pages/VehicleCostDashboard";
 import TicketScan from "./pages/TicketScan";
 import SuiviSouches from "./pages/SuiviSouches";
 import AuditLogs from "./pages/AuditLogs";
+import Expeditions from "./pages/Expeditions";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import AccessDenied from "./pages/AccessDenied";
@@ -220,6 +221,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <SuiviSouches />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/expeditions"
+          element={
+            <ProtectedRoute>
+              <Expeditions />
             </ProtectedRoute>
           }
         />

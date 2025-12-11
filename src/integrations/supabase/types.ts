@@ -659,6 +659,116 @@ export type Database = {
           },
         ]
       }
+      shipments: {
+        Row: {
+          arrival_agency_id: number | null
+          base_price: number | null
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          delivered_by: string | null
+          departure_agency_id: number | null
+          description: string | null
+          id: number
+          is_excess_baggage: boolean | null
+          price_per_kg: number | null
+          quantity: number | null
+          receiver_name: string
+          receiver_phone: string | null
+          reference: string
+          sender_name: string
+          sender_phone: string | null
+          status: Database["public"]["Enums"]["shipment_status"]
+          ticket_id: number | null
+          total_amount: number
+          trip_id: number | null
+          type: Database["public"]["Enums"]["shipment_type"]
+          updated_at: string
+          weight_kg: number | null
+        }
+        Insert: {
+          arrival_agency_id?: number | null
+          base_price?: number | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          delivered_by?: string | null
+          departure_agency_id?: number | null
+          description?: string | null
+          id?: number
+          is_excess_baggage?: boolean | null
+          price_per_kg?: number | null
+          quantity?: number | null
+          receiver_name: string
+          receiver_phone?: string | null
+          reference: string
+          sender_name: string
+          sender_phone?: string | null
+          status?: Database["public"]["Enums"]["shipment_status"]
+          ticket_id?: number | null
+          total_amount?: number
+          trip_id?: number | null
+          type: Database["public"]["Enums"]["shipment_type"]
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Update: {
+          arrival_agency_id?: number | null
+          base_price?: number | null
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          delivered_by?: string | null
+          departure_agency_id?: number | null
+          description?: string | null
+          id?: number
+          is_excess_baggage?: boolean | null
+          price_per_kg?: number | null
+          quantity?: number | null
+          receiver_name?: string
+          receiver_phone?: string | null
+          reference?: string
+          sender_name?: string
+          sender_phone?: string | null
+          status?: Database["public"]["Enums"]["shipment_status"]
+          ticket_id?: number | null
+          total_amount?: number
+          trip_id?: number | null
+          type?: Database["public"]["Enums"]["shipment_type"]
+          updated_at?: string
+          weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipments_arrival_agency_id_fkey"
+            columns: ["arrival_agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_departure_agency_id_fkey"
+            columns: ["departure_agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff: {
         Row: {
           agency_id: number | null
@@ -1076,6 +1186,12 @@ export type Database = {
       maintenance_type: "preventive" | "corrective" | "other"
       payment_method: "cash" | "mobile_money" | "card" | "other"
       payroll_status: "open" | "closed"
+      shipment_status: "pending" | "in_transit" | "delivered" | "cancelled"
+      shipment_type:
+        | "excess_baggage"
+        | "unaccompanied_baggage"
+        | "parcel"
+        | "express"
       staff_type:
         | "driver"
         | "assistant"
@@ -1227,6 +1343,13 @@ export const Constants = {
       maintenance_type: ["preventive", "corrective", "other"],
       payment_method: ["cash", "mobile_money", "card", "other"],
       payroll_status: ["open", "closed"],
+      shipment_status: ["pending", "in_transit", "delivered", "cancelled"],
+      shipment_type: [
+        "excess_baggage",
+        "unaccompanied_baggage",
+        "parcel",
+        "express",
+      ],
       staff_type: [
         "driver",
         "assistant",

@@ -13,6 +13,7 @@ export const roleRoutePermissions: Record<UserRole, string[]> = {
   admin: [
     '/',
     '/tickets',
+    '/expeditions',
     '/controle-tickets',
     '/suivi-souches',
     '/voyages',
@@ -34,6 +35,7 @@ export const roleRoutePermissions: Record<UserRole, string[]> = {
   manager: [
     '/',
     '/tickets',
+    '/expeditions',
     '/controle-tickets',
     '/suivi-souches',
     '/voyages',
@@ -51,6 +53,7 @@ export const roleRoutePermissions: Record<UserRole, string[]> = {
   cashier: [
     '/',
     '/tickets',
+    '/expeditions',
     '/controle-tickets',
     '/suivi-souches',
     '/voyages',

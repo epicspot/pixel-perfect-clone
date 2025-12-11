@@ -18,7 +18,8 @@ import {
   ScanLine,
   ClipboardList,
   ScrollText,
-  Download
+  Download,
+  Package
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ import { hasRouteAccess, getRoleLabel, UserRole } from '@/lib/permissions';
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
   { to: '/tickets', icon: Ticket, label: 'Tickets' },
+  { to: '/expeditions', icon: Package, label: 'Expéditions' },
   { to: '/controle-tickets', icon: ScanLine, label: 'Controle tickets' },
   { to: '/suivi-souches', icon: ClipboardList, label: 'Suivi souches' },
   { to: '/voyages', icon: Bus, label: 'Voyages' },
