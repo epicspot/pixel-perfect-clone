@@ -723,3 +723,163 @@ export const generateShipmentPdf = async (shipment: ShipmentData, companyName = 
   const filename = 'bordereau_' + shipment.reference + '.pdf';
   doc.save(filename);
 };
+
+// Shipments Report PDF
+interface ShipmentReportData {
+  id: number;
+  reference: string;
+  type: string;
+  sender_name: string;
+  receiver_name: string;
+  weight_kg: number;
+  total_amount: number;
+  status: string;
+  created_at: string;
+  departure_agency?: { name: string } | null;
+  arrival_agency?: { name: string } | null;
+}
+
+interface ReportFilters {
+  startDate: string;
+  endDate: string;
+  typeFilter?: string;
+  agencyFilter?: string;
+}
+
+interface ReportStats {
+  total: number;
+  pending: number;
+  inTransit: number;
+  delivered: number;
+  cancelled: number;
+  totalRevenue: number;
+  totalWeight: number;
+  byType: Record<string, number>;
+}
+
+const reportTypeLabels: Record<string, string> = {
+  excess_baggage: 'Bagage excedentaire',
+  unaccompanied_baggage: 'Bagage non accompagne',
+  parcel: 'Colis',
+  express: 'Courrier express',
+};
+
+const reportStatusLabels: Record<string, string> = {
+  pending: 'En attente',
+  in_transit: 'En transit',
+  delivered: 'Livre',
+  cancelled: 'Annule',
+};
+
+export const generateShipmentsReportPdf = (
+  shipments: ShipmentReportData[],
+  filters: ReportFilters,
+  stats: ReportStats,
+  companyName = 'Transport Express'
+) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  // Header
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text(companyName, pageWidth / 2, 20, { align: 'center' });
+
+  doc.setFontSize(14);
+  doc.text('RAPPORT DES EXPEDITIONS', pageWidth / 2, 28, { align: 'center' });
+
+  // Period
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  const periodText = 'Periode: ' + format(new Date(filters.startDate), 'dd/MM/yyyy') + ' - ' + format(new Date(filters.endDate), 'dd/MM/yyyy');
+  doc.text(periodText, pageWidth / 2, 36, { align: 'center' });
+
+  // Filters info
+  let filterText = '';
+  if (filters.typeFilter) filterText += 'Type: ' + filters.typeFilter + ' | ';
+  if (filters.agencyFilter) filterText += 'Agence: ' + filters.agencyFilter;
+  if (filterText) {
+    doc.setFontSize(9);
+    doc.text(filterText, pageWidth / 2, 42, { align: 'center' });
+  }
+
+  // Summary stats
+  let y = 52;
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Resume', 20, y);
+  y += 8;
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+
+  // Stats in two columns
+  const col1 = 25;
+  const col2 = pageWidth / 2 + 10;
+
+  doc.text('Total expeditions: ' + stats.total, col1, y);
+  doc.text('En attente: ' + stats.pending, col2, y);
+  y += 5;
+  doc.text('En transit: ' + stats.inTransit, col1, y);
+  doc.text('Livres: ' + stats.delivered, col2, y);
+  y += 5;
+  doc.text('Annules: ' + stats.cancelled, col1, y);
+  doc.text('Poids total: ' + stats.totalWeight.toFixed(1) + ' kg', col2, y);
+  y += 5;
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Recettes totales: ' + formatCurrency(stats.totalRevenue), col1, y);
+  y += 10;
+
+  // Type breakdown
+  doc.setFont('helvetica', 'bold');
+  doc.text('Repartition par type', 20, y);
+  y += 6;
+  doc.setFont('helvetica', 'normal');
+
+  Object.entries(stats.byType).forEach(([type, count]) => {
+    doc.text('- ' + (reportTypeLabels[type] || type) + ': ' + count, 25, y);
+    y += 5;
+  });
+
+  y += 5;
+
+  // Shipments table
+  autoTable(doc, {
+    startY: y,
+    head: [['Date', 'Ref', 'Type', 'Expediteur', 'Trajet', 'Poids', 'Montant', 'Statut']],
+    body: shipments.map(s => [
+      format(new Date(s.created_at), 'dd/MM'),
+      s.reference,
+      reportTypeLabels[s.type] || s.type,
+      s.sender_name.substring(0, 15),
+      (s.departure_agency?.name?.substring(0, 8) || '') + ' > ' + (s.arrival_agency?.name?.substring(0, 8) || ''),
+      s.weight_kg + ' kg',
+      formatCurrency(s.total_amount),
+      reportStatusLabels[s.status] || s.status,
+    ]),
+    theme: 'striped',
+    headStyles: { fillColor: [59, 130, 246], fontSize: 7 },
+    styles: { fontSize: 7, cellPadding: 1.5 },
+    columnStyles: {
+      0: { cellWidth: 15 },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 25 },
+      3: { cellWidth: 25 },
+      4: { cellWidth: 30 },
+      5: { cellWidth: 15 },
+      6: { cellWidth: 25, halign: 'right' },
+      7: { cellWidth: 18 },
+    },
+  });
+
+  // Footer
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(128);
+  doc.text('Document genere le ' + format(new Date(), 'dd/MM/yyyy HH:mm', { locale: fr }), pageWidth / 2, 285, { align: 'center' });
+
+  // Save
+  const filename = 'rapport_expeditions_' + filters.startDate + '_' + filters.endDate + '.pdf';
+  doc.save(filename);
+};

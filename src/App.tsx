@@ -26,6 +26,7 @@ import TicketScan from "./pages/TicketScan";
 import SuiviSouches from "./pages/SuiviSouches";
 import AuditLogs from "./pages/AuditLogs";
 import Expeditions from "./pages/Expeditions";
+import ReportExpeditions from "./pages/ReportExpeditions";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import AccessDenied from "./pages/AccessDenied";
@@ -229,6 +230,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <Expeditions />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rapports/expeditions"
+          element={
+            <ProtectedRoute>
+              <ReportExpeditions />
             </ProtectedRoute>
           }
         />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -548,6 +548,27 @@ function NewShipmentDialog({
   const [quantity, setQuantity] = useState('1');
   const [pricePerKg, setPricePerKg] = useState('500');
   const [basePrice, setBasePrice] = useState('1000');
+
+  // Fetch pricing from database
+  const { data: pricingData } = useQuery({
+    queryKey: ['shipment-pricing'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('shipment_pricing')
+        .select('*');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Update pricing when type changes
+  useEffect(() => {
+    const pricing = pricingData?.find(p => p.type === type);
+    if (pricing) {
+      setPricePerKg(pricing.price_per_kg.toString());
+      setBasePrice(pricing.base_price.toString());
+    }
+  }, [type, pricingData]);
 
   const totalAmount = (parseFloat(weightKg) || 0) * (parseFloat(pricePerKg) || 0) + (parseFloat(basePrice) || 0);
 
