@@ -281,12 +281,12 @@ export default function VehicleCostDashboard() {
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">
                   Agence
                 </label>
-                <Select value={selectedAgencyId} onValueChange={setSelectedAgencyId}>
+                <Select value={selectedAgencyId || 'all'} onValueChange={(val) => setSelectedAgencyId(val === 'all' ? '' : val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Toutes les agences" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Toutes les agences</SelectItem>
+                    <SelectItem value="all">Toutes les agences</SelectItem>
                     {agencies?.map((a) => (
                       <SelectItem key={a.id} value={a.id.toString()}>
                         {a.name}

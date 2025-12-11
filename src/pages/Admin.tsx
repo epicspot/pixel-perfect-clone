@@ -634,10 +634,10 @@ const UsersTab = () => {
             </div>
             <div className="grid gap-2">
               <Label>Agence</Label>
-              <Select value={form.agency_id} onValueChange={(v) => setForm({ ...form, agency_id: v })}>
+              <Select value={form.agency_id || 'central'} onValueChange={(v) => setForm({ ...form, agency_id: v === 'central' ? '' : v })}>
                 <SelectTrigger><SelectValue placeholder="(Central)" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Central</SelectItem>
+                  <SelectItem value="central">Central</SelectItem>
                   {agencies.map((a: any) => <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>)}
                 </SelectContent>
               </Select>
