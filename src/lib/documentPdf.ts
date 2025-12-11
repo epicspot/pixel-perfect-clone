@@ -522,3 +522,204 @@ export const printDocument = (elementId: string) => {
   printWindow.print();
   printWindow.close();
 };
+
+// Shipment receipt/waybill PDF
+interface ShipmentData {
+  id: number;
+  reference: string;
+  type: 'excess_baggage' | 'unaccompanied_baggage' | 'parcel' | 'express';
+  sender_name: string;
+  sender_phone?: string | null;
+  receiver_name: string;
+  receiver_phone?: string | null;
+  description?: string | null;
+  weight_kg: number;
+  quantity: number;
+  price_per_kg: number;
+  base_price: number;
+  total_amount: number;
+  status: string;
+  created_at: string;
+  departure_agency?: { name?: string } | null;
+  arrival_agency?: { name?: string } | null;
+  trip?: {
+    departure_datetime?: string;
+    route?: { name?: string };
+  } | null;
+  ticket?: {
+    reference?: string;
+    customer_name?: string;
+  } | null;
+}
+
+const shipmentTypeLabels: Record<string, string> = {
+  excess_baggage: 'Bagage excedentaire',
+  unaccompanied_baggage: 'Bagage non accompagne',
+  parcel: 'Colis',
+  express: 'Courrier express',
+};
+
+export const generateShipmentPdf = async (shipment: ShipmentData, companyName = 'Transport Express') => {
+  const doc = new jsPDF({
+    format: [80, 200],
+    unit: 'mm',
+  });
+  
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 10;
+
+  // Header
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(companyName, pageWidth / 2, y, { align: 'center' });
+  y += 5;
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text("BORDEREAU D'EXPEDITION", pageWidth / 2, y, { align: 'center' });
+  y += 6;
+
+  // Reference
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text(shipment.reference, pageWidth / 2, y, { align: 'center' });
+  y += 5;
+
+  // Type badge
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(shipmentTypeLabels[shipment.type] || shipment.type, pageWidth / 2, y, { align: 'center' });
+  y += 6;
+
+  // Divider
+  doc.setDrawColor(200);
+  doc.line(5, y, pageWidth - 5, y);
+  y += 5;
+
+  // Sender info
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('EXPEDITEUR', 5, y);
+  y += 4;
+  doc.setFont('helvetica', 'normal');
+  doc.text(shipment.sender_name, 5, y);
+  y += 4;
+  if (shipment.sender_phone) {
+    doc.text('Tel: ' + shipment.sender_phone, 5, y);
+    y += 4;
+  }
+  y += 2;
+
+  // Receiver info
+  doc.setFont('helvetica', 'bold');
+  doc.text('DESTINATAIRE', 5, y);
+  y += 4;
+  doc.setFont('helvetica', 'normal');
+  doc.text(shipment.receiver_name, 5, y);
+  y += 4;
+  if (shipment.receiver_phone) {
+    doc.text('Tel: ' + shipment.receiver_phone, 5, y);
+    y += 4;
+  }
+  y += 2;
+
+  // Route info
+  doc.setDrawColor(200);
+  doc.line(5, y, pageWidth - 5, y);
+  y += 4;
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('TRAJET', 5, y);
+  y += 4;
+  doc.setFont('helvetica', 'normal');
+  
+  if (shipment.trip?.route?.name) {
+    doc.text(shipment.trip.route.name, 5, y);
+    y += 4;
+  } else if (shipment.departure_agency?.name && shipment.arrival_agency?.name) {
+    doc.text(shipment.departure_agency.name + ' -> ' + shipment.arrival_agency.name, 5, y);
+    y += 4;
+  }
+
+  if (shipment.trip?.departure_datetime) {
+    doc.text('Depart: ' + format(new Date(shipment.trip.departure_datetime), 'dd/MM/yyyy HH:mm'), 5, y);
+    y += 4;
+  }
+  y += 2;
+
+  // Content description
+  if (shipment.description) {
+    doc.setDrawColor(200);
+    doc.line(5, y, pageWidth - 5, y);
+    y += 4;
+    doc.setFont('helvetica', 'bold');
+    doc.text('CONTENU', 5, y);
+    y += 4;
+    doc.setFont('helvetica', 'normal');
+    
+    const splitDescription = doc.splitTextToSize(shipment.description, pageWidth - 10);
+    doc.text(splitDescription, 5, y);
+    y += splitDescription.length * 4;
+  }
+  y += 2;
+
+  // Details
+  doc.setDrawColor(200);
+  doc.line(5, y, pageWidth - 5, y);
+  y += 4;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  
+  doc.text('Poids: ' + shipment.weight_kg + ' kg', 5, y);
+  doc.text('Qte: ' + shipment.quantity, pageWidth - 5, y, { align: 'right' });
+  y += 4;
+  
+  doc.text('Prix/kg: ' + shipment.price_per_kg.toLocaleString('fr-FR') + ' F', 5, y);
+  doc.text('Frais: ' + shipment.base_price.toLocaleString('fr-FR') + ' F', pageWidth - 5, y, { align: 'right' });
+  y += 6;
+
+  // Total
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.5);
+  doc.line(5, y, pageWidth - 5, y);
+  y += 5;
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL:', 5, y);
+  doc.text(formatCurrency(shipment.total_amount), pageWidth - 5, y, { align: 'right' });
+  y += 6;
+
+  doc.setDrawColor(0);
+  doc.line(5, y, pageWidth - 5, y);
+  y += 5;
+
+  // QR Code
+  const qrData = JSON.stringify({
+    ref: shipment.reference,
+    exp: shipment.sender_name,
+    dest: shipment.receiver_name,
+    montant: shipment.total_amount,
+    type: shipment.type,
+  });
+
+  const qrCodeDataUrl = await generateQRCode(qrData);
+  if (qrCodeDataUrl) {
+    const qrSize = 20;
+    doc.addImage(qrCodeDataUrl, 'PNG', (pageWidth - qrSize) / 2, y, qrSize, qrSize);
+    y += qrSize + 4;
+  }
+
+  // Footer
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100);
+  doc.text('Conserver ce bordereau', pageWidth / 2, y, { align: 'center' });
+  y += 3;
+  doc.text('Emis le ' + format(new Date(shipment.created_at), 'dd/MM/yyyy HH:mm'), pageWidth / 2, y, { align: 'center' });
+
+  // Save
+  const filename = 'bordereau_' + shipment.reference + '.pdf';
+  doc.save(filename);
+};
