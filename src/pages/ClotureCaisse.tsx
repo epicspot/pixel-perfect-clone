@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from 'sonner';
 import { Calculator, CheckCircle, Clock, AlertTriangle, Wallet, CreditCard, Smartphone } from 'lucide-react';
 import {
@@ -34,9 +35,13 @@ export default function ClotureCaisse() {
   const { session, profile } = useAuth();
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [adminAgencyFilter, setAdminAgencyFilter] = useState('');
 
   // Check if user is admin
   const isAdmin = profile?.role === 'admin';
+  const filterAgencyId = isAdmin 
+    ? (adminAgencyFilter ? Number(adminAgencyFilter) : undefined)
+    : profile?.agency_id || undefined;
 
   // Fetch today's tickets for the current user (with agency restriction)
   const { data: todayTickets, isLoading: loadingTickets } = useQuery({
@@ -67,7 +72,7 @@ export default function ClotureCaisse() {
 
   // Fetch existing closures (with agency restriction for viewing)
   const { data: closures, isLoading: loadingClosures } = useQuery({
-    queryKey: ['cash-closures', session?.user?.id, profile?.agency_id, isAdmin],
+    queryKey: ['cash-closures', session?.user?.id, filterAgencyId, isAdmin],
     queryFn: async () => {
       let query = supabase
         .from('cash_closures')
@@ -76,13 +81,15 @@ export default function ClotureCaisse() {
         .limit(10);
 
       // For non-admin users, show only their own closures
-      // Admins can see all closures (or filter by agency if needed)
+      // Admins can see all or filter by agency
       if (!isAdmin) {
         query = query.eq('user_id', session?.user?.id);
       }
 
-      // Apply agency restriction
-      if (!isAdmin && profile?.agency_id) {
+      // Apply agency filter
+      if (filterAgencyId) {
+        query = query.eq('agency_id', filterAgencyId);
+      } else if (!isAdmin && profile?.agency_id) {
         query = query.eq('agency_id', profile.agency_id);
       }
 
@@ -157,6 +164,11 @@ export default function ClotureCaisse() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <AgencyFilter 
+              value={adminAgencyFilter} 
+              onChange={setAdminAgencyFilter}
+              className="min-w-[180px]"
+            />
             <Input
               type="date"
               value={selectedDate}

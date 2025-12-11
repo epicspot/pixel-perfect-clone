@@ -9,17 +9,19 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from 'sonner';
 import { Pencil, Trash2, Plus, X, Wrench, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
 const Maintenance = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   
   const [editing, setEditing] = React.useState<MaintenanceOrder | null>(null);
   const [showForm, setShowForm] = React.useState(false);
   const [filterStatus, setFilterStatus] = React.useState<string>('');
   const [filterType, setFilterType] = React.useState<string>('');
+  const [adminAgencyFilter, setAdminAgencyFilter] = React.useState<string>('');
   
   const [form, setForm] = React.useState({
     vehicle_id: '',
@@ -31,16 +33,22 @@ const Maintenance = () => {
     odometer_km: '',
   });
 
+  const isAdmin = profile?.role === 'admin';
+  const filterAgencyId = isAdmin 
+    ? (adminAgencyFilter ? Number(adminAgencyFilter) : undefined)
+    : profile?.agency_id || undefined;
+
   const { data: vehicles } = useQuery({
     queryKey: ['vehicles'],
     queryFn: () => api.getVehicles(),
   });
 
   const { data: maintenanceData, isLoading } = useQuery({
-    queryKey: ['maintenance-orders', filterStatus, filterType],
+    queryKey: ['maintenance-orders', filterStatus, filterType, filterAgencyId],
     queryFn: () => api.getMaintenanceOrders({
       status: filterStatus || undefined,
       type: filterType || undefined,
+      agency_id: filterAgencyId,
     }),
   });
 
@@ -164,6 +172,11 @@ const Maintenance = () => {
 
         {/* Filters */}
         <div className="bg-card rounded-xl border border-border p-4 flex flex-wrap gap-3">
+          <AgencyFilter 
+            value={adminAgencyFilter} 
+            onChange={setAdminAgencyFilter} 
+            className="flex-1 min-w-[150px]"
+          />
           <div className="flex-1 min-w-[150px]">
             <Label className="text-xs">Statut</Label>
             <Select value={filterStatus || 'all'} onValueChange={(val) => setFilterStatus(val === 'all' ? '' : val)}>
