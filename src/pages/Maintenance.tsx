@@ -166,12 +166,12 @@ const Maintenance = () => {
         <div className="bg-card rounded-xl border border-border p-4 flex flex-wrap gap-3">
           <div className="flex-1 min-w-[150px]">
             <Label className="text-xs">Statut</Label>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <Select value={filterStatus || "all"} onValueChange={(v) => setFilterStatus(v === "all" ? "" : v)}>
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Tous les statuts" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous les statuts</SelectItem>
+                <SelectItem value="all">Tous les statuts</SelectItem>
                 <SelectItem value="open">Ouvert</SelectItem>
                 <SelectItem value="in_progress">En cours</SelectItem>
                 <SelectItem value="closed">Clôturé</SelectItem>
@@ -181,12 +181,12 @@ const Maintenance = () => {
           </div>
           <div className="flex-1 min-w-[150px]">
             <Label className="text-xs">Type</Label>
-            <Select value={filterType} onValueChange={setFilterType}>
+            <Select value={filterType || "all"} onValueChange={(v) => setFilterType(v === "all" ? "" : v)}>
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Tous les types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous les types</SelectItem>
+                <SelectItem value="all">Tous les types</SelectItem>
                 <SelectItem value="preventive">Préventive</SelectItem>
                 <SelectItem value="corrective">Corrective</SelectItem>
                 <SelectItem value="other">Autre</SelectItem>
