@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,32 +7,34 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { hasRouteAccess, UserRole } from "@/lib/permissions";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import Index from "./pages/Index";
-import Tickets from "./pages/Tickets";
-import Voyages from "./pages/Voyages";
-import Rapports from "./pages/Rapports";
-import ReportAgency from "./pages/ReportAgency";
-import ReportRoutes from "./pages/ReportRoutes";
-import ReportCashiers from "./pages/ReportCashiers";
-import Parametres from "./pages/Parametres";
-import Admin from "./pages/Admin";
-import Maintenance from "./pages/Maintenance";
-import Carburant from "./pages/Carburant";
-import ClotureCaisse from "./pages/ClotureCaisse";
-import Staff from "./pages/Staff";
-import Depenses from "./pages/Depenses";
-import Paie from "./pages/Paie";
-import VehicleCostDashboard from "./pages/VehicleCostDashboard";
-import TicketScan from "./pages/TicketScan";
-import SuiviSouches from "./pages/SuiviSouches";
-import AuditLogs from "./pages/AuditLogs";
-import Expeditions from "./pages/Expeditions";
-import ReportExpeditions from "./pages/ReportExpeditions";
-import ShipmentsDashboard from "./pages/ShipmentsDashboard";
-import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
-import AccessDenied from "./pages/AccessDenied";
-import Install from "./pages/Install";
+
+// Lazy load all pages for code-splitting
+const Index = lazy(() => import("./pages/Index"));
+const Tickets = lazy(() => import("./pages/Tickets"));
+const Voyages = lazy(() => import("./pages/Voyages"));
+const Rapports = lazy(() => import("./pages/Rapports"));
+const ReportAgency = lazy(() => import("./pages/ReportAgency"));
+const ReportRoutes = lazy(() => import("./pages/ReportRoutes"));
+const ReportCashiers = lazy(() => import("./pages/ReportCashiers"));
+const Parametres = lazy(() => import("./pages/Parametres"));
+const Admin = lazy(() => import("./pages/Admin"));
+const Maintenance = lazy(() => import("./pages/Maintenance"));
+const Carburant = lazy(() => import("./pages/Carburant"));
+const ClotureCaisse = lazy(() => import("./pages/ClotureCaisse"));
+const Staff = lazy(() => import("./pages/Staff"));
+const Depenses = lazy(() => import("./pages/Depenses"));
+const Paie = lazy(() => import("./pages/Paie"));
+const VehicleCostDashboard = lazy(() => import("./pages/VehicleCostDashboard"));
+const TicketScan = lazy(() => import("./pages/TicketScan"));
+const SuiviSouches = lazy(() => import("./pages/SuiviSouches"));
+const AuditLogs = lazy(() => import("./pages/AuditLogs"));
+const Expeditions = lazy(() => import("./pages/Expeditions"));
+const ReportExpeditions = lazy(() => import("./pages/ReportExpeditions"));
+const ShipmentsDashboard = lazy(() => import("./pages/ShipmentsDashboard"));
+const Auth = lazy(() => import("./pages/Auth"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const AccessDenied = lazy(() => import("./pages/AccessDenied"));
+const Install = lazy(() => import("./pages/Install"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,17 +46,22 @@ const queryClient = new QueryClient({
   },
 });
 
+// Loading fallback component
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>
+  );
+}
+
 // Protected route wrapper with role-based access
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, profile } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (!isAuthenticated) {
@@ -71,65 +79,66 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/auth" element={<Auth />} />
-      <Route path="/install" element={<Install />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Index />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/tickets"
-        element={
-          <ProtectedRoute>
-            <Tickets />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/voyages"
-        element={
-          <ProtectedRoute>
-            <Voyages />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/rapports"
-        element={
-          <ProtectedRoute>
-            <Rapports />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/rapports/agence"
-        element={
-          <ProtectedRoute>
-            <ReportAgency />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/rapports/lignes"
-        element={
-          <ProtectedRoute>
-            <ReportRoutes />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/rapports/caisse"
-        element={
-          <ProtectedRoute>
-            <ReportCashiers />
-          </ProtectedRoute>
-        }
-      />
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/install" element={<Install />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Index />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tickets"
+          element={
+            <ProtectedRoute>
+              <Tickets />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/voyages"
+          element={
+            <ProtectedRoute>
+              <Voyages />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rapports"
+          element={
+            <ProtectedRoute>
+              <Rapports />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rapports/agence"
+          element={
+            <ProtectedRoute>
+              <ReportAgency />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rapports/lignes"
+          element={
+            <ProtectedRoute>
+              <ReportRoutes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rapports/caisse"
+          element={
+            <ProtectedRoute>
+              <ReportCashiers />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/parametres"
           element={
@@ -252,7 +261,8 @@ function AppRoutes() {
         />
         <Route path="/acces-refuse" element={<AccessDenied />} />
         <Route path="*" element={<NotFound />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }
 
