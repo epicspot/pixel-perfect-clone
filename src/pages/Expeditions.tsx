@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Package, Truck, Search, Eye, CheckCircle, XCircle, Printer } from "lucide-react";
+import { Plus, Package, Truck, Search, Eye, CheckCircle, XCircle, Printer, BarChart3 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/lib/api";
@@ -293,20 +294,28 @@ export default function Expeditions() {
             <h1 className="text-2xl font-display font-bold text-foreground">Expéditions</h1>
             <p className="text-muted-foreground">Gestion des bagages et courriers</p>
           </div>
-          <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                Nouvelle expédition
-              </Button>
-            </DialogTrigger>
-            <NewShipmentDialog
-              onSubmit={(data) => createShipment.mutate(data)}
-              isLoading={createShipment.isPending}
-              agencies={agencies}
-              trips={trips}
-            />
-          </Dialog>
+          <div className="flex gap-2">
+            <Button asChild variant="outline" className="gap-2">
+              <Link to="/expeditions/dashboard">
+                <BarChart3 className="w-4 h-4" />
+                Tableau de bord
+              </Link>
+            </Button>
+            <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Nouvelle expédition
+                </Button>
+              </DialogTrigger>
+              <NewShipmentDialog
+                onSubmit={(data) => createShipment.mutate(data)}
+                isLoading={createShipment.isPending}
+                agencies={agencies}
+                trips={trips}
+              />
+            </Dialog>
+          </div>
         </div>
 
         {/* Cards stats */}
