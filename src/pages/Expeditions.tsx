@@ -252,7 +252,7 @@ export default function Expeditions() {
       queryClient.invalidateQueries({ queryKey: ["shipments"] });
       toast.success(`Statut mis à jour: ${statusLabels[status]}`);
       logAudit({
-        action: "SHIPMENT_STATUS_UPDATE",
+        action: "SHIPMENT_STATUS_CHANGE",
         entityType: "shipment",
         entityId: id,
         description: `Expédition statut changé: ${statusLabels[status]}`,
