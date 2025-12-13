@@ -80,6 +80,9 @@ export const roleRoutePermissions: Record<UserRole, string[]> = {
     '/',
     '/carburant',
     '/maintenance',
+    '/couts-vehicules',
+    '/staff',
+    '/depenses',
     '/parametres',
   ],
 };
