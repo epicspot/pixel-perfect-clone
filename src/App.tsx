@@ -27,6 +27,7 @@ import SuiviSouches from "./pages/SuiviSouches";
 import AuditLogs from "./pages/AuditLogs";
 import Expeditions from "./pages/Expeditions";
 import ReportExpeditions from "./pages/ReportExpeditions";
+import ShipmentsDashboard from "./pages/ShipmentsDashboard";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import AccessDenied from "./pages/AccessDenied";
@@ -238,6 +239,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <ReportExpeditions />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/expeditions/dashboard"
+          element={
+            <ProtectedRoute>
+              <ShipmentsDashboard />
             </ProtectedRoute>
           }
         />
