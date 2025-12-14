@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Server, Bell, Shield, Package, Save } from 'lucide-react';
+import { Server, Bell, Shield, Package, Save, Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -32,7 +32,29 @@ const Parametres = () => {
   const queryClient = useQueryClient();
   const isAdmin = profile?.role === 'admin';
   const [editedPricing, setEditedPricing] = useState<Record<string, { base_price: string; price_per_kg: string }>>({});
+  const [companyName, setCompanyName] = useState('');
+  const [companySlogan, setCompanySlogan] = useState('');
 
+  // Fetch company settings
+  const { data: companySettings, isLoading: companyLoading } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('*')
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Initialize company settings when data loads
+  useEffect(() => {
+    if (companySettings) {
+      setCompanyName(companySettings.company_name || '');
+      setCompanySlogan(companySettings.slogan || '');
+    }
+  }, [companySettings]);
   // Fetch pricing
   const { data: pricing, isLoading: pricingLoading } = useQuery({
     queryKey: ['shipment-pricing'],
@@ -78,6 +100,35 @@ const Parametres = () => {
     },
   });
 
+  // Update company settings mutation
+  const updateCompanySettings = useMutation({
+    mutationFn: async ({ company_name, slogan }: { company_name: string; slogan: string }) => {
+      const { error } = await supabase
+        .from('company_settings')
+        .update({ company_name, slogan })
+        .eq('id', 1);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['company-settings'] });
+      toast.success('Paramètres de la compagnie mis à jour');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Erreur lors de la mise à jour');
+    },
+  });
+
+  const handleSaveCompanySettings = () => {
+    if (!companyName.trim()) {
+      toast.error('Le nom de la compagnie est requis');
+      return;
+    }
+    updateCompanySettings.mutate({
+      company_name: companyName.trim(),
+      slogan: companySlogan.trim(),
+    });
+  };
+
   const handleSavePricing = (type: string) => {
     const edited = editedPricing[type];
     if (!edited) return;
@@ -107,6 +158,63 @@ const Parametres = () => {
           <h1 className="text-3xl font-display font-bold text-foreground">Paramètres</h1>
           <p className="text-muted-foreground mt-1">Configurez votre application</p>
         </div>
+
+        {/* Company Settings - Admin only */}
+        {isAdmin && (
+          <Card className="p-6 animate-slide-up">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Building2 className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="font-display font-semibold text-lg">Identité de la Compagnie</h2>
+                <p className="text-sm text-muted-foreground">Personnalisez le nom et le slogan affichés</p>
+              </div>
+            </div>
+            
+            {companyLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="company-name">Nom de la compagnie</Label>
+                  <Input
+                    id="company-name"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="Ex: TRANSPORT BURKINA EXPRESS"
+                    className="mt-1"
+                    maxLength={100}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="company-slogan">Slogan</Label>
+                  <Input
+                    id="company-slogan"
+                    value={companySlogan}
+                    onChange={(e) => setCompanySlogan(e.target.value)}
+                    placeholder="Ex: Votre partenaire de confiance pour tous vos voyages"
+                    className="mt-1"
+                    maxLength={200}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Utilisez • pour séparer les mots-clés (ex: Sécurité • Confort • Ponctualité)
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleSaveCompanySettings}
+                  disabled={updateCompanySettings.isPending}
+                  className="w-full sm:w-auto"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Enregistrer
+                </Button>
+              </div>
+            )}
+          </Card>
+        )}
 
         {/* Shipment Pricing Configuration - Admin only */}
         {isAdmin && (

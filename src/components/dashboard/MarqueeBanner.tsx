@@ -1,9 +1,24 @@
 import React from 'react';
 import { Bus } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const MarqueeBanner: React.FC = () => {
-  const companyName = "TRANSPORT BURKINA EXPRESS";
-  const slogan = "Votre partenaire de confiance pour tous vos voyages • Sécurité • Confort • Ponctualité";
+  const { data: settings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('*')
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+
+  const companyName = settings?.company_name || 'TRANSPORT BURKINA EXPRESS';
+  const slogan = settings?.slogan || 'Votre partenaire de confiance pour tous vos voyages • Sécurité • Confort • Ponctualité';
 
   return (
     <div className="relative overflow-hidden bg-gradient-to-r from-primary via-primary/90 to-primary rounded-2xl mb-6 shadow-lg">

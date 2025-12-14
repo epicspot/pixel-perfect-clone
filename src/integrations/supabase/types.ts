@@ -159,6 +159,33 @@ export type Database = {
           },
         ]
       }
+      company_settings: {
+        Row: {
+          company_name: string
+          created_at: string
+          id: number
+          logo_url: string | null
+          slogan: string
+          updated_at: string
+        }
+        Insert: {
+          company_name?: string
+          created_at?: string
+          id?: number
+          logo_url?: string | null
+          slogan?: string
+          updated_at?: string
+        }
+        Update: {
+          company_name?: string
+          created_at?: string
+          id?: number
+          logo_url?: string | null
+          slogan?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       expense_categories: {
         Row: {
           code: string
