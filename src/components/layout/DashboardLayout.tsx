@@ -2,7 +2,7 @@ import { Sidebar } from './Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRoleLabel } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
-import { LogOut, Bell, Building2 } from 'lucide-react';
+import { LogOut, Bell, Building2, Bus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -92,9 +92,63 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </header>
 
       {/* Main content with top padding for header */}
-      <main className="ml-64 pt-16 p-8 transition-all duration-300">
+      <main className="ml-64 pt-16 p-8 pb-20 transition-all duration-300">
         {children}
       </main>
+
+      {/* Animated Footer */}
+      <footer className="fixed bottom-0 right-0 left-64 h-12 bg-card/80 backdrop-blur-sm border-t border-border z-30 flex items-center justify-center overflow-hidden">
+        <div className="flex items-center gap-3 animate-footer-slide">
+          {/* Animated Bus */}
+          <div className="relative">
+            <Bus className="w-5 h-5 text-primary animate-bus-drive" />
+            {/* Exhaust smoke effect */}
+            <div className="absolute -left-2 top-1/2 -translate-y-1/2 flex gap-0.5">
+              <span className="w-1 h-1 rounded-full bg-muted-foreground/30 animate-smoke-1" />
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/20 animate-smoke-2" />
+              <span className="w-1 h-1 rounded-full bg-muted-foreground/10 animate-smoke-3" />
+            </div>
+          </div>
+          
+          {/* Copyright */}
+          <span className="text-xs text-muted-foreground font-medium">
+            © EPICSPOT CONSULTING 2025 — Tous droits réservés
+          </span>
+        </div>
+      </footer>
+
+      <style>{`
+        @keyframes bus-drive {
+          0%, 100% { transform: translateX(0) rotate(0deg); }
+          25% { transform: translateX(2px) rotate(-1deg); }
+          50% { transform: translateX(0) rotate(0deg); }
+          75% { transform: translateX(-2px) rotate(1deg); }
+        }
+        @keyframes smoke-1 {
+          0%, 100% { opacity: 0.3; transform: translateX(0) scale(1); }
+          50% { opacity: 0; transform: translateX(-8px) scale(1.5); }
+        }
+        @keyframes smoke-2 {
+          0%, 100% { opacity: 0.2; transform: translateX(0) scale(1); }
+          50% { opacity: 0; transform: translateX(-12px) scale(1.8); }
+        }
+        @keyframes smoke-3 {
+          0%, 100% { opacity: 0.1; transform: translateX(0) scale(1); }
+          50% { opacity: 0; transform: translateX(-16px) scale(2); }
+        }
+        .animate-bus-drive {
+          animation: bus-drive 1s ease-in-out infinite;
+        }
+        .animate-smoke-1 {
+          animation: smoke-1 1.5s ease-out infinite;
+        }
+        .animate-smoke-2 {
+          animation: smoke-2 1.5s ease-out infinite 0.2s;
+        }
+        .animate-smoke-3 {
+          animation: smoke-3 1.5s ease-out infinite 0.4s;
+        }
+      `}</style>
     </div>
   );
 }
