@@ -238,6 +238,22 @@ export default function Guichets() {
     },
   });
 
+  // Fetch discrepancy threshold from settings
+  const { data: thresholdSetting } = useQuery({
+    queryKey: ['cash-discrepancy-threshold'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'cash_discrepancy_threshold')
+        .maybeSingle();
+      if (error) throw error;
+      return data?.value ? parseFloat(data.value) : 5000;
+    },
+  });
+
+  const discrepancyThreshold = thresholdSetting ?? 5000;
+
   // Close session mutation
   const closeSessionMutation = useMutation({
     mutationFn: async () => {
@@ -247,6 +263,7 @@ export default function Guichets() {
       const expectedCash = (activeSession.opening_cash || 0) + (sessionTickets?.total || 0);
       const difference = closingCashNum - expectedCash;
 
+      // Update session
       const { error } = await supabase
         .from('counter_sessions')
         .update({
@@ -259,6 +276,20 @@ export default function Guichets() {
         })
         .eq('id', activeSession.id);
       if (error) throw error;
+
+      // Create alert if discrepancy exceeds threshold
+      if (Math.abs(difference) >= discrepancyThreshold) {
+        const { error: alertError } = await supabase
+          .from('cash_discrepancy_alerts')
+          .insert({
+            session_id: activeSession.id,
+            user_id: user?.id,
+            agency_id: activeSession.agency_id,
+            difference,
+            threshold: discrepancyThreshold,
+          });
+        if (alertError) console.error('Failed to create discrepancy alert:', alertError);
+      }
     },
     onSuccess: () => {
       toast.success('Session fermée avec succès');
