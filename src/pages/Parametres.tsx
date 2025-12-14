@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Server, Bell, Shield, Package, Save, Building2, Upload, X, Image } from 'lucide-react';
+import { Server, Bell, Shield, Package, Save, Building2, Upload, X, Image, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useState, useEffect, useRef } from 'react';
@@ -41,6 +41,7 @@ const Parametres = () => {
   const [companyEmail, setCompanyEmail] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [discrepancyThreshold, setDiscrepancyThreshold] = useState('5000');
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Fetch company settings
   const { data: companySettings, isLoading: companyLoading } = useQuery({
@@ -67,6 +68,26 @@ const Parametres = () => {
     }
   }, [companySettings]);
 
+  // Fetch discrepancy threshold
+  const { data: thresholdSetting, isLoading: thresholdLoading } = useQuery({
+    queryKey: ['cash-discrepancy-threshold'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('*')
+        .eq('key', 'cash_discrepancy_threshold')
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Initialize threshold when data loads
+  useEffect(() => {
+    if (thresholdSetting) {
+      setDiscrepancyThreshold(thresholdSetting.value || '5000');
+    }
+  }, [thresholdSetting]);
 
   // Fetch pricing
   const { data: pricing, isLoading: pricingLoading } = useQuery({
@@ -130,6 +151,33 @@ const Parametres = () => {
       toast.error(error.message || 'Erreur lors de la mise à jour');
     },
   });
+
+  // Update discrepancy threshold mutation
+  const updateThreshold = useMutation({
+    mutationFn: async (value: string) => {
+      const { error } = await supabase
+        .from('app_settings')
+        .update({ value, updated_at: new Date().toISOString() })
+        .eq('key', 'cash_discrepancy_threshold');
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cash-discrepancy-threshold'] });
+      toast.success('Seuil d\'alerte mis à jour');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Erreur lors de la mise à jour');
+    },
+  });
+
+  const handleSaveThreshold = () => {
+    const value = parseInt(discrepancyThreshold);
+    if (isNaN(value) || value < 0) {
+      toast.error('Veuillez entrer un montant valide');
+      return;
+    }
+    updateThreshold.mutate(value.toString());
+  };
 
   const handleSaveCompanySettings = () => {
     if (!companyName.trim()) {
@@ -462,6 +510,57 @@ const Parametres = () => {
                     </Button>
                   </div>
                 ))}
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Cash Discrepancy Alert Settings - Admin only */}
+        {isAdmin && (
+          <Card className="p-6 animate-slide-up" style={{ animationDelay: '75ms' }}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 rounded-lg bg-destructive/10">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <h2 className="font-display font-semibold text-lg">Alertes Écarts de Caisse</h2>
+                <p className="text-sm text-muted-foreground">Configurez le seuil pour déclencher une alerte automatique</p>
+              </div>
+            </div>
+            
+            {thresholdLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-end gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div className="flex-1">
+                    <Label htmlFor="threshold">Seuil d'alerte (F CFA)</Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Une alerte sera créée si l'écart de caisse dépasse ce montant (en valeur absolue)
+                    </p>
+                    <Input
+                      id="threshold"
+                      type="number"
+                      value={discrepancyThreshold}
+                      onChange={(e) => setDiscrepancyThreshold(e.target.value)}
+                      placeholder="5000"
+                      min="0"
+                      step="1000"
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleSaveThreshold}
+                    disabled={updateThreshold.isPending}
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Enregistrer
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Les managers et administrateurs recevront une notification en temps réel lorsqu'un caissier fermera une session avec un écart dépassant ce seuil.
+                </p>
               </div>
             )}
           </Card>
