@@ -29,39 +29,71 @@ interface Staff {
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
-export const generatePayslipPdf = (
+export const generatePayslipPdf = async (
   entry: PayrollEntry,
   period: PayrollPeriod,
-  staffName: string
+  staffName: string,
+  companyName = 'Transport Express',
+  logoUrl?: string | null
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  let headerY = 15;
+
+  // Logo
+  if (logoUrl) {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = logoUrl;
+      });
+      const logoHeight = 15;
+      const logoWidth = (img.width / img.height) * logoHeight;
+      doc.addImage(img, 'PNG', (pageWidth - logoWidth) / 2, headerY, logoWidth, logoHeight);
+      headerY += logoHeight + 5;
+    } catch (e) {
+      console.error('Failed to load logo for payslip:', e);
+    }
+  }
+
+  // Company name
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(companyName, pageWidth / 2, headerY, { align: 'center' });
+  headerY += 8;
 
   // Header
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text('FICHE DE PAIE', pageWidth / 2, 25, { align: 'center' });
+  doc.text('FICHE DE PAIE', pageWidth / 2, headerY, { align: 'center' });
+  headerY += 10;
 
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Période: ${period.label}`, pageWidth / 2, 35, { align: 'center' });
+  doc.text(`Période: ${period.label}`, pageWidth / 2, headerY, { align: 'center' });
+  headerY += 7;
   doc.text(
     `Du ${format(new Date(period.start_date), 'dd/MM/yyyy')} au ${format(new Date(period.end_date), 'dd/MM/yyyy')}`,
     pageWidth / 2,
-    42,
+    headerY,
     { align: 'center' }
   );
+  headerY += 15;
 
   // Employee info
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('Employé:', 20, 60);
+  doc.text('Employé:', 20, headerY);
   doc.setFont('helvetica', 'normal');
-  doc.text(staffName, 55, 60);
+  doc.text(staffName, 55, headerY);
+  headerY += 15;
 
   // Salary details table
   autoTable(doc, {
-    startY: 75,
+    startY: headerY,
     head: [['Rubrique', 'Montant']],
     body: [
       ['Salaire de base', formatCurrency(entry.base_salary)],
@@ -99,30 +131,61 @@ export const generatePayslipPdf = (
   doc.save(filename);
 };
 
-export const generatePeriodSummaryPdf = (
+export const generatePeriodSummaryPdf = async (
   period: PayrollPeriod,
   entries: PayrollEntry[],
-  staffList: Staff[]
+  staffList: Staff[],
+  companyName = 'Transport Express',
+  logoUrl?: string | null
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  let headerY = 15;
 
   const getStaffName = (id: number) => staffList.find((s) => s.id === id)?.full_name || '-';
+
+  // Logo
+  if (logoUrl) {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = logoUrl;
+      });
+      const logoHeight = 15;
+      const logoWidth = (img.width / img.height) * logoHeight;
+      doc.addImage(img, 'PNG', (pageWidth - logoWidth) / 2, headerY, logoWidth, logoHeight);
+      headerY += logoHeight + 5;
+    } catch (e) {
+      console.error('Failed to load logo for period summary:', e);
+    }
+  }
+
+  // Company name
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(companyName, pageWidth / 2, headerY, { align: 'center' });
+  headerY += 8;
 
   // Header
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text('RÉCAPITULATIF DE PAIE', pageWidth / 2, 25, { align: 'center' });
+  doc.text('RÉCAPITULATIF DE PAIE', pageWidth / 2, headerY, { align: 'center' });
+  headerY += 10;
 
   doc.setFontSize(14);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Période: ${period.label}`, pageWidth / 2, 35, { align: 'center' });
+  doc.text(`Période: ${period.label}`, pageWidth / 2, headerY, { align: 'center' });
+  headerY += 7;
   doc.text(
     `Du ${format(new Date(period.start_date), 'dd/MM/yyyy')} au ${format(new Date(period.end_date), 'dd/MM/yyyy')}`,
     pageWidth / 2,
-    42,
+    headerY,
     { align: 'center' }
   );
+  headerY += 10;
 
   // Summary stats
   const totalBase = entries.reduce((sum, e) => sum + e.base_salary, 0);
@@ -134,12 +197,13 @@ export const generatePeriodSummaryPdf = (
   // Stats boxes
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Nombre de fiches: ${entries.length}`, 20, 55);
-  doc.text(`Masse salariale: ${formatCurrency(totalNet)}`, pageWidth - 20, 55, { align: 'right' });
+  doc.text(`Nombre de fiches: ${entries.length}`, 20, headerY);
+  doc.text(`Masse salariale: ${formatCurrency(totalNet)}`, pageWidth - 20, headerY, { align: 'right' });
+  headerY += 10;
 
   // Entries table
   autoTable(doc, {
-    startY: 65,
+    startY: headerY,
     head: [['Employé', 'Salaire base', 'Primes', 'Indemnités', 'Retenues', 'Net']],
     body: entries.map((entry) => [
       getStaffName(entry.staff_id),
@@ -186,23 +250,53 @@ export const generatePeriodSummaryPdf = (
   doc.save(filename);
 };
 
-export const generateAllPeriodsStatsPdf = (
+export const generateAllPeriodsStatsPdf = async (
   periods: PayrollPeriod[],
   allEntries: any[],
   agencies: { id: number; name: string }[],
-  staffList: Staff[]
+  staffList: Staff[],
+  companyName = 'Transport Express',
+  logoUrl?: string | null
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  let headerY = 15;
+
+  // Logo
+  if (logoUrl) {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = logoUrl;
+      });
+      const logoHeight = 15;
+      const logoWidth = (img.width / img.height) * logoHeight;
+      doc.addImage(img, 'PNG', (pageWidth - logoWidth) / 2, headerY, logoWidth, logoHeight);
+      headerY += logoHeight + 5;
+    } catch (e) {
+      console.error('Failed to load logo for payroll stats:', e);
+    }
+  }
+
+  // Company name
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text(companyName, pageWidth / 2, headerY, { align: 'center' });
+  headerY += 8;
 
   // Header
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text('RAPPORT STATISTIQUES PAIE', pageWidth / 2, 25, { align: 'center' });
+  doc.text('RAPPORT STATISTIQUES PAIE', pageWidth / 2, headerY, { align: 'center' });
+  headerY += 10;
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy', { locale: fr })}`, pageWidth / 2, 33, { align: 'center' });
+  doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy', { locale: fr })}`, pageWidth / 2, headerY, { align: 'center' });
+  headerY += 12;
 
   // Global KPIs
   const totalPayroll = allEntries.reduce((sum, e) => sum + Number(e.net_salary), 0);
@@ -210,21 +304,27 @@ export const generateAllPeriodsStatsPdf = (
 
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('Résumé global', 20, 48);
+  doc.text('Résumé global', 20, headerY);
+  headerY += 8;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text(`• Périodes: ${periods.length}`, 25, 56);
-  doc.text(`• Fiches de paie: ${allEntries.length}`, 25, 63);
-  doc.text(`• Employés payés: ${uniqueEmployees}`, 25, 70);
-  doc.text(`• Masse salariale totale: ${formatCurrency(totalPayroll)}`, 25, 77);
+  doc.text(`• Périodes: ${periods.length}`, 25, headerY);
+  headerY += 7;
+  doc.text(`• Fiches de paie: ${allEntries.length}`, 25, headerY);
+  headerY += 7;
+  doc.text(`• Employés payés: ${uniqueEmployees}`, 25, headerY);
+  headerY += 7;
+  doc.text(`• Masse salariale totale: ${formatCurrency(totalPayroll)}`, 25, headerY);
+  headerY += 12;
 
   // By Period table
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('Par période', 20, 92);
+  doc.text('Par période', 20, headerY);
+  headerY += 5;
 
   autoTable(doc, {
-    startY: 97,
+    startY: headerY,
     head: [['Période', 'Dates', 'Fiches', 'Salaire base', 'Primes', 'Net total', 'Statut']],
     body: periods.map((period) => {
       const periodEntries = allEntries.filter((e) => e.payroll_period_id === period.id);

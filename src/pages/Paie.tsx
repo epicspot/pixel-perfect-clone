@@ -182,6 +182,20 @@ export default function Paie() {
     },
   });
 
+  // Company settings
+  const { data: companySettings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('company_name, logo_url')
+        .limit(1)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch all payroll entries with staff info for stats
   const { data: allEntries, isLoading: loadingAllEntries } = useQuery({
     queryKey: ['payroll-all-entries'],
@@ -697,7 +711,7 @@ export default function Paie() {
                       <>
                         <Button
                           variant="outline"
-                          onClick={() => generatePeriodSummaryPdf(selectedPeriod, entries, staffList || [])}
+                          onClick={() => generatePeriodSummaryPdf(selectedPeriod, entries, staffList || [], companySettings?.company_name || 'Transport Express', companySettings?.logo_url)}
                         >
                           <Download className="w-4 h-4 mr-2" />
                           Export PDF
@@ -922,7 +936,7 @@ export default function Paie() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => generatePayslipPdf(entry, selectedPeriod, getStaffName(entry.staff_id))}
+                                      onClick={() => generatePayslipPdf(entry, selectedPeriod, getStaffName(entry.staff_id), companySettings?.company_name || 'Transport Express', companySettings?.logo_url)}
                                       title="Télécharger PDF"
                                     >
                                       <Download className="w-4 h-4" />
@@ -1314,7 +1328,7 @@ export default function Paie() {
               <Button
                 variant="outline"
                 disabled={!periods || periods.length === 0}
-                onClick={() => generateAllPeriodsStatsPdf(periods || [], allEntries || [], agencies || [], staffList || [])}
+                onClick={() => generateAllPeriodsStatsPdf(periods || [], allEntries || [], agencies || [], staffList || [], companySettings?.company_name || 'Transport Express', companySettings?.logo_url)}
               >
                 <Download className="w-4 h-4 mr-2" />
                 Export rapport PDF
