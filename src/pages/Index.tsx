@@ -22,6 +22,7 @@ import {
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { NotificationWidget } from '@/components/dashboard/NotificationWidget';
 import MarqueeBanner from '@/components/dashboard/MarqueeBanner';
+import { TodaySessionsWidget } from '@/components/dashboard/TodaySessionsWidget';
 
 type PeriodType = 'today' | 'week' | 'month';
 
@@ -341,6 +342,11 @@ const Index = () => {
                   })}
                 </div>
               </Card>
+            )}
+
+            {/* Today's Sessions Widget - for managers and admins */}
+            {isAdminView && (
+              <TodaySessionsWidget agencyId={selectedAgencyId ? Number(selectedAgencyId) : undefined} />
             )}
           </>
         )}
