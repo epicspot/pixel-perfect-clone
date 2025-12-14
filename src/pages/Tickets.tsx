@@ -342,6 +342,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
   const [customerPhone, setCustomerPhone] = React.useState('');
   const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>('cash');
   const [price, setPrice] = React.useState('');
+  const [seatNumber, setSeatNumber] = React.useState('');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   
   // Excess baggage state
@@ -415,6 +416,24 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
       });
       return counts;
     },
+  });
+
+  // Fetch occupied seats for selected trip
+  const { data: occupiedSeats } = useQuery({
+    queryKey: ['occupied-seats', tripId],
+    queryFn: async () => {
+      if (!tripId) return [];
+      const { data, error } = await supabase
+        .from('tickets')
+        .select('seat_number')
+        .eq('trip_id', Number(tripId))
+        .in('status', ['paid', 'reserved'])
+        .not('seat_number', 'is', null);
+      
+      if (error) throw error;
+      return data?.map(t => t.seat_number) || [];
+    },
+    enabled: !!tripId,
   });
 
   // Filter trips available for sale (only planned, scheduled, or boarding)
@@ -506,6 +525,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
         price: effectivePrice,
         total_amount: effectivePrice,
         payment_method: paymentMethod,
+        seat_number: seatNumber || null,
         status: 'paid',
         sold_at: new Date().toISOString(),
         reference,
@@ -578,6 +598,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
     setCustomerPhone('');
     setPaymentMethod('cash');
     setPrice('');
+    setSeatNumber('');
     setHasExcessBaggage(false);
     setBaggageWeight('');
     setBaggageDescription('');
@@ -712,6 +733,37 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
               />
             </div>
           </div>
+
+          {/* Seat Number Selection */}
+          {selectedTrip && selectedCapacity && (
+            <div>
+              <Label className="text-xs">Numéro de siège</Label>
+              <Select value={seatNumber} onValueChange={setSeatNumber}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Sélectionner un siège" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: selectedCapacity.capacity }, (_, i) => {
+                    const seatNum = (i + 1).toString();
+                    const isOccupied = occupiedSeats?.includes(seatNum);
+                    return (
+                      <SelectItem 
+                        key={seatNum} 
+                        value={seatNum}
+                        disabled={isOccupied}
+                        className={cn(isOccupied && 'opacity-50 line-through')}
+                      >
+                        Siège {seatNum} {isOccupied && '(occupé)'}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {occupiedSeats?.length || 0} siège(s) déjà occupé(s)
+              </p>
+            </div>
+          )}
 
           {/* Price */}
           <div>

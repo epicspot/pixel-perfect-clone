@@ -25,6 +25,7 @@ const Staff = lazy(() => import("./pages/Staff"));
 const Depenses = lazy(() => import("./pages/Depenses"));
 const Paie = lazy(() => import("./pages/Paie"));
 const VehicleCostDashboard = lazy(() => import("./pages/VehicleCostDashboard"));
+const Comptabilite = lazy(() => import("./pages/Comptabilite"));
 const TicketScan = lazy(() => import("./pages/TicketScan"));
 const SuiviSouches = lazy(() => import("./pages/SuiviSouches"));
 const AuditLogs = lazy(() => import("./pages/AuditLogs"));
@@ -226,6 +227,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <VehicleCostDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/comptabilite"
+          element={
+            <ProtectedRoute>
+              <Comptabilite />
             </ProtectedRoute>
           }
         />

@@ -43,6 +43,7 @@ const navItems = [
   { to: '/carburant', icon: Fuel, label: 'Carburant' },
   { to: '/maintenance', icon: Wrench, label: 'Maintenance' },
   { to: '/couts-vehicules', icon: BarChart3, label: 'Couts vehicules' },
+  { to: '/comptabilite', icon: Receipt, label: 'Comptabilité' },
   { to: '/rapports', icon: BarChart3, label: 'Rapports' },
   { to: '/staff', icon: Users, label: 'Personnel' },
   { to: '/depenses', icon: Receipt, label: 'Depenses' },
