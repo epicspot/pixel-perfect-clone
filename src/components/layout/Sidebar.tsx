@@ -27,6 +27,8 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { hasRouteAccess, getRoleLabel, UserRole } from '@/lib/permissions';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
@@ -53,6 +55,20 @@ export function Sidebar() {
   const { signOut, profile } = useAuth();
   const navigate = useNavigate();
 
+  // Fetch company settings for logo
+  const { data: companySettings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('*')
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
   const handleLogout = async () => {
     try {
       await signOut();
@@ -75,18 +91,28 @@ export function Sidebar() {
       <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
         {!collapsed && (
           <div className="flex items-center gap-3 animate-fade-in">
-            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center shadow-glow">
-              <Bus className="w-6 h-6 text-primary-foreground" />
+            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center shadow-glow overflow-hidden">
+              {companySettings?.logo_url ? (
+                <img src={companySettings.logo_url} alt="Logo" className="w-8 h-8 object-contain" />
+              ) : (
+                <Bus className="w-6 h-6 text-primary-foreground" />
+              )}
             </div>
             <div>
-              <h1 className="font-display font-bold text-sidebar-foreground text-lg">EPICSPOT</h1>
+              <h1 className="font-display font-bold text-sidebar-foreground text-lg">
+                {companySettings?.company_name?.split(' ')[0] || 'EPICSPOT'}
+              </h1>
               <p className="text-xs text-sidebar-foreground/60">Trans Manager</p>
             </div>
           </div>
         )}
         {collapsed && (
-          <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center mx-auto shadow-glow">
-            <Bus className="w-6 h-6 text-primary-foreground" />
+          <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center mx-auto shadow-glow overflow-hidden">
+            {companySettings?.logo_url ? (
+              <img src={companySettings.logo_url} alt="Logo" className="w-8 h-8 object-contain" />
+            ) : (
+              <Bus className="w-6 h-6 text-primary-foreground" />
+            )}
           </div>
         )}
         <Button
