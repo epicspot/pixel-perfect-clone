@@ -20,6 +20,7 @@ import {
   Activity
 } from 'lucide-react';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
+import { NotificationWidget } from '@/components/dashboard/NotificationWidget';
 
 type PeriodType = 'today' | 'week' | 'month';
 
@@ -98,6 +99,7 @@ const Index = () => {
                 className="w-48"
               />
             )}
+            <NotificationWidget />
           </div>
         </div>
 
