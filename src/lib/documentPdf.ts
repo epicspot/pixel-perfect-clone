@@ -581,14 +581,33 @@ const shipmentTypeLabels: Record<string, string> = {
   express: 'Courrier express',
 };
 
-export const generateShipmentPdf = async (shipment: ShipmentData, companyName = 'Transport Express') => {
+export const generateShipmentPdf = async (shipment: ShipmentData, companyName = 'Transport Express', logoUrl?: string | null) => {
   const doc = new jsPDF({
-    format: [80, 200],
+    format: [80, 220],
     unit: 'mm',
   });
   
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 10;
+
+  // Logo
+  if (logoUrl) {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = logoUrl;
+      });
+      const logoWidth = 20;
+      const logoHeight = (img.height / img.width) * logoWidth;
+      doc.addImage(img, 'PNG', (pageWidth - logoWidth) / 2, y, logoWidth, logoHeight);
+      y += logoHeight + 3;
+    } catch (e) {
+      console.error('Failed to load logo for shipment PDF:', e);
+    }
+  }
 
   // Header
   doc.setFontSize(12);
@@ -793,28 +812,52 @@ const reportStatusLabels: Record<string, string> = {
   cancelled: 'Annule',
 };
 
-export const generateShipmentsReportPdf = (
+export const generateShipmentsReportPdf = async (
   shipments: ShipmentReportData[],
   filters: ReportFilters,
   stats: ReportStats,
-  companyName = 'Transport Express'
+  companyName = 'Transport Express',
+  logoUrl?: string | null
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  let headerY = 15;
+
+  // Logo
+  if (logoUrl) {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = logoUrl;
+      });
+      const logoHeight = 15;
+      const logoWidth = (img.width / img.height) * logoHeight;
+      doc.addImage(img, 'PNG', (pageWidth - logoWidth) / 2, headerY, logoWidth, logoHeight);
+      headerY += logoHeight + 3;
+    } catch (e) {
+      console.error('Failed to load logo for shipments report:', e);
+    }
+  }
 
   // Header
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text(companyName, pageWidth / 2, 20, { align: 'center' });
+  doc.text(companyName, pageWidth / 2, headerY, { align: 'center' });
+  headerY += 8;
 
   doc.setFontSize(14);
-  doc.text('RAPPORT DES EXPEDITIONS', pageWidth / 2, 28, { align: 'center' });
+  doc.text('RAPPORT DES EXPEDITIONS', pageWidth / 2, headerY, { align: 'center' });
+  headerY += 8;
 
   // Period
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   const periodText = 'Periode: ' + format(new Date(filters.startDate), 'dd/MM/yyyy') + ' - ' + format(new Date(filters.endDate), 'dd/MM/yyyy');
-  doc.text(periodText, pageWidth / 2, 36, { align: 'center' });
+  doc.text(periodText, pageWidth / 2, headerY, { align: 'center' });
+  headerY += 6;
 
   // Filters info
   let filterText = '';
@@ -822,11 +865,13 @@ export const generateShipmentsReportPdf = (
   if (filters.agencyFilter) filterText += 'Agence: ' + filters.agencyFilter;
   if (filterText) {
     doc.setFontSize(9);
-    doc.text(filterText, pageWidth / 2, 42, { align: 'center' });
+    doc.text(filterText, pageWidth / 2, headerY, { align: 'center' });
+    headerY += 6;
   }
+  headerY += 4;
 
   // Summary stats
-  let y = 52;
+  let y = headerY;
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text('Resume', 20, y);

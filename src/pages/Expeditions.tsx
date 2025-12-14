@@ -74,6 +74,11 @@ interface Shipment {
   };
 }
 
+interface CompanySettings {
+  company_name: string;
+  logo_url: string | null;
+}
+
 const shipmentTypeLabels: Record<ShipmentType, string> = {
   excess_baggage: "Bagage excédentaire",
   unaccompanied_baggage: "Bagage non accompagné",
@@ -176,6 +181,20 @@ export default function Expeditions() {
 
       if (error) throw error;
       return data ?? [];
+    },
+  });
+
+  // Company settings
+  const { data: companySettings } = useQuery({
+    queryKey: ["company-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("company_settings")
+        .select("company_name, logo_url")
+        .limit(1)
+        .single();
+      if (error) throw error;
+      return data as CompanySettings;
     },
   });
 
@@ -495,7 +514,7 @@ export default function Expeditions() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => generateShipmentPdf(shipment as any)}
+                              onClick={() => generateShipmentPdf(shipment as any, companySettings?.company_name || 'Transport Express', companySettings?.logo_url)}
                               title="Imprimer bordereau"
                             >
                               <Printer className="w-4 h-4" />

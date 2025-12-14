@@ -68,6 +68,20 @@ export default function ReportExpeditions() {
     queryFn: () => api.getAgencies(),
   });
 
+  // Company settings
+  const { data: companySettings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('company_name, logo_url')
+        .limit(1)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch shipments for report
   const { data: shipments, isLoading } = useQuery({
     queryKey: ['shipments-report', startDate, endDate, typeFilter, statusFilter, agencyFilter],
@@ -116,10 +130,10 @@ export default function ReportExpeditions() {
     },
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     if (!shipments || shipments.length === 0) return;
     
-    generateShipmentsReportPdf(
+    await generateShipmentsReportPdf(
       shipments,
       {
         startDate,
@@ -127,7 +141,9 @@ export default function ReportExpeditions() {
         typeFilter: typeFilter !== 'all' ? shipmentTypeLabels[typeFilter as ShipmentType] : undefined,
         agencyFilter: agencyFilter !== 'all' ? agencies?.find(a => a.id === parseInt(agencyFilter))?.name : undefined,
       },
-      stats
+      stats,
+      companySettings?.company_name || 'Transport Express',
+      companySettings?.logo_url
     );
   };
 
