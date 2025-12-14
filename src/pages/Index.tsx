@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { NotificationWidget } from '@/components/dashboard/NotificationWidget';
+import MarqueeBanner from '@/components/dashboard/MarqueeBanner';
 
 type PeriodType = 'today' | 'week' | 'month';
 
@@ -77,6 +78,9 @@ const Index = () => {
   return (
     <DashboardLayout>
       <div className="space-y-8">
+        {/* Marquee Banner */}
+        <MarqueeBanner />
+        
         {/* Header with Welcome */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in">
           <div>
