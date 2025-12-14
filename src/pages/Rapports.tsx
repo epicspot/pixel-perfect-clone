@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, Download, TrendingUp, Users, Ticket, Bus, Loader2, Package } from 'lucide-react';
+import { FileText, Download, TrendingUp, Users, Ticket, Bus, Loader2, Package, Monitor } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -227,11 +227,41 @@ const Rapports = () => {
             </div>
           </Card>
 
+          {/* Sessions Report Card */}
+          <Card 
+            className="p-6 hover:border-primary/30 hover:shadow-lg transition-all duration-300 cursor-pointer animate-slide-up border-primary/20"
+            onClick={() => navigate('/rapports/sessions')}
+            style={{ animationDelay: '150ms' }}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 rounded-lg gradient-primary">
+                <Monitor className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
+                Nouveau
+              </span>
+            </div>
+            
+            <h3 className="font-display font-semibold text-lg text-card-foreground mb-2">
+              Journal des Sessions
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Historique des sessions de guichet avec tickets vendus
+            </p>
+            
+            <div className="flex items-center justify-between pt-4 border-t border-border">
+              <span className="text-xs text-muted-foreground">Par période</span>
+              <Button variant="ghost" size="sm" className="gap-2 text-primary hover:text-primary">
+                Consulter
+              </Button>
+            </div>
+          </Card>
+
           {reports.map((report, index) => (
             <Card 
               key={report.id}
               className="p-6 hover:border-primary/30 hover:shadow-lg transition-all duration-300 cursor-pointer animate-slide-up"
-              style={{ animationDelay: `${(index + 1) * 100}ms` }}
+              style={{ animationDelay: `${(index + 2) * 100}ms` }}
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="p-3 rounded-lg gradient-primary">

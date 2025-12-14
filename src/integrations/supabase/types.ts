@@ -1050,6 +1050,7 @@ export type Database = {
           refund_reason: string | null
           seat_number: string | null
           seller_id: string | null
+          session_id: number | null
           sold_at: string | null
           status: string
           ticket_number: string | null
@@ -1075,6 +1076,7 @@ export type Database = {
           refund_reason?: string | null
           seat_number?: string | null
           seller_id?: string | null
+          session_id?: number | null
           sold_at?: string | null
           status?: string
           ticket_number?: string | null
@@ -1100,6 +1102,7 @@ export type Database = {
           refund_reason?: string | null
           seat_number?: string | null
           seller_id?: string | null
+          session_id?: number | null
           sold_at?: string | null
           status?: string
           ticket_number?: string | null
@@ -1113,6 +1116,13 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "counter_sessions"
             referencedColumns: ["id"]
           },
           {
