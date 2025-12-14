@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FileText, Download, TrendingUp, Users, Ticket, Bus, Loader2, Package } from 'lucide-react';
@@ -11,6 +11,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { generateTripManifestPdf } from '@/lib/documentPdf';
+import { toast } from '@/hooks/use-toast';
 
 const reports = [
   {
@@ -64,6 +66,19 @@ const Rapports = () => {
   const [manifestOpen, setManifestOpen] = useState(false);
   const [selectedTripId, setSelectedTripId] = useState<string>('');
 
+  // Fetch company settings
+  const { data: companySettings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('company_name, logo_url, address, phone, email')
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch trips for manifest selection
   const { data: trips = [], isLoading: tripsLoading } = useQuery({
     queryKey: ['trips-for-manifest'],
@@ -73,7 +88,9 @@ const Rapports = () => {
         .select(`
           *,
           route:routes(*, departure_agency:agencies!routes_departure_agency_id_fkey(*), arrival_agency:agencies!routes_arrival_agency_id_fkey(*)),
-          vehicle:vehicles(*)
+          vehicle:vehicles(*),
+          driver:staff!trips_driver_id_fkey(full_name),
+          assistant:staff!trips_assistant_id_fkey(full_name)
         `)
         .order('departure_datetime', { ascending: false });
       if (error) throw error;
@@ -123,6 +140,22 @@ const Rapports = () => {
   });
 
   const selectedTrip = trips.find(t => t.id === parseInt(selectedTripId));
+
+  const handleExportManifest = () => {
+    if (!selectedTrip || !manifestData) return;
+    
+    const paidTickets = manifestData.tickets.filter(t => t.status === 'paid');
+    
+    generateTripManifestPdf(selectedTrip as any, paidTickets, {
+      name: companySettings?.company_name || 'Transport Express',
+      logoUrl: companySettings?.logo_url,
+      address: companySettings?.address || '',
+      phone: companySettings?.phone || '',
+      email: companySettings?.email || '',
+    });
+    
+    toast({ title: 'Manifeste exporté', description: 'Le PDF a été téléchargé.' });
+  };
 
   return (
     <DashboardLayout>
@@ -367,6 +400,15 @@ const Rapports = () => {
               </div>
             )}
           </div>
+
+          {selectedTrip && manifestData && manifestData.tickets.length > 0 && (
+            <DialogFooter>
+              <Button onClick={handleExportManifest} className="gap-2">
+                <Download className="w-4 h-4" />
+                Exporter en PDF
+              </Button>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
