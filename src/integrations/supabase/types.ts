@@ -195,6 +195,72 @@ export type Database = {
         }
         Relationships: []
       }
+      counter_sessions: {
+        Row: {
+          agency_id: number
+          closed_at: string | null
+          closing_cash_declared: number | null
+          closing_cash_expected: number | null
+          closing_notes: string | null
+          counter_id: number
+          created_at: string
+          difference: number | null
+          id: number
+          opened_at: string
+          opening_cash: number
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          agency_id: number
+          closed_at?: string | null
+          closing_cash_declared?: number | null
+          closing_cash_expected?: number | null
+          closing_notes?: string | null
+          counter_id: number
+          created_at?: string
+          difference?: number | null
+          id?: number
+          opened_at?: string
+          opening_cash?: number
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          agency_id?: number
+          closed_at?: string | null
+          closing_cash_declared?: number | null
+          closing_cash_expected?: number | null
+          closing_notes?: string | null
+          counter_id?: number
+          created_at?: string
+          difference?: number | null
+          id?: number
+          opened_at?: string
+          opening_cash?: number
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "counter_sessions_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "counter_sessions_counter_id_fkey"
+            columns: ["counter_id"]
+            isOneToOne: false
+            referencedRelation: "ticket_counters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_categories: {
         Row: {
           code: string
@@ -893,6 +959,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "staff_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_counters: {
+        Row: {
+          agency_id: number
+          created_at: string
+          id: number
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: number
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: number
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_counters_agency_id_fkey"
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies"

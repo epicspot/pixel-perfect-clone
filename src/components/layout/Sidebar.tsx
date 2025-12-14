@@ -19,7 +19,8 @@ import {
   ClipboardList,
   ScrollText,
   Download,
-  Package
+  Package,
+  Monitor
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ const navItems = [
   { to: '/controle-tickets', icon: ScanLine, label: 'Controle tickets' },
   { to: '/suivi-souches', icon: ClipboardList, label: 'Suivi souches' },
   { to: '/voyages', icon: Bus, label: 'Voyages' },
+  { to: '/guichets', icon: Monitor, label: 'Guichets' },
   { to: '/cloture-caisse', icon: Wallet, label: 'Cloture caisse' },
   { to: '/carburant', icon: Fuel, label: 'Carburant' },
   { to: '/maintenance', icon: Wrench, label: 'Maintenance' },
