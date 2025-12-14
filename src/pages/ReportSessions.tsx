@@ -24,13 +24,16 @@ import {
   TrendingDown,
   CheckCircle2,
   Clock,
-  FileText
+  FileText,
+  Download
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('fr-FR').format(value) + ' F';
@@ -276,13 +279,145 @@ export default function ReportSessions() {
     difference: 0,
   });
 
+  // Fetch company settings for PDF header
+  const { data: companySettings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('*')
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Export to PDF
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(companySettings?.company_name || 'TRANSPORT BURKINA EXPRESS', pageWidth / 2, 15, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Journal des Sessions de Guichet', pageWidth / 2, 22, { align: 'center' });
+    doc.text(`Période: ${format(parseISO(startDate), 'dd/MM/yyyy')} - ${format(parseISO(endDate), 'dd/MM/yyyy')}`, pageWidth / 2, 28, { align: 'center' });
+    
+    let yPos = 38;
+
+    // Summary table
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Résumé', 14, yPos);
+    yPos += 5;
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Sessions', 'Tickets', 'Ventes Totales', 'Espèces', 'Mobile Money', 'Carte', 'Écart Total']],
+      body: [[
+        totals.sessions.toString(),
+        totals.tickets.toString(),
+        formatCurrency(totals.totalSales),
+        formatCurrency(totals.cashSales),
+        formatCurrency(totals.mobileSales),
+        formatCurrency(totals.cardSales),
+        formatCurrency(totals.difference)
+      ]],
+      theme: 'striped',
+      headStyles: { fillColor: [59, 130, 246] },
+      styles: { fontSize: 8 },
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+
+    // Sessions detail
+    sessions.forEach((session, index) => {
+      // Check if we need a new page
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Session #${session.id} - ${session.userName} (${session.agencyName})`, 14, yPos);
+      yPos += 5;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const sessionInfo = `Ouverture: ${format(parseISO(session.opened_at), 'dd/MM/yyyy HH:mm')} | ` +
+        `Fermeture: ${session.closed_at ? format(parseISO(session.closed_at), 'HH:mm') : 'En cours'} | ` +
+        `Fond: ${formatCurrency(session.opening_cash)} | ` +
+        `Ventes: ${formatCurrency(session.totalSales)} | ` +
+        `Écart: ${formatCurrency(session.difference || 0)}`;
+      doc.text(sessionInfo, 14, yPos);
+      yPos += 5;
+
+      if (session.tickets.length > 0) {
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Référence', 'Client', 'Montant', 'Mode paiement', 'Heure']],
+          body: session.tickets.map(ticket => [
+            ticket.reference || '-',
+            ticket.customer_name || 'Client',
+            formatCurrency(ticket.total_amount),
+            getPaymentLabel(ticket.payment_method),
+            ticket.sold_at ? format(parseISO(ticket.sold_at), 'HH:mm') : '-'
+          ]),
+          theme: 'grid',
+          headStyles: { fillColor: [100, 116, 139], fontSize: 7 },
+          styles: { fontSize: 7 },
+          margin: { left: 14 },
+        });
+        yPos = (doc as any).lastAutoTable.finalY + 8;
+      } else {
+        doc.text('  Aucun ticket vendu', 14, yPos);
+        yPos += 8;
+      }
+
+      if (session.closing_notes) {
+        doc.setFontSize(7);
+        doc.text(`  Notes: ${session.closing_notes}`, 14, yPos);
+        yPos += 6;
+      }
+    });
+
+    // Footer with generation date
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.text(
+        `Généré le ${format(new Date(), 'dd/MM/yyyy à HH:mm')} - Page ${i}/${pageCount}`,
+        pageWidth / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: 'center' }
+      );
+    }
+
+    // Save
+    const fileName = `journal-sessions-${format(parseISO(startDate), 'yyyyMMdd')}-${format(parseISO(endDate), 'yyyyMMdd')}.pdf`;
+    doc.save(fileName);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold">Journal des Sessions</h1>
-          <p className="text-muted-foreground">Rapport détaillé des sessions de guichet avec tickets vendus</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Journal des Sessions</h1>
+            <p className="text-muted-foreground">Rapport détaillé des sessions de guichet avec tickets vendus</p>
+          </div>
+          <Button onClick={exportToPDF} disabled={isLoading || sessions.length === 0}>
+            <Download className="w-4 h-4 mr-2" />
+            Exporter PDF
+          </Button>
         </div>
 
         {/* Filters */}
