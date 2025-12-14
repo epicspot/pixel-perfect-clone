@@ -32,6 +32,7 @@ const Expeditions = lazy(() => import("./pages/Expeditions"));
 const ReportExpeditions = lazy(() => import("./pages/ReportExpeditions"));
 const ShipmentsDashboard = lazy(() => import("./pages/ShipmentsDashboard"));
 const Guichets = lazy(() => import("./pages/Guichets"));
+const ReportSessions = lazy(() => import("./pages/ReportSessions"));
 const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const AccessDenied = lazy(() => import("./pages/AccessDenied"));
@@ -265,6 +266,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <ShipmentsDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rapports/sessions"
+          element={
+            <ProtectedRoute>
+              <ReportSessions />
             </ProtectedRoute>
           }
         />

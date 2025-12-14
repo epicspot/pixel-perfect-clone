@@ -290,6 +290,7 @@ interface NewTicketDialogProps {
 }
 
 const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, onSuccess }) => {
+  const { user } = useAuth();
   const [tripId, setTripId] = React.useState<string>('');
   const [customerName, setCustomerName] = React.useState('');
   const [customerPhone, setCustomerPhone] = React.useState('');
@@ -303,6 +304,23 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
   const [baggageDescription, setBaggageDescription] = React.useState('');
   const [baggagePricePerKg, setBaggagePricePerKg] = React.useState('500');
   const [baggageBasePrice, setBaggageBasePrice] = React.useState('1000');
+
+  // Fetch active counter session for current user
+  const { data: activeSession } = useQuery({
+    queryKey: ['active-session', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from('counter_sessions')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('status', 'open')
+        .maybeSingle();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   // Fetch baggage pricing from database
   const { data: baggagePricing } = useQuery({
@@ -434,6 +452,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
         status: 'paid',
         sold_at: new Date().toISOString(),
         reference,
+        session_id: activeSession?.id || null,
       }).select().single();
 
       if (error) throw error;
