@@ -5,11 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Server, Bell, Shield, Package, Save, Building2 } from 'lucide-react';
+import { Server, Bell, Shield, Package, Save, Building2, Upload, X, Image } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 interface ShipmentPricing {
   id: number;
@@ -34,7 +36,9 @@ const Parametres = () => {
   const [editedPricing, setEditedPricing] = useState<Record<string, { base_price: string; price_per_kg: string }>>({});
   const [companyName, setCompanyName] = useState('');
   const [companySlogan, setCompanySlogan] = useState('');
-
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // Fetch company settings
   const { data: companySettings, isLoading: companyLoading } = useQuery({
     queryKey: ['company-settings'],
@@ -53,8 +57,11 @@ const Parametres = () => {
     if (companySettings) {
       setCompanyName(companySettings.company_name || '');
       setCompanySlogan(companySettings.slogan || '');
+      setLogoUrl(companySettings.logo_url || null);
     }
   }, [companySettings]);
+
+
   // Fetch pricing
   const { data: pricing, isLoading: pricingLoading } = useQuery({
     queryKey: ['shipment-pricing'],
@@ -127,6 +134,87 @@ const Parametres = () => {
       company_name: companyName.trim(),
       slogan: companySlogan.trim(),
     });
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Veuillez sélectionner une image');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("L'image ne doit pas dépasser 2 Mo");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `logo.${fileExt}`;
+      const filePath = `company/${fileName}`;
+
+      // Upload the file
+      const { error: uploadError } = await supabase.storage
+        .from('company-assets')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('company-assets')
+        .getPublicUrl(filePath);
+
+      // Update company settings with the logo URL
+      const { error: updateError } = await supabase
+        .from('company_settings')
+        .update({ logo_url: publicUrl })
+        .eq('id', 1);
+
+      if (updateError) throw updateError;
+
+      setLogoUrl(publicUrl);
+      queryClient.invalidateQueries({ queryKey: ['company-settings'] });
+      toast.success('Logo mis à jour');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Erreur lors du téléchargement');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    setUploading(true);
+    try {
+      // Remove from storage
+      const { error: deleteError } = await supabase.storage
+        .from('company-assets')
+        .remove(['company/logo.png', 'company/logo.jpg', 'company/logo.jpeg', 'company/logo.webp']);
+
+      if (deleteError) console.warn('Could not delete logo file:', deleteError);
+
+      // Update company settings
+      const { error: updateError } = await supabase
+        .from('company_settings')
+        .update({ logo_url: null })
+        .eq('id', 1);
+
+      if (updateError) throw updateError;
+
+      setLogoUrl(null);
+      queryClient.invalidateQueries({ queryKey: ['company-settings'] });
+      toast.success('Logo supprimé');
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la suppression');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSavePricing = (type: string) => {
@@ -203,6 +291,60 @@ const Parametres = () => {
                     Utilisez • pour séparer les mots-clés (ex: Sécurité • Confort • Ponctualité)
                   </p>
                 </div>
+                
+                {/* Logo Upload */}
+                <div>
+                  <Label>Logo de la compagnie</Label>
+                  <div className="mt-2 flex items-center gap-4">
+                    {logoUrl ? (
+                      <div className="relative group">
+                        <img 
+                          src={logoUrl} 
+                          alt="Logo" 
+                          className="w-16 h-16 object-contain rounded-lg border border-border bg-muted p-1"
+                        />
+                        <button
+                          onClick={handleRemoveLogo}
+                          disabled={uploading}
+                          className="absolute -top-2 -right-2 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-muted/50">
+                        <Image className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                      >
+                        {uploading ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2" />
+                        ) : (
+                          <Upload className="w-4 h-4 mr-2" />
+                        )}
+                        {logoUrl ? 'Changer le logo' : 'Télécharger un logo'}
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        PNG, JPG ou WebP. Max 2 Mo.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <Button 
                   onClick={handleSaveCompanySettings}
                   disabled={updateCompanySettings.isPending}

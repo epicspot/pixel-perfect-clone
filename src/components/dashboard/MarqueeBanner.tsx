@@ -19,6 +19,7 @@ const MarqueeBanner: React.FC = () => {
 
   const companyName = settings?.company_name || 'TRANSPORT BURKINA EXPRESS';
   const slogan = settings?.slogan || 'Votre partenaire de confiance pour tous vos voyages • Sécurité • Confort • Ponctualité';
+  const logoUrl = settings?.logo_url;
 
   return (
     <div className="relative overflow-hidden bg-gradient-to-r from-primary via-primary/90 to-primary rounded-2xl mb-6 shadow-lg">
@@ -33,8 +34,12 @@ const MarqueeBanner: React.FC = () => {
           {[...Array(3)].map((_, idx) => (
             <div key={idx} className="flex items-center mx-8">
               {/* Animated Logo */}
-              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary-foreground/20 mr-4 animate-pulse-slow">
-                <Bus className="w-6 h-6 text-primary-foreground animate-bounce-slow" />
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary-foreground/20 mr-4 animate-pulse-slow overflow-hidden">
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Logo" className="w-8 h-8 object-contain" />
+                ) : (
+                  <Bus className="w-6 h-6 text-primary-foreground animate-bounce-slow" />
+                )}
               </div>
               
               {/* Company Name */}
@@ -61,8 +66,12 @@ const MarqueeBanner: React.FC = () => {
           {[...Array(3)].map((_, idx) => (
             <div key={idx} className="flex items-center mx-8">
               {/* Animated Logo */}
-              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary-foreground/20 mr-4 animate-pulse-slow">
-                <Bus className="w-6 h-6 text-primary-foreground animate-bounce-slow" />
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary-foreground/20 mr-4 animate-pulse-slow overflow-hidden">
+                {logoUrl ? (
+                  <img src={logoUrl} alt="Logo" className="w-8 h-8 object-contain" />
+                ) : (
+                  <Bus className="w-6 h-6 text-primary-foreground animate-bounce-slow" />
+                )}
               </div>
               
               {/* Company Name */}
