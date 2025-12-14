@@ -40,7 +40,10 @@ const reports = [
 ];
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+  return new Intl.NumberFormat('fr-FR', { 
+    maximumFractionDigits: 0,
+    useGrouping: true 
+  }).format(value) + ' F CFA';
 };
 
 const getPaymentLabel = (method: string | null) => {

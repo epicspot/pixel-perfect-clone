@@ -81,7 +81,7 @@ const generateQRCode = async (data: string): Promise<string> => {
 };
 
 // Generate individual ticket receipt with tear-off stub and QR code
-export const generateTicketPdf = async (ticket: TicketData, companyName = 'Transport Express') => {
+export const generateTicketPdf = async (ticket: TicketData, companyName = 'Transport Express', logoUrl?: string | null) => {
   const doc = new jsPDF({
     format: [80, 280], // Longer receipt format for stub
     unit: 'mm',
@@ -92,6 +92,16 @@ export const generateTicketPdf = async (ticket: TicketData, companyName = 'Trans
 
   // ========== MAIN TICKET SECTION ==========
   
+  // Logo (if available)
+  if (logoUrl) {
+    try {
+      doc.addImage(logoUrl, 'PNG', (pageWidth - 12) / 2, y, 12, 12);
+      y += 14;
+    } catch (e) {
+      console.warn('Could not add logo to PDF:', e);
+    }
+  }
+
   // Header
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
@@ -99,6 +109,9 @@ export const generateTicketPdf = async (ticket: TicketData, companyName = 'Trans
   y += 6;
 
   doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('TICKET DE TRANSPORT', pageWidth / 2, y, { align: 'center' });
+  y += 8;
   doc.setFont('helvetica', 'normal');
   doc.text('TICKET DE TRANSPORT', pageWidth / 2, y, { align: 'center' });
   y += 8;
@@ -296,23 +309,32 @@ export const generateTicketPdf = async (ticket: TicketData, companyName = 'Trans
 };
 
 // Generate trip manifest
-export const generateTripManifestPdf = (trip: TripData, tickets: any[], companyName = 'Transport Express') => {
+export const generateTripManifestPdf = (trip: TripData, tickets: any[], companyName = 'Transport Express', logoUrl?: string | null) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 20;
+
+  // Logo (if available)
+  if (logoUrl) {
+    try {
+      doc.addImage(logoUrl, 'PNG', (pageWidth - 20) / 2, y - 10, 20, 20);
+      y += 15;
+    } catch (e) {
+      console.warn('Could not add logo to PDF:', e);
+    }
+  }
 
   // Header
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text(companyName, pageWidth / 2, 20, { align: 'center' });
+  doc.text(companyName, pageWidth / 2, y, { align: 'center' });
 
   doc.setFontSize(14);
-  doc.text('MANIFESTE DE VOYAGE', pageWidth / 2, 30, { align: 'center' });
-
-  // Trip details
+  doc.text('MANIFESTE DE VOYAGE', pageWidth / 2, y + 10, { align: 'center' });
+  y += 25;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   
-  let y = 45;
   const leftCol = 20;
   const rightCol = pageWidth / 2 + 10;
 
