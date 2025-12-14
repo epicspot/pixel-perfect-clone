@@ -45,6 +45,7 @@ export default function Guichets() {
   const [isOpenSessionOpen, setIsOpenSessionOpen] = useState(false);
   const [isCloseSessionOpen, setIsCloseSessionOpen] = useState(false);
   const [newCounterName, setNewCounterName] = useState('');
+  const [newCounterAgencyId, setNewCounterAgencyId] = useState<string>('');
   const [selectedCounterId, setSelectedCounterId] = useState<number | null>(null);
   const [openingCash, setOpeningCash] = useState('');
   const [closingCash, setClosingCash] = useState('');
@@ -178,13 +179,18 @@ export default function Guichets() {
   // Create counter mutation
   const createCounterMutation = useMutation({
     mutationFn: async () => {
-      const agencyId = filterAgencyId || (agencies[0]?.id);
-      if (!agencyId) throw new Error('Aucune agence sélectionnée');
+      // For admin, use selected agency from dialog; for manager, use their agency
+      const agencyId = isAdmin 
+        ? (newCounterAgencyId ? parseInt(newCounterAgencyId) : null)
+        : profile?.agency_id;
+      
+      if (!agencyId) throw new Error('Veuillez sélectionner une agence');
+      if (!newCounterName.trim()) throw new Error('Veuillez saisir un nom de guichet');
 
       const { error } = await supabase
         .from('ticket_counters')
         .insert({
-          name: newCounterName,
+          name: newCounterName.trim(),
           agency_id: agencyId,
         });
       if (error) throw error;
@@ -194,6 +200,7 @@ export default function Guichets() {
       queryClient.invalidateQueries({ queryKey: ['ticket-counters'] });
       setIsCreateCounterOpen(false);
       setNewCounterName('');
+      setNewCounterAgencyId('');
     },
     onError: (error: Error) => {
       toast.error(`Erreur: ${error.message}`);
@@ -286,7 +293,7 @@ export default function Guichets() {
             />
           )}
           <div className="flex gap-2">
-            {(isAdmin || isManager) && (
+            {isAdmin && (
               <Dialog open={isCreateCounterOpen} onOpenChange={setIsCreateCounterOpen}>
                 <DialogTrigger asChild>
                   <Button>
@@ -298,10 +305,30 @@ export default function Guichets() {
                   <DialogHeader>
                     <DialogTitle>Créer un guichet</DialogTitle>
                     <DialogDescription>
-                      Ajoutez un nouveau poste de vente à l'agence
+                      Ajoutez un nouveau poste de vente à une agence
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Agence</Label>
+                      <Select value={newCounterAgencyId} onValueChange={setNewCounterAgencyId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner une agence" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {agencies
+                            .filter(a => a.name !== 'Siège') // Exclude Siège from counter creation
+                            .map((agency) => (
+                              <SelectItem key={agency.id} value={agency.id.toString()}>
+                                {agency.name} {agency.code ? `(${agency.code})` : ''}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Les guichets sont créés depuis le Siège pour les agences opérationnelles
+                      </p>
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="counterName">Nom du guichet</Label>
                       <Input
@@ -318,7 +345,7 @@ export default function Guichets() {
                     </Button>
                     <Button 
                       onClick={() => createCounterMutation.mutate()}
-                      disabled={!newCounterName.trim() || createCounterMutation.isPending}
+                      disabled={!newCounterName.trim() || !newCounterAgencyId || createCounterMutation.isPending}
                     >
                       Créer
                     </Button>

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { Search, Plus, Filter, Ticket, TrendingUp, Bus, Printer, XCircle, RotateCcw, Eye, MoreHorizontal, Package } from 'lucide-react';
+import { Search, Plus, Filter, Ticket, TrendingUp, Bus, Printer, XCircle, RotateCcw, Eye, MoreHorizontal, Package, AlertTriangle, Monitor } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
@@ -67,16 +67,34 @@ const paymentConfig: Record<string, { label: string; className: string }> = {
 type PaymentMethod = 'cash' | 'mobile_money' | 'card' | 'other';
 
 const Tickets = () => {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [adminAgencyFilter, setAdminAgencyFilter] = React.useState('');
 
   const isAdmin = profile?.role === 'admin';
+  const isCashier = profile?.role === 'cashier';
   const filterAgencyId = isAdmin 
     ? (adminAgencyFilter ? Number(adminAgencyFilter) : undefined)
     : profile?.agency_id || undefined;
+
+  // Check if user has an active counter session
+  const { data: activeSession } = useQuery({
+    queryKey: ['active-session-check', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from('counter_sessions')
+        .select('id, counter:ticket_counters(name)')
+        .eq('user_id', user.id)
+        .eq('status', 'open')
+        .maybeSingle();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['tickets', filterAgencyId],
@@ -179,6 +197,34 @@ const Tickets = () => {
             Filtres
           </Button>
         </div>
+
+        {/* Session Warning Alert */}
+        {!activeSession && !isAdmin && (
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium text-amber-800 dark:text-amber-200">Aucune session de guichet ouverte</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                Vous devez ouvrir une session de guichet avant de vendre des tickets. 
+                Les ventes effectuées sans session ne seront pas comptabilisées dans le journal de caisse.
+              </p>
+              <a href="/guichets" className="inline-flex items-center gap-2 mt-2 text-sm font-medium text-amber-800 dark:text-amber-200 hover:underline">
+                <Monitor className="w-4 h-4" />
+                Ouvrir une session
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* Active Session Info */}
+        {activeSession && !isAdmin && (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 flex items-center gap-3">
+            <Monitor className="w-5 h-5 text-green-600 dark:text-green-400" />
+            <p className="text-sm text-green-800 dark:text-green-200">
+              Session active : <span className="font-medium">{(activeSession.counter as any)?.name || 'Guichet'}</span>
+            </p>
+          </div>
+        )}
 
         {error && (
           <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 text-destructive text-sm">
