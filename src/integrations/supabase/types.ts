@@ -53,6 +53,33 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: number
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: number
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: number
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -155,6 +182,57 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_discrepancy_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          agency_id: number | null
+          created_at: string
+          difference: number
+          id: number
+          session_id: number
+          threshold: number
+          user_id: string | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          agency_id?: number | null
+          created_at?: string
+          difference: number
+          id?: number
+          session_id: number
+          threshold: number
+          user_id?: string | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          agency_id?: number | null
+          created_at?: string
+          difference?: number
+          id?: number
+          session_id?: number
+          threshold?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_discrepancy_alerts_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_discrepancy_alerts_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "counter_sessions"
             referencedColumns: ["id"]
           },
         ]
