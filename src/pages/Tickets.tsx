@@ -445,6 +445,17 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Block sale if no active session
+    if (!activeSession) {
+      toast({ 
+        title: 'Session requise', 
+        description: 'Vous devez ouvrir une session de guichet avant de vendre des tickets.', 
+        variant: 'destructive' 
+      });
+      return;
+    }
+
     if (!tripId || !customerName.trim()) {
       toast({ title: 'Erreur', description: 'Veuillez remplir les champs obligatoires', variant: 'destructive' });
       return;
@@ -589,6 +600,20 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
         <DialogHeader>
           <DialogTitle>Nouvelle vente de ticket</DialogTitle>
         </DialogHeader>
+        
+        {/* Session warning inside dialog */}
+        {!activeSession && (
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Session de guichet requise</p>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                Vous devez ouvrir une session avant de pouvoir vendre des tickets.
+              </p>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Trip Selection */}
           <div>
