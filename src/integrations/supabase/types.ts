@@ -161,26 +161,35 @@ export type Database = {
       }
       company_settings: {
         Row: {
+          address: string | null
           company_name: string
           created_at: string
+          email: string | null
           id: number
           logo_url: string | null
+          phone: string | null
           slogan: string
           updated_at: string
         }
         Insert: {
+          address?: string | null
           company_name?: string
           created_at?: string
+          email?: string | null
           id?: number
           logo_url?: string | null
+          phone?: string | null
           slogan?: string
           updated_at?: string
         }
         Update: {
+          address?: string | null
           company_name?: string
           created_at?: string
+          email?: string | null
           id?: number
           logo_url?: string | null
+          phone?: string | null
           slogan?: string
           updated_at?: string
         }

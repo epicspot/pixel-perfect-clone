@@ -197,6 +197,7 @@ const Voyages = () => {
 
   const handlePrintManifest = async (trip: Trip) => {
     try {
+      // Fetch tickets
       const { data: tickets, error } = await supabase
         .from('tickets')
         .select('*')
@@ -205,7 +206,19 @@ const Voyages = () => {
 
       if (error) throw error;
 
-      generateTripManifestPdf(trip as any, tickets || []);
+      // Fetch company settings
+      const { data: settings } = await supabase
+        .from('company_settings')
+        .select('company_name, logo_url, address, phone, email')
+        .single();
+
+      generateTripManifestPdf(trip as any, tickets || [], {
+        name: settings?.company_name || 'Transport Express',
+        logoUrl: settings?.logo_url,
+        address: settings?.address || '',
+        phone: settings?.phone || '',
+        email: settings?.email || '',
+      });
       toast({ title: 'Manifeste généré', description: 'Le PDF a été téléchargé.' });
     } catch (error: any) {
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });

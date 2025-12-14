@@ -308,30 +308,55 @@ export const generateTicketPdf = async (ticket: TicketData, companyName = 'Trans
   doc.save(filename);
 };
 
+// Company info interface
+interface CompanyInfo {
+  name: string;
+  logoUrl?: string | null;
+  address?: string;
+  phone?: string;
+  email?: string;
+}
+
 // Generate trip manifest
-export const generateTripManifestPdf = (trip: TripData, tickets: any[], companyName = 'Transport Express', logoUrl?: string | null) => {
+export const generateTripManifestPdf = (trip: TripData, tickets: any[], company: CompanyInfo = { name: 'Transport Express' }) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
-  let y = 20;
+  let y = 15;
 
   // Logo (if available)
-  if (logoUrl) {
+  if (company.logoUrl) {
     try {
-      doc.addImage(logoUrl, 'PNG', (pageWidth - 20) / 2, y - 10, 20, 20);
-      y += 15;
+      doc.addImage(company.logoUrl, 'PNG', (pageWidth - 20) / 2, y, 20, 20);
+      y += 22;
     } catch (e) {
       console.warn('Could not add logo to PDF:', e);
     }
   }
 
-  // Header
-  doc.setFontSize(18);
+  // Header with company info
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text(companyName, pageWidth / 2, y, { align: 'center' });
+  doc.text(company.name, pageWidth / 2, y, { align: 'center' });
+  y += 5;
+
+  // Company address & contact
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  if (company.address) {
+    doc.text(company.address, pageWidth / 2, y, { align: 'center' });
+    y += 4;
+  }
+  if (company.phone || company.email) {
+    const contactInfo = [company.phone, company.email].filter(Boolean).join(' | ');
+    doc.text(contactInfo, pageWidth / 2, y, { align: 'center' });
+    y += 4;
+  }
+  y += 4;
 
   doc.setFontSize(14);
-  doc.text('MANIFESTE DE VOYAGE', pageWidth / 2, y + 10, { align: 'center' });
-  y += 25;
+  doc.setFont('helvetica', 'bold');
+  doc.text('MANIFESTE DE VOYAGE', pageWidth / 2, y, { align: 'center' });
+  y += 10;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   
@@ -431,22 +456,51 @@ export const generateDailySalesReportPdf = (
   date: Date,
   tickets: any[],
   agencies: { id: number; name: string }[],
-  companyName = 'Transport Express'
+  company: CompanyInfo = { name: 'Transport Express' }
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 15;
 
-  // Header
-  doc.setFontSize(18);
+  // Logo (if available)
+  if (company.logoUrl) {
+    try {
+      doc.addImage(company.logoUrl, 'PNG', (pageWidth - 20) / 2, y, 20, 20);
+      y += 22;
+    } catch (e) {
+      console.warn('Could not add logo to PDF:', e);
+    }
+  }
+
+  // Header with company info
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text(companyName, pageWidth / 2, 20, { align: 'center' });
+  doc.text(company.name, pageWidth / 2, y, { align: 'center' });
+  y += 5;
+
+  // Company address & contact
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  if (company.address) {
+    doc.text(company.address, pageWidth / 2, y, { align: 'center' });
+    y += 4;
+  }
+  if (company.phone || company.email) {
+    const contactInfo = [company.phone, company.email].filter(Boolean).join(' | ');
+    doc.text(contactInfo, pageWidth / 2, y, { align: 'center' });
+    y += 4;
+  }
+  y += 4;
 
   doc.setFontSize(14);
-  doc.text('RAPPORT JOURNALIER DES VENTES', pageWidth / 2, 30, { align: 'center' });
+  doc.setFont('helvetica', 'bold');
+  doc.text('RAPPORT JOURNALIER DES VENTES', pageWidth / 2, y, { align: 'center' });
+  y += 8;
 
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Date: ${format(date, 'EEEE dd MMMM yyyy', { locale: fr })}`, pageWidth / 2, 40, { align: 'center' });
+  doc.text(`Date: ${format(date, 'EEEE dd MMMM yyyy', { locale: fr })}`, pageWidth / 2, y, { align: 'center' });
+  y += 10;
 
   // Summary stats
   const totalSales = tickets.reduce((sum, t) => sum + (t.price || t.total_amount || 0), 0);
@@ -454,7 +508,6 @@ export const generateDailySalesReportPdf = (
   const mobileSales = tickets.filter(t => t.payment_method === 'mobile_money').reduce((sum, t) => sum + (t.price || 0), 0);
   const cardSales = tickets.filter(t => t.payment_method === 'card').reduce((sum, t) => sum + (t.price || 0), 0);
 
-  let y = 55;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.text('Résumé:', 20, y);

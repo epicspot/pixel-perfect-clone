@@ -36,6 +36,9 @@ const Parametres = () => {
   const [editedPricing, setEditedPricing] = useState<Record<string, { base_price: string; price_per_kg: string }>>({});
   const [companyName, setCompanyName] = useState('');
   const [companySlogan, setCompanySlogan] = useState('');
+  const [companyAddress, setCompanyAddress] = useState('');
+  const [companyPhone, setCompanyPhone] = useState('');
+  const [companyEmail, setCompanyEmail] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -57,6 +60,9 @@ const Parametres = () => {
     if (companySettings) {
       setCompanyName(companySettings.company_name || '');
       setCompanySlogan(companySettings.slogan || '');
+      setCompanyAddress(companySettings.address || '');
+      setCompanyPhone(companySettings.phone || '');
+      setCompanyEmail(companySettings.email || '');
       setLogoUrl(companySettings.logo_url || null);
     }
   }, [companySettings]);
@@ -109,10 +115,10 @@ const Parametres = () => {
 
   // Update company settings mutation
   const updateCompanySettings = useMutation({
-    mutationFn: async ({ company_name, slogan }: { company_name: string; slogan: string }) => {
+    mutationFn: async ({ company_name, slogan, address, phone, email }: { company_name: string; slogan: string; address: string; phone: string; email: string }) => {
       const { error } = await supabase
         .from('company_settings')
-        .update({ company_name, slogan })
+        .update({ company_name, slogan, address, phone, email })
         .eq('id', 1);
       if (error) throw error;
     },
@@ -133,6 +139,9 @@ const Parametres = () => {
     updateCompanySettings.mutate({
       company_name: companyName.trim(),
       slogan: companySlogan.trim(),
+      address: companyAddress.trim(),
+      phone: companyPhone.trim(),
+      email: companyEmail.trim(),
     });
   };
 
@@ -290,6 +299,46 @@ const Parametres = () => {
                   <p className="text-xs text-muted-foreground mt-1">
                     Utilisez • pour séparer les mots-clés (ex: Sécurité • Confort • Ponctualité)
                   </p>
+                </div>
+
+                {/* Address */}
+                <div>
+                  <Label htmlFor="company-address">Adresse</Label>
+                  <Input
+                    id="company-address"
+                    value={companyAddress}
+                    onChange={(e) => setCompanyAddress(e.target.value)}
+                    placeholder="Ex: 01 BP 1234, Ouagadougou 01, Burkina Faso"
+                    className="mt-1"
+                    maxLength={200}
+                  />
+                </div>
+
+                {/* Phone & Email */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="company-phone">Téléphone</Label>
+                    <Input
+                      id="company-phone"
+                      value={companyPhone}
+                      onChange={(e) => setCompanyPhone(e.target.value)}
+                      placeholder="Ex: +226 25 30 00 00"
+                      className="mt-1"
+                      maxLength={50}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="company-email">Email</Label>
+                    <Input
+                      id="company-email"
+                      type="email"
+                      value={companyEmail}
+                      onChange={(e) => setCompanyEmail(e.target.value)}
+                      placeholder="Ex: contact@transport.bf"
+                      className="mt-1"
+                      maxLength={100}
+                    />
+                  </div>
                 </div>
                 
                 {/* Logo Upload */}
