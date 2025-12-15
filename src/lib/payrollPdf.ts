@@ -36,6 +36,8 @@ interface PayrollCompanyInfo {
   address?: string;
   phone?: string;
   email?: string;
+  rccm?: string;
+  ifu?: string;
 }
 
 export const generatePayslipPdf = async (
@@ -83,6 +85,11 @@ export const generatePayslipPdf = async (
   if (company.phone || company.email) {
     const contactInfo = [company.phone, company.email].filter(Boolean).join(' | ');
     doc.text(contactInfo, pageWidth / 2, headerY, { align: 'center' });
+    headerY += 4;
+  }
+  if (company.rccm || company.ifu) {
+    const legalInfo = [company.rccm ? 'RCCM: ' + company.rccm : '', company.ifu ? 'IFU: ' + company.ifu : ''].filter(Boolean).join(' | ');
+    doc.text(legalInfo, pageWidth / 2, headerY, { align: 'center' });
     headerY += 4;
   }
   headerY += 4;
@@ -200,6 +207,11 @@ export const generatePeriodSummaryPdf = async (
   if (company.phone || company.email) {
     const contactInfo = [company.phone, company.email].filter(Boolean).join(' | ');
     doc.text(contactInfo, pageWidth / 2, headerY, { align: 'center' });
+    headerY += 4;
+  }
+  if (company.rccm || company.ifu) {
+    const legalInfo = [company.rccm ? 'RCCM: ' + company.rccm : '', company.ifu ? 'IFU: ' + company.ifu : ''].filter(Boolean).join(' | ');
+    doc.text(legalInfo, pageWidth / 2, headerY, { align: 'center' });
     headerY += 4;
   }
   headerY += 4;
@@ -331,6 +343,11 @@ export const generateAllPeriodsStatsPdf = async (
   if (company.phone || company.email) {
     const contactInfo = [company.phone, company.email].filter(Boolean).join(' | ');
     doc.text(contactInfo, pageWidth / 2, headerY, { align: 'center' });
+    headerY += 4;
+  }
+  if (company.rccm || company.ifu) {
+    const legalInfo = [company.rccm ? 'RCCM: ' + company.rccm : '', company.ifu ? 'IFU: ' + company.ifu : ''].filter(Boolean).join(' | ');
+    doc.text(legalInfo, pageWidth / 2, headerY, { align: 'center' });
     headerY += 4;
   }
   headerY += 4;

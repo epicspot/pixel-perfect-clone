@@ -40,6 +40,8 @@ const Parametres = () => {
   const [companyAddress, setCompanyAddress] = useState('');
   const [companyPhone, setCompanyPhone] = useState('');
   const [companyEmail, setCompanyEmail] = useState('');
+  const [companyRccm, setCompanyRccm] = useState('');
+  const [companyIfu, setCompanyIfu] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [discrepancyThreshold, setDiscrepancyThreshold] = useState('5000');
@@ -77,6 +79,8 @@ const Parametres = () => {
       setCompanyAddress(companySettings.address || '');
       setCompanyPhone(companySettings.phone || '');
       setCompanyEmail(companySettings.email || '');
+      setCompanyRccm(companySettings.rccm || '');
+      setCompanyIfu(companySettings.ifu || '');
       setLogoUrl(companySettings.logo_url || null);
     }
   }, [companySettings]);
@@ -159,10 +163,10 @@ const Parametres = () => {
 
   // Update company settings mutation
   const updateCompanySettings = useMutation({
-    mutationFn: async ({ company_name, slogan, address, phone, email }: { company_name: string; slogan: string; address: string; phone: string; email: string }) => {
+    mutationFn: async ({ company_name, slogan, address, phone, email, rccm, ifu }: { company_name: string; slogan: string; address: string; phone: string; email: string; rccm: string; ifu: string }) => {
       const { error } = await supabase
         .from('company_settings')
-        .update({ company_name, slogan, address, phone, email })
+        .update({ company_name, slogan, address, phone, email, rccm, ifu })
         .eq('id', 1);
       if (error) throw error;
     },
@@ -267,6 +271,8 @@ const Parametres = () => {
       address: companyAddress.trim(),
       phone: companyPhone.trim(),
       email: companyEmail.trim(),
+      rccm: companyRccm.trim(),
+      ifu: companyIfu.trim(),
     });
   };
 
@@ -463,6 +469,38 @@ const Parametres = () => {
                       className="mt-1"
                       maxLength={100}
                     />
+                  </div>
+                </div>
+
+                {/* RCCM & IFU */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="company-rccm">N° RCCM</Label>
+                    <Input
+                      id="company-rccm"
+                      value={companyRccm}
+                      onChange={(e) => setCompanyRccm(e.target.value)}
+                      placeholder="Ex: BF-OUA-2020-B-12345"
+                      className="mt-1"
+                      maxLength={50}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Registre du Commerce et du Crédit Mobilier
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="company-ifu">N° IFU</Label>
+                    <Input
+                      id="company-ifu"
+                      value={companyIfu}
+                      onChange={(e) => setCompanyIfu(e.target.value)}
+                      placeholder="Ex: 00012345A"
+                      className="mt-1"
+                      maxLength={30}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Identifiant Fiscal Unique
+                    </p>
                   </div>
                 </div>
                 

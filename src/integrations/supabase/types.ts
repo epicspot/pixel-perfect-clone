@@ -244,8 +244,10 @@ export type Database = {
           created_at: string
           email: string | null
           id: number
+          ifu: string | null
           logo_url: string | null
           phone: string | null
+          rccm: string | null
           slogan: string
           updated_at: string
         }
@@ -255,8 +257,10 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: number
+          ifu?: string | null
           logo_url?: string | null
           phone?: string | null
+          rccm?: string | null
           slogan?: string
           updated_at?: string
         }
@@ -266,8 +270,10 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: number
+          ifu?: string | null
           logo_url?: string | null
           phone?: string | null
+          rccm?: string | null
           slogan?: string
           updated_at?: string
         }
