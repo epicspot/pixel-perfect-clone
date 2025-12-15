@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, Trip, Vehicle } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -69,16 +70,18 @@ type PaymentMethod = 'cash' | 'mobile_money' | 'card' | 'other';
 
 const Tickets = () => {
   const { profile, user } = useAuth();
+  const { canCreate, canEdit, canDelete, canView } = usePermissions();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [adminAgencyFilter, setAdminAgencyFilter] = React.useState('');
 
   const isAdmin = profile?.role === 'admin';
-  const isCashier = profile?.role === 'cashier';
-  const isManager = profile?.role === 'manager';
-  // Seuls les admins, managers et guichetiers peuvent vendre des tickets
-  const canSellTickets = isAdmin || isCashier || isManager;
+  // Use permissions from database
+  const canSellTickets = canCreate('tickets');
+  const canEditTickets = canEdit('tickets');
+  const canDeleteTickets = canDelete('tickets');
+  const userAgencyId = profile?.agency_id;
   const filterAgencyId = isAdmin 
     ? (adminAgencyFilter ? Number(adminAgencyFilter) : undefined)
     : profile?.agency_id || undefined;
