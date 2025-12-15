@@ -108,7 +108,7 @@ const Tickets = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('company_settings')
-        .select('company_name, logo_url, address, phone, email')
+        .select('company_name, logo_url, address, phone, email, rccm, ifu')
         .limit(1)
         .single();
       if (error) throw error;
@@ -310,7 +310,7 @@ const Tickets = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={async () => await generateTicketPdf(ticket, { name: companySettings?.company_name || 'Transport Express', logoUrl: companySettings?.logo_url, address: companySettings?.address, phone: companySettings?.phone, email: companySettings?.email })}>
+                            <DropdownMenuItem onClick={async () => await generateTicketPdf(ticket, { name: companySettings?.company_name || 'Transport Express', logoUrl: companySettings?.logo_url, address: companySettings?.address, phone: companySettings?.phone, email: companySettings?.email, rccm: companySettings?.rccm, ifu: companySettings?.ifu })}>
                               <Printer className="w-4 h-4 mr-2" />
                               Imprimer
                             </DropdownMenuItem>
@@ -405,7 +405,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
     queryFn: async () => {
       const { data, error } = await supabase
         .from('company_settings')
-        .select('company_name, logo_url, address, phone, email')
+        .select('company_name, logo_url, address, phone, email, rccm, ifu')
         .limit(1)
         .single();
       if (error) throw error;
@@ -627,7 +627,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
             departure_datetime: selectedTrip.departure_datetime,
           } : undefined,
         };
-        await generateTicketPdf(ticketForPrint, { name: companySettings?.company_name || 'Transport Express', logoUrl: companySettings?.logo_url, address: companySettings?.address, phone: companySettings?.phone, email: companySettings?.email });
+        await generateTicketPdf(ticketForPrint, { name: companySettings?.company_name || 'Transport Express', logoUrl: companySettings?.logo_url, address: companySettings?.address, phone: companySettings?.phone, email: companySettings?.email, rccm: companySettings?.rccm, ifu: companySettings?.ifu });
       }
 
       const totalAmount = effectivePrice * createdTickets.length;

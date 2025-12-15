@@ -87,6 +87,8 @@ interface TicketCompanyInfo {
   address?: string;
   phone?: string;
   email?: string;
+  rccm?: string;
+  ifu?: string;
 }
 
 // Generate individual ticket receipt with tear-off stub and QR code
@@ -130,6 +132,12 @@ export const generateTicketPdf = async (ticket: TicketData, company: TicketCompa
   }
   if (company.email) {
     doc.text(company.email, pageWidth / 2, y, { align: 'center' });
+    y += 3;
+  }
+  // RCCM and IFU on same line
+  if (company.rccm || company.ifu) {
+    const legalInfo = [company.rccm ? 'RCCM: ' + company.rccm : '', company.ifu ? 'IFU: ' + company.ifu : ''].filter(Boolean).join(' | ');
+    doc.text(legalInfo, pageWidth / 2, y, { align: 'center' });
     y += 3;
   }
   y += 2;
@@ -364,6 +372,8 @@ interface CompanyInfo {
   address?: string;
   phone?: string;
   email?: string;
+  rccm?: string;
+  ifu?: string;
 }
 
 // Generate trip manifest
@@ -398,6 +408,11 @@ export const generateTripManifestPdf = (trip: TripData, tickets: any[], company:
   if (company.phone || company.email) {
     const contactInfo = [company.phone, company.email].filter(Boolean).join(' | ');
     doc.text(contactInfo, pageWidth / 2, y, { align: 'center' });
+    y += 4;
+  }
+  if (company.rccm || company.ifu) {
+    const legalInfo = [company.rccm ? 'RCCM: ' + company.rccm : '', company.ifu ? 'IFU: ' + company.ifu : ''].filter(Boolean).join(' | ');
+    doc.text(legalInfo, pageWidth / 2, y, { align: 'center' });
     y += 4;
   }
   y += 4;
@@ -537,6 +552,11 @@ export const generateDailySalesReportPdf = (
   if (company.phone || company.email) {
     const contactInfo = [company.phone, company.email].filter(Boolean).join(' | ');
     doc.text(contactInfo, pageWidth / 2, y, { align: 'center' });
+    y += 4;
+  }
+  if (company.rccm || company.ifu) {
+    const legalInfo = [company.rccm ? 'RCCM: ' + company.rccm : '', company.ifu ? 'IFU: ' + company.ifu : ''].filter(Boolean).join(' | ');
+    doc.text(legalInfo, pageWidth / 2, y, { align: 'center' });
     y += 4;
   }
   y += 4;
@@ -730,6 +750,11 @@ export const generateShipmentPdf = async (shipment: ShipmentData, company: Compa
   }
   if (company.email) {
     doc.text(company.email, pageWidth / 2, y, { align: 'center' });
+    y += 3;
+  }
+  if (company.rccm || company.ifu) {
+    const legalInfo = [company.rccm ? 'RCCM: ' + company.rccm : '', company.ifu ? 'IFU: ' + company.ifu : ''].filter(Boolean).join(' | ');
+    doc.text(legalInfo, pageWidth / 2, y, { align: 'center' });
     y += 3;
   }
   y += 2;
@@ -976,6 +1001,11 @@ export const generateShipmentsReportPdf = async (
   if (company.phone || company.email) {
     const contactInfo = [company.phone, company.email].filter(Boolean).join(' | ');
     doc.text(contactInfo, pageWidth / 2, headerY, { align: 'center' });
+    headerY += 4;
+  }
+  if (company.rccm || company.ifu) {
+    const legalInfo = [company.rccm ? 'RCCM: ' + company.rccm : '', company.ifu ? 'IFU: ' + company.ifu : ''].filter(Boolean).join(' | ');
+    doc.text(legalInfo, pageWidth / 2, headerY, { align: 'center' });
     headerY += 4;
   }
   headerY += 4;

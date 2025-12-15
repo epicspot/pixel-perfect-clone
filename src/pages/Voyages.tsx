@@ -209,7 +209,7 @@ const Voyages = () => {
       // Fetch company settings
       const { data: settings } = await supabase
         .from('company_settings')
-        .select('company_name, logo_url, address, phone, email')
+        .select('company_name, logo_url, address, phone, email, rccm, ifu')
         .single();
 
       generateTripManifestPdf(trip as any, tickets || [], {
@@ -218,6 +218,8 @@ const Voyages = () => {
         address: settings?.address || '',
         phone: settings?.phone || '',
         email: settings?.email || '',
+        rccm: settings?.rccm || '',
+        ifu: settings?.ifu || '',
       });
       toast({ title: 'Manifeste généré', description: 'Le PDF a été téléchargé.' });
     } catch (error: any) {

@@ -72,7 +72,7 @@ const Rapports = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('company_settings')
-        .select('company_name, logo_url, address, phone, email')
+        .select('company_name, logo_url, address, phone, email, rccm, ifu')
         .single();
       if (error) throw error;
       return data;
@@ -152,6 +152,8 @@ const Rapports = () => {
       address: companySettings?.address || '',
       phone: companySettings?.phone || '',
       email: companySettings?.email || '',
+      rccm: companySettings?.rccm || '',
+      ifu: companySettings?.ifu || '',
     });
     
     toast({ title: 'Manifeste exporté', description: 'Le PDF a été téléchargé.' });
