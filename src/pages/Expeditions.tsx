@@ -533,7 +533,7 @@ export default function Expeditions() {
                             >
                               <Printer className="w-4 h-4" />
                             </Button>
-                            {shipment.status === "pending" && (
+                            {canEditExpeditions && shipment.status === "pending" && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -548,7 +548,7 @@ export default function Expeditions() {
                                 <Truck className="w-4 h-4 text-blue-600" />
                               </Button>
                             )}
-                            {shipment.status === "in_transit" && (
+                            {canEditExpeditions && shipment.status === "in_transit" && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -563,7 +563,7 @@ export default function Expeditions() {
                                 <CheckCircle className="w-4 h-4 text-green-600" />
                               </Button>
                             )}
-                            {(shipment.status === "pending" || shipment.status === "in_transit") && (
+                            {canEditExpeditions && (shipment.status === "pending" || shipment.status === "in_transit") && (
                               <Button
                                 variant="ghost"
                                 size="icon"
