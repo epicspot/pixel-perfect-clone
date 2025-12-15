@@ -21,8 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Pencil } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { FormGrid, FormFieldWrapper, FormActions } from '@/components/ui/responsive-form';
 
 const fuelEntrySchema = z.object({
   vehicle_id: z.number({ required_error: 'Sélectionnez un véhicule' }),
@@ -147,14 +148,14 @@ export const FuelEntryForm: React.FC<FuelEntryFormProps> = ({ entry, trigger }) 
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">
             {isEditing ? 'Modifier entrée carburant' : 'Nouvelle entrée carburant'}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div>
+          <FormFieldWrapper fullWidth>
             <Label className="text-xs">Véhicule *</Label>
             <Select
               value={form.watch('vehicle_id')?.toString()}
@@ -176,9 +177,9 @@ export const FuelEntryForm: React.FC<FuelEntryFormProps> = ({ entry, trigger }) 
                 {form.formState.errors.vehicle_id.message}
               </p>
             )}
-          </div>
+          </FormFieldWrapper>
 
-          <div className="grid grid-cols-2 gap-3">
+          <FormGrid cols={2} gap={3}>
             <div>
               <Label className="text-xs">Litres *</Label>
               <Input
@@ -207,30 +208,30 @@ export const FuelEntryForm: React.FC<FuelEntryFormProps> = ({ entry, trigger }) 
                 </p>
               )}
             </div>
-          </div>
+          </FormGrid>
 
-          <div>
+          <FormFieldWrapper fullWidth>
             <Label className="text-xs">Date du plein</Label>
             <Input
               type="date"
               {...form.register('filled_at')}
               className="mt-1"
             />
-          </div>
+          </FormFieldWrapper>
 
           <div className="bg-muted rounded-lg p-3">
             <p className="text-xs text-muted-foreground">Montant total</p>
             <p className="text-xl font-bold text-foreground">{formatCurrency(totalAmount)}</p>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <FormActions>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="w-full sm:w-auto">
               Annuler
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
               {isPending ? 'Enregistrement...' : isEditing ? 'Modifier' : 'Enregistrer'}
             </Button>
-          </div>
+          </FormActions>
         </form>
       </DialogContent>
     </Dialog>
