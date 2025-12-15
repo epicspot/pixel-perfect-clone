@@ -238,20 +238,22 @@ const Parametres = () => {
 
   // Generate preview for ticket numbering
   const getTicketPreview = () => {
+    const sep = ticketSeparator === 'none' ? '' : ticketSeparator;
     const parts: string[] = [];
     if (ticketIncludeAgency) parts.push('OUA');
     if (ticketIncludeYear) parts.push(new Date().getFullYear().toString());
     parts.push('0'.repeat(parseInt(ticketDigits) || 6).slice(0, -1) + '1');
-    return ticketPrefix + ticketSeparator + parts.join(ticketSeparator);
+    return ticketPrefix + sep + parts.join(sep);
   };
 
   // Generate preview for manifest numbering
   const getManifestPreview = () => {
+    const sep = manifestSeparator === 'none' ? '' : manifestSeparator;
     const parts: string[] = [];
     if (manifestIncludeAgency) parts.push('OUA');
     if (manifestIncludeDate) parts.push(new Date().toISOString().slice(0, 10).replace(/-/g, ''));
     parts.push('0'.repeat(parseInt(manifestDigits) || 5).slice(0, -1) + '1');
-    return manifestPrefix + manifestSeparator + parts.join(manifestSeparator);
+    return manifestPrefix + sep + parts.join(sep);
   };
 
   const handleSaveCompanySettings = () => {
@@ -637,7 +639,7 @@ const Parametres = () => {
                           <SelectItem value="-">Tiret (-)</SelectItem>
                           <SelectItem value="/">Slash (/)</SelectItem>
                           <SelectItem value=".">Point (.)</SelectItem>
-                          <SelectItem value="">Aucun</SelectItem>
+                          <SelectItem value="none">Aucun</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -710,7 +712,7 @@ const Parametres = () => {
                           <SelectItem value="-">Tiret (-)</SelectItem>
                           <SelectItem value="/">Slash (/)</SelectItem>
                           <SelectItem value=".">Point (.)</SelectItem>
-                          <SelectItem value="">Aucun</SelectItem>
+                          <SelectItem value="none">Aucun</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
