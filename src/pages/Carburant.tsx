@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { usePermissions } from '@/hooks/usePermissions';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +36,7 @@ ChartJS.register(
 );
 
 const Carburant = () => {
+  const { canCreate, canEdit, canDelete } = usePermissions();
   const [fromDate, setFromDate] = React.useState<string>('');
   const [toDate, setToDate] = React.useState<string>('');
   const [agencyId, setAgencyId] = React.useState<string>('');
@@ -43,6 +45,11 @@ const Carburant = () => {
   const [appliedTo, setAppliedTo] = React.useState<string | undefined>();
   const [appliedAgency, setAppliedAgency] = React.useState<number | undefined>();
   const [appliedYear, setAppliedYear] = React.useState<number>(new Date().getFullYear());
+  
+  // Permissions from database
+  const canCreateFuel = canCreate('carburant');
+  const canEditFuel = canEdit('carburant');
+  const canDeleteFuel = canDelete('carburant');
 
   const { data: agencies } = useQuery({
     queryKey: ['agencies'],
@@ -158,7 +165,7 @@ const Carburant = () => {
               Suivi des consommations et coûts carburant
             </p>
           </div>
-          <FuelEntryForm />
+          {canCreateFuel && <FuelEntryForm />}
         </div>
 
         {/* Filters */}
@@ -313,7 +320,7 @@ const Carburant = () => {
           <h3 className="text-sm font-semibold text-card-foreground mb-3">
             Historique des pleins
           </h3>
-          <FuelEntriesList from={appliedFrom} to={appliedTo} />
+          <FuelEntriesList from={appliedFrom} to={appliedTo} canEdit={canEditFuel} canDelete={canDeleteFuel} />
         </div>
 
         {/* Per Vehicle */}

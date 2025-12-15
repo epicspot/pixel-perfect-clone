@@ -23,9 +23,11 @@ import { fr } from 'date-fns/locale';
 interface FuelEntriesListProps {
   from?: string;
   to?: string;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
-export const FuelEntriesList: React.FC<FuelEntriesListProps> = ({ from, to }) => {
+export const FuelEntriesList: React.FC<FuelEntriesListProps> = ({ from, to, canEdit = true, canDelete = true }) => {
   const queryClient = useQueryClient();
 
   const { data: entries, isLoading } = useQuery({
@@ -110,38 +112,42 @@ export const FuelEntriesList: React.FC<FuelEntriesListProps> = ({ from, to }) =>
               </td>
               <td className="px-3 py-2 text-right">
                 <div className="flex items-center justify-end gap-1">
-                  <FuelEntryForm
-                    entry={entry}
-                    trigger={
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                    }
-                  />
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Supprimer cette entrée ?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Cette action est irréversible. L'entrée de carburant sera définitivement supprimée.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Annuler</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => deleteMutation.mutate(entry.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Supprimer
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  {canEdit && (
+                    <FuelEntryForm
+                      entry={entry}
+                      trigger={
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      }
+                    />
+                  )}
+                  {canDelete && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Supprimer cette entrée ?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Cette action est irréversible. L'entrée de carburant sera définitivement supprimée.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annuler</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => deleteMutation.mutate(entry.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Supprimer
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
               </td>
             </tr>

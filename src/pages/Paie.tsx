@@ -44,6 +44,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2, Download, Pencil, Trash2, CheckCircle, XCircle, Banknote } from 'lucide-react';
 import { generatePayslipPdf, generatePeriodSummaryPdf, generateAllPeriodsStatsPdf } from '@/lib/payrollPdf';
@@ -89,6 +90,7 @@ const formatCurrency = (value: number) =>
 export default function Paie() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { canCreate, canEdit, canDelete } = usePermissions();
   const [activeTab, setActiveTab] = useState('periods');
   const [periodDialogOpen, setPeriodDialogOpen] = useState(false);
   const [entryDialogOpen, setEntryDialogOpen] = useState(false);
@@ -100,6 +102,11 @@ export default function Paie() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [bulkPaymentDialogOpen, setBulkPaymentDialogOpen] = useState(false);
   const [entryToPay, setEntryToPay] = useState<PayrollEntry | null>(null);
+  
+  // Permissions from database
+  const canCreatePayroll = canCreate('paie');
+  const canEditPayroll = canEdit('paie');
+  const canDeletePayroll = canDelete('paie');
 
   const [periodForm, setPeriodForm] = useState({
     start_date: '',
@@ -547,13 +554,14 @@ export default function Paie() {
           {/* Periods Tab */}
           <TabsContent value="periods" className="space-y-4">
             <div className="flex justify-end">
-              <Dialog open={periodDialogOpen} onOpenChange={setPeriodDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Nouvelle période
-                  </Button>
-                </DialogTrigger>
+              {canCreatePayroll && (
+                <Dialog open={periodDialogOpen} onOpenChange={setPeriodDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Nouvelle période
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Créer une période de paie</DialogTitle>
@@ -615,6 +623,7 @@ export default function Paie() {
                   </form>
                 </DialogContent>
               </Dialog>
+              )}
             </div>
 
             <Card>
