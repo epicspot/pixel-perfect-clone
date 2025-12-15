@@ -107,6 +107,8 @@ const Voyages = () => {
   const [adminAgencyFilter, setAdminAgencyFilter] = React.useState(SIEGE_AGENCY_ID);
 
   const isAdmin = profile?.role === 'admin';
+  const isManager = profile?.role === 'manager';
+  const canManageTrips = isAdmin || isManager;
   const filterAgencyId = isAdmin 
     ? (adminAgencyFilter ? Number(adminAgencyFilter) : undefined)
     : profile?.agency_id || undefined;
@@ -236,12 +238,27 @@ const Voyages = () => {
             <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Voyages</h1>
             <p className="text-muted-foreground text-sm mt-1">Planifiez et gérez les départs</p>
           </div>
-          <NewTripDialog 
-            open={isDialogOpen} 
-            onOpenChange={setIsDialogOpen}
-            onSuccess={() => queryClient.invalidateQueries({ queryKey: ['trips'] })}
-          />
+          {canManageTrips && (
+            <NewTripDialog 
+              open={isDialogOpen} 
+              onOpenChange={setIsDialogOpen}
+              onSuccess={() => queryClient.invalidateQueries({ queryKey: ['trips'] })}
+            />
+          )}
         </div>
+
+        {/* Read-only alert for non-managers */}
+        {!canManageTrips && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-start gap-3">
+            <Bus className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-medium text-blue-800 dark:text-blue-200">Consultation uniquement</p>
+              <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                Seuls les chefs d'agence (managers) et les administrateurs peuvent créer et modifier les voyages.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -466,7 +483,7 @@ const Voyages = () => {
                       </p>
                       <div className="flex items-center gap-1">
                         {/* Replacement vehicle button - shown for departed or boarding trips */}
-                        {['departed', 'in_progress', 'boarding'].includes(trip.status) && (
+                        {canManageTrips && ['departed', 'in_progress', 'boarding'].includes(trip.status) && (
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -486,39 +503,43 @@ const Voyages = () => {
                         >
                           <FileText className="w-3 h-3" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-7 w-7"
-                          onClick={() => setEditingTrip(trip)}
-                          title="Modifier le voyage"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-                              <Trash2 className="w-3 h-3" />
+                        {canManageTrips && (
+                          <>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7"
+                              onClick={() => setEditingTrip(trip)}
+                              title="Modifier le voyage"
+                            >
+                              <Pencil className="w-3 h-3" />
                             </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Supprimer ce voyage ?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Cette action est irréversible.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annuler</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteMutation.mutate(trip)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Supprimer
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Supprimer ce voyage ?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Cette action est irréversible.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteMutation.mutate(trip)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Supprimer
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -535,12 +556,14 @@ const Voyages = () => {
               Aucun voyage
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Créez votre premier voyage pour commencer.
+              {canManageTrips ? "Créez votre premier voyage pour commencer." : "Aucun voyage programmé pour le moment."}
             </p>
-            <Button onClick={() => setIsDialogOpen(true)} className="bg-primary text-primary-foreground">
-              <Plus className="w-4 h-4 mr-2" />
-              Créer un voyage
-            </Button>
+            {canManageTrips && (
+              <Button onClick={() => setIsDialogOpen(true)} className="bg-primary text-primary-foreground">
+                <Plus className="w-4 h-4 mr-2" />
+                Créer un voyage
+              </Button>
+            )}
           </div>
         )}
         {/* Edit Trip Dialog */}
