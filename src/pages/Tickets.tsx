@@ -343,7 +343,8 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
   const [customerPhone, setCustomerPhone] = React.useState('');
   const [paymentMethod, setPaymentMethod] = React.useState<PaymentMethod>('cash');
   const [price, setPrice] = React.useState('');
-  const [seatNumber, setSeatNumber] = React.useState('');
+  const [selectedSeats, setSelectedSeats] = React.useState<string[]>([]);
+  const [isGroupMode, setIsGroupMode] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   
   // Excess baggage state
@@ -481,9 +482,22 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
       return;
     }
 
+    const seatsToSell = selectedSeats.length > 0 ? selectedSeats : [''];
+    const ticketCount = seatsToSell.length;
+
     // Check capacity before sale
     if (selectedCapacity?.isFull) {
       toast({ title: 'Bus complet', description: 'Ce voyage est complet. Aucune place disponible.', variant: 'destructive' });
+      return;
+    }
+
+    // Check if enough seats available for group booking
+    if (ticketCount > (selectedCapacity?.remaining || 0)) {
+      toast({ 
+        title: 'Places insuffisantes', 
+        description: `Vous avez sélectionné ${ticketCount} sièges mais il ne reste que ${selectedCapacity?.remaining} places.`, 
+        variant: 'destructive' 
+      });
       return;
     }
 
@@ -511,37 +525,44 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
       const year = new Date().getFullYear();
       
       // Get the next sequential number for this agency/year
-      const { count: ticketCount } = await supabase
+      const { count: existingTicketCount } = await supabase
         .from('tickets')
         .select('*', { count: 'exact', head: true })
         .like('reference', `${agencyCode}-${year}-%`);
       
-      const sequentialNumber = ((ticketCount || 0) + 1).toString().padStart(6, '0');
-      const reference = `${agencyCode}-${year}-${sequentialNumber}`;
+      const createdTickets: any[] = [];
+      
+      // Create tickets for each seat
+      for (let i = 0; i < seatsToSell.length; i++) {
+        const seatNumber = seatsToSell[i];
+        const sequentialNumber = ((existingTicketCount || 0) + i + 1).toString().padStart(6, '0');
+        const reference = `${agencyCode}-${year}-${sequentialNumber}`;
 
-      const { data: newTicket, error } = await supabase.from('tickets').insert({
-        trip_id: Number(tripId),
-        customer_name: customerName.trim(),
-        customer_phone: customerPhone.trim() || null,
-        price: effectivePrice,
-        total_amount: effectivePrice,
-        payment_method: paymentMethod,
-        seat_number: seatNumber || null,
-        status: 'paid',
-        sold_at: new Date().toISOString(),
-        reference,
-        session_id: activeSession?.id || null,
-      }).select().single();
+        const { data: newTicket, error } = await supabase.from('tickets').insert({
+          trip_id: Number(tripId),
+          customer_name: customerName.trim(),
+          customer_phone: customerPhone.trim() || null,
+          price: effectivePrice,
+          total_amount: effectivePrice,
+          payment_method: paymentMethod,
+          seat_number: seatNumber || null,
+          status: 'paid',
+          sold_at: new Date().toISOString(),
+          reference,
+          session_id: activeSession?.id || null,
+        }).select().single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Log audit for ticket sale
-      if (newTicket) {
-        audit.ticketSale(newTicket.id, reference, effectivePrice, newTicket.agency_id);
+        // Log audit for ticket sale
+        if (newTicket) {
+          audit.ticketSale(newTicket.id, reference, effectivePrice, newTicket.agency_id);
+          createdTickets.push(newTicket);
+        }
       }
 
-      // Create excess baggage shipment if applicable
-      if (hasExcessBaggage && newTicket && parseFloat(baggageWeight) > 0) {
+      // Create excess baggage shipment if applicable (only for first ticket)
+      if (hasExcessBaggage && createdTickets[0] && parseFloat(baggageWeight) > 0) {
         const departureAgencyId = (selectedTrip?.route?.departure_agency as any)?.id;
         const arrivalAgencyId = (selectedTrip?.route?.arrival_agency as any)?.id;
         const bagReference = `BAG-${agencyCode}-${year}-${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
@@ -550,7 +571,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
           reference: bagReference,
           type: 'excess_baggage',
           trip_id: Number(tripId),
-          ticket_id: newTicket.id,
+          ticket_id: createdTickets[0].id,
           departure_agency_id: departureAgencyId,
           arrival_agency_id: arrivalAgencyId,
           sender_name: customerName.trim(),
@@ -568,21 +589,24 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
         });
       }
 
-      // Impression automatique du ticket
-      const ticketForPrint = {
-        ...newTicket,
-        trip: selectedTrip ? {
-          route: selectedTrip.route,
-          vehicle: selectedTrip.vehicle,
-          departure_datetime: selectedTrip.departure_datetime,
-        } : undefined,
-      };
-      await generateTicketPdf(ticketForPrint);
+      // Print all tickets
+      for (const ticket of createdTickets) {
+        const ticketForPrint = {
+          ...ticket,
+          trip: selectedTrip ? {
+            route: selectedTrip.route,
+            vehicle: selectedTrip.vehicle,
+            departure_datetime: selectedTrip.departure_datetime,
+          } : undefined,
+        };
+        await generateTicketPdf(ticketForPrint);
+      }
 
-      const message = hasExcessBaggage 
-        ? `Ticket ${reference} créé avec bagage excédentaire pour ${customerName}`
-        : `Ticket ${reference} créé et imprimé pour ${customerName}`;
-      toast({ title: 'Ticket vendu', description: message });
+      const totalAmount = effectivePrice * createdTickets.length;
+      const message = createdTickets.length > 1
+        ? `${createdTickets.length} tickets créés pour ${customerName} (Total: ${formatCurrency(totalAmount)})`
+        : `Ticket ${createdTickets[0]?.reference} créé pour ${customerName}`;
+      toast({ title: 'Vente réussie', description: message });
       onSuccess();
       onOpenChange(false);
       resetForm();
@@ -599,7 +623,8 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
     setCustomerPhone('');
     setPaymentMethod('cash');
     setPrice('');
-    setSeatNumber('');
+    setSelectedSeats([]);
+    setIsGroupMode(false);
     setHasExcessBaggage(false);
     setBaggageWeight('');
     setBaggageDescription('');
@@ -741,18 +766,41 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
               <div className="flex items-center justify-between">
                 <Label className="text-xs flex items-center gap-1.5">
                   <Armchair className="w-4 h-4" />
-                  Sélection du siège
+                  Sélection des sièges
                 </Label>
-                <span className="text-xs text-muted-foreground">
-                  {occupiedSeats?.length || 0} / {selectedCapacity.capacity} occupés
-                </span>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                    <Checkbox 
+                      checked={isGroupMode}
+                      onCheckedChange={(checked) => {
+                        setIsGroupMode(checked as boolean);
+                        if (!checked) setSelectedSeats(selectedSeats.slice(0, 1));
+                      }}
+                    />
+                    <span className="text-muted-foreground">Mode groupe</span>
+                  </label>
+                  <span className="text-xs text-muted-foreground">
+                    {occupiedSeats?.length || 0} / {selectedCapacity.capacity} occupés
+                  </span>
+                </div>
               </div>
               <SeatSelector
                 totalSeats={selectedCapacity.capacity}
                 occupiedSeats={occupiedSeats || []}
-                selectedSeat={seatNumber}
-                onSelectSeat={setSeatNumber}
+                selectedSeats={selectedSeats}
+                onSelectSeats={setSelectedSeats}
+                multiSelect={isGroupMode}
               />
+              {selectedSeats.length > 1 && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-sm">
+                  <p className="font-medium text-blue-800 dark:text-blue-200">
+                    Réservation de groupe: {selectedSeats.length} tickets
+                  </p>
+                  <p className="text-blue-700 dark:text-blue-300 text-xs mt-1">
+                    Total: {formatCurrency(effectivePrice * selectedSeats.length)}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
