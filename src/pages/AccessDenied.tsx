@@ -1,12 +1,26 @@
-import { ShieldX, ArrowLeft, Home } from "lucide-react";
+import { ShieldX, ArrowLeft, Home, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { getRoleLabel, UserRole } from "@/lib/permissions";
+import { getRoleLabel, UserRole, roleRoutePermissions } from "@/lib/permissions";
 
 const AccessDenied = () => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, isLoading } = useAuth();
+
+  const handleRefreshAndRedirect = () => {
+    // Get the first accessible route for the user's role
+    const userRole = profile?.role as UserRole;
+    if (userRole && roleRoutePermissions[userRole]) {
+      const accessibleRoutes = roleRoutePermissions[userRole];
+      // Navigate to the dashboard (/) if accessible, otherwise first available route
+      const targetRoute = accessibleRoutes.includes('/') ? '/' : accessibleRoutes[0] || '/';
+      navigate(targetRoute, { replace: true });
+    } else {
+      // Fallback to home
+      navigate('/', { replace: true });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -34,9 +48,13 @@ const AccessDenied = () => {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Retour
           </Button>
-          <Button onClick={() => navigate("/")}>
+          <Button onClick={handleRefreshAndRedirect} disabled={isLoading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Réessayer
+          </Button>
+          <Button variant="secondary" onClick={() => navigate("/")}>
             <Home className="mr-2 h-4 w-4" />
-            Tableau de bord
+            Accueil
           </Button>
         </div>
 
