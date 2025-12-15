@@ -1,5 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -17,12 +18,22 @@ import {
   CreditCard,
   Smartphone,
   Calendar,
-  Activity
+  Activity,
+  Wrench,
+  Fuel,
+  Users,
+  FileText,
+  Settings,
+  Package,
+  DollarSign,
+  Monitor,
+  ChevronRight
 } from 'lucide-react';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { NotificationWidget } from '@/components/dashboard/NotificationWidget';
 import MarqueeBanner from '@/components/dashboard/MarqueeBanner';
 import { TodaySessionsWidget } from '@/components/dashboard/TodaySessionsWidget';
+import { getRoleLabel, UserRole } from '@/lib/permissions';
 
 type PeriodType = 'today' | 'week' | 'month';
 
@@ -76,6 +87,45 @@ const Index = () => {
     return 'Vue globale de toutes les agences';
   };
 
+  // Role-based quick actions
+  const getQuickActions = () => {
+    const role = profile?.role as UserRole;
+    const actions = {
+      admin: [
+        { label: 'Vendre un ticket', icon: Ticket, href: '/tickets', color: 'from-blue-500 to-indigo-600' },
+        { label: 'Gérer les voyages', icon: Bus, href: '/voyages', color: 'from-orange-500 to-amber-600' },
+        { label: 'Utilisateurs', icon: Users, href: '/admin', color: 'from-purple-500 to-pink-600' },
+        { label: 'Rapports', icon: FileText, href: '/rapports', color: 'from-emerald-500 to-teal-600' },
+        { label: 'Paramètres', icon: Settings, href: '/parametres', color: 'from-gray-500 to-slate-600' },
+      ],
+      manager: [
+        { label: 'Vendre un ticket', icon: Ticket, href: '/tickets', color: 'from-blue-500 to-indigo-600' },
+        { label: 'Créer un voyage', icon: Bus, href: '/voyages', color: 'from-orange-500 to-amber-600' },
+        { label: 'Expéditions', icon: Package, href: '/expeditions', color: 'from-cyan-500 to-blue-600' },
+        { label: 'Sessions guichet', icon: Monitor, href: '/guichets', color: 'from-violet-500 to-purple-600' },
+        { label: 'Rapports agence', icon: FileText, href: '/rapports/agence', color: 'from-emerald-500 to-teal-600' },
+      ],
+      cashier: [
+        { label: 'Vendre un ticket', icon: Ticket, href: '/tickets', color: 'from-blue-500 to-indigo-600' },
+        { label: 'Ouvrir session', icon: Monitor, href: '/guichets', color: 'from-violet-500 to-purple-600' },
+        { label: 'Expéditions', icon: Package, href: '/expeditions', color: 'from-cyan-500 to-blue-600' },
+        { label: 'Voyages du jour', icon: Bus, href: '/voyages', color: 'from-orange-500 to-amber-600' },
+      ],
+      accountant: [
+        { label: 'Comptabilité', icon: DollarSign, href: '/comptabilite', color: 'from-emerald-500 to-teal-600' },
+        { label: 'Dépenses', icon: Wallet, href: '/depenses', color: 'from-red-500 to-rose-600' },
+        { label: 'Paie', icon: Users, href: '/paie', color: 'from-blue-500 to-indigo-600' },
+        { label: 'Rapports', icon: FileText, href: '/rapports', color: 'from-purple-500 to-pink-600' },
+      ],
+      mechanic: [
+        { label: 'Maintenance', icon: Wrench, href: '/maintenance', color: 'from-orange-500 to-amber-600' },
+        { label: 'Carburant', icon: Fuel, href: '/carburant', color: 'from-emerald-500 to-teal-600' },
+        { label: 'Coûts véhicules', icon: Bus, href: '/couts-vehicules', color: 'from-blue-500 to-indigo-600' },
+      ],
+    };
+    return actions[role] || actions.cashier;
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
@@ -105,6 +155,35 @@ const Index = () => {
               />
             )}
             <NotificationWidget />
+          </div>
+        </div>
+
+        {/* Quick Actions - Role based */}
+        <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <ChevronRight className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Accès rapide</h2>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+              {getRoleLabel(profile?.role as UserRole)}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            {getQuickActions().map((action, idx) => (
+              <Link
+                key={action.href}
+                to={action.href}
+                className="group relative overflow-hidden p-4 rounded-xl bg-card border border-border/50 hover:border-primary/30 hover:shadow-lg transition-all duration-300"
+                style={{ animationDelay: `${idx * 0.05}s` }}
+              >
+                <div className={`absolute top-0 right-0 w-20 h-20 bg-gradient-to-br ${action.color} opacity-5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:opacity-15 transition-opacity`} />
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center shadow-md mb-3`}>
+                  <action.icon className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                  {action.label}
+                </span>
+              </Link>
+            ))}
           </div>
         </div>
 
