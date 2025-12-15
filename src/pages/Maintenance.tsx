@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, MaintenanceOrder, Vehicle } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,7 @@ import { Progress } from '@/components/ui/progress';
 
 const Maintenance = () => {
   const { user, profile } = useAuth();
+  const { canCreate, canEdit, canDelete } = usePermissions();
   const queryClient = useQueryClient();
   
   const [editing, setEditing] = React.useState<MaintenanceOrder | null>(null);
@@ -36,6 +38,12 @@ const Maintenance = () => {
   });
 
   const isAdmin = profile?.role === 'admin';
+  
+  // Permissions from database
+  const canCreateMaintenance = canCreate('maintenance');
+  const canEditMaintenance = canEdit('maintenance');
+  const canDeleteMaintenance = canDelete('maintenance');
+  
   const filterAgencyId = isAdmin 
     ? (adminAgencyFilter ? Number(adminAgencyFilter) : undefined)
     : profile?.agency_id || undefined;
@@ -239,9 +247,11 @@ const Maintenance = () => {
               Gestion des ordres de maintenance des véhicules
             </p>
           </div>
-          <Button onClick={() => setShowForm(true)} size="sm">
-            <Plus className="w-4 h-4 mr-1" /> Nouvel ordre
-          </Button>
+          {canCreateMaintenance && (
+            <Button onClick={() => setShowForm(true)} size="sm">
+              <Plus className="w-4 h-4 mr-1" /> Nouvel ordre
+            </Button>
+          )}
         </div>
 
         {/* Dashboard Stats */}
@@ -577,9 +587,11 @@ const Maintenance = () => {
                         {order.total_cost ? formatCurrency(order.total_cost) : '-'}
                       </td>
                       <td className="px-3 py-2 text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(order)}>
-                          <Pencil className="w-4 h-4" />
-                        </Button>
+                        {canEditMaintenance && (
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(order)}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}

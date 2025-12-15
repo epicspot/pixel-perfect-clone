@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from 'sonner';
 import { Plus, Receipt, Pencil, Trash2, Search, TrendingDown } from 'lucide-react';
@@ -79,6 +80,7 @@ const formatCurrency = (value: number) =>
 
 export default function Depenses() {
   const { session, profile } = useAuth();
+  const { canCreate, canEdit, canDelete } = usePermissions();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -95,6 +97,11 @@ export default function Depenses() {
 
   // Check if user is admin
   const isAdmin = profile?.role === 'admin';
+  
+  // Permissions from database
+  const canCreateExpenses = canCreate('depenses');
+  const canEditExpenses = canEdit('depenses');
+  const canDeleteExpenses = canDelete('depenses');
   
   // Determine which agency_id to filter by
   const filterAgencyId = isAdmin 
@@ -297,13 +304,14 @@ export default function Depenses() {
               Total: {formatCurrency(totalExpenses)} ({expenses?.length || 0} dépenses)
             </p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => resetForm()}>
-                <Plus className="w-4 h-4 mr-2" />
-                Nouvelle dépense
-              </Button>
-            </DialogTrigger>
+          {canCreateExpenses && (
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => resetForm()}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nouvelle dépense
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
                 <DialogTitle>
@@ -410,6 +418,7 @@ export default function Depenses() {
               </form>
             </DialogContent>
           </Dialog>
+          )}
         </div>
 
         {/* Filters */}
@@ -467,36 +476,40 @@ export default function Depenses() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(expense)}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Supprimer cette dépense ?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Cette action est irréversible.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteMutation.mutate(expense)}
-                                >
-                                  Supprimer
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          {canEditExpenses && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(expense)}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {canDeleteExpenses && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Supprimer cette dépense ?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Cette action est irréversible.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteMutation.mutate(expense)}
+                                  >
+                                    Supprimer
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
