@@ -21,7 +21,8 @@ import {
   Download,
   Package,
   Monitor,
-  X
+  X,
+  Eye
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -110,7 +111,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       if (!userRole) return [];
       const { data, error } = await supabase
         .from('role_permissions')
-        .select('module, can_view')
+        .select('module, can_view, can_create, can_edit')
         .eq('role', userRole);
       if (error) {
         console.error('Error fetching permissions:', error);
@@ -132,6 +133,16 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     // Check database permissions
     const permission = modulePermissions?.find(p => p.module === module);
     return permission?.can_view ?? false;
+  };
+
+  // Check if module is read-only (can_view but not can_create and not can_edit)
+  const isReadOnlyModule = (route: string): boolean => {
+    const module = routeToModule[route];
+    // Routes without module mapping or admin users are never read-only
+    if (module === null || userRole === 'admin') return false;
+    const permission = modulePermissions?.find(p => p.module === module);
+    if (!permission) return false;
+    return permission.can_view && !permission.can_create && !permission.can_edit;
   };
 
   // Filter nav items based on both route access AND module permissions
@@ -237,24 +248,36 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {filteredNavItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) => cn(
-              "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
-              "hover:bg-sidebar-accent group",
-              isActive 
-                ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-glow" 
-                : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
-            )}
-          >
-            <item.icon className={cn("w-5 h-5 flex-shrink-0", collapsed && "mx-auto")} />
-            {!collapsed && (
-              <span className="font-medium animate-fade-in">{item.label}</span>
-            )}
-          </NavLink>
-        ))}
+        {filteredNavItems.map((item) => {
+          const readOnly = isReadOnlyModule(item.to);
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) => cn(
+                "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
+                "hover:bg-sidebar-accent group relative",
+                isActive 
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-glow" 
+                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
+              )}
+              title={readOnly ? 'Lecture seule' : undefined}
+            >
+              <item.icon className={cn("w-5 h-5 flex-shrink-0", collapsed && "mx-auto")} />
+              {!collapsed && (
+                <>
+                  <span className="font-medium animate-fade-in flex-1">{item.label}</span>
+                  {readOnly && (
+                    <Eye className="w-3.5 h-3.5 text-muted-foreground/60 flex-shrink-0" />
+                  )}
+                </>
+              )}
+              {collapsed && readOnly && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-muted-foreground/40" />
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* Footer */}
