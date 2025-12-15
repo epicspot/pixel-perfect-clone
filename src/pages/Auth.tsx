@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -7,21 +7,38 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Bus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getRoleLabel, UserRole } from '@/lib/permissions';
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { signIn, signUp, isAuthenticated } = useAuth();
+  const { signIn, signUp, isAuthenticated, profile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [justLoggedIn, setJustLoggedIn] = useState(false);
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    navigate('/');
-    return null;
-  }
+  // Show welcome toast and redirect when profile is loaded after login
+  useEffect(() => {
+    if (justLoggedIn && isAuthenticated && profile) {
+      toast.success(
+        `Bienvenue ${profile.name} !`,
+        {
+          description: `Connecté en tant que ${getRoleLabel(profile.role as UserRole)}${profile.agency_name ? ` • ${profile.agency_name}` : ''}`,
+          duration: 4000,
+        }
+      );
+      navigate('/');
+    }
+  }, [justLoggedIn, isAuthenticated, profile, navigate]);
+
+  // Redirect if already authenticated (not from login action)
+  useEffect(() => {
+    if (isAuthenticated && !justLoggedIn) {
+      navigate('/');
+    }
+  }, [isAuthenticated, justLoggedIn, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,11 +59,11 @@ const Auth = () => {
       if (isSignUp) {
         await signUp(email, password, name);
         toast.success('Compte créé avec succès!');
+        navigate('/');
       } else {
         await signIn(email, password);
-        toast.success('Connexion réussie!');
+        setJustLoggedIn(true); // Wait for profile to load before showing toast
       }
-      navigate('/');
     } catch (error: any) {
       console.error('Auth error:', error);
       if (error.message.includes('already registered')) {
