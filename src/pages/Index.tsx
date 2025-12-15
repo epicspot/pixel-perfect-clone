@@ -34,6 +34,7 @@ import { NotificationWidget } from '@/components/dashboard/NotificationWidget';
 import MarqueeBanner from '@/components/dashboard/MarqueeBanner';
 import { TodaySessionsWidget } from '@/components/dashboard/TodaySessionsWidget';
 import { getRoleLabel, UserRole } from '@/lib/permissions';
+import { RoleSpecificStats } from '@/components/dashboard/RoleSpecificStats';
 
 type PeriodType = 'today' | 'week' | 'month';
 
@@ -186,6 +187,9 @@ const Index = () => {
             ))}
           </div>
         </div>
+
+        {/* Role-Specific Stats */}
+        <RoleSpecificStats agencyId={selectedAgencyId ? Number(selectedAgencyId) : undefined} />
 
         {/* Period Selector */}
         <div className="flex items-center justify-between">
