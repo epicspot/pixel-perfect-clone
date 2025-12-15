@@ -1,19 +1,22 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { User } from 'lucide-react';
+import { User, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface SeatSelectorProps {
   totalSeats: number;
   occupiedSeats: string[];
-  selectedSeat: string;
-  onSelectSeat: (seat: string) => void;
+  selectedSeats: string[];
+  onSelectSeats: (seats: string[]) => void;
+  multiSelect?: boolean;
 }
 
 export const SeatSelector: React.FC<SeatSelectorProps> = ({
   totalSeats,
   occupiedSeats,
-  selectedSeat,
-  onSelectSeat,
+  selectedSeats,
+  onSelectSeats,
+  multiSelect = false,
 }) => {
   // Calculate rows (4 seats per row: 2 left + aisle + 2 right)
   const seatsPerRow = 4;
@@ -21,8 +24,28 @@ export const SeatSelector: React.FC<SeatSelectorProps> = ({
 
   const getSeatStatus = (seatNum: string) => {
     if (occupiedSeats.includes(seatNum)) return 'occupied';
-    if (selectedSeat === seatNum) return 'selected';
+    if (selectedSeats.includes(seatNum)) return 'selected';
     return 'available';
+  };
+
+  const handleSeatClick = (seatNum: string) => {
+    if (multiSelect) {
+      if (selectedSeats.includes(seatNum)) {
+        onSelectSeats(selectedSeats.filter(s => s !== seatNum));
+      } else {
+        onSelectSeats([...selectedSeats, seatNum]);
+      }
+    } else {
+      if (selectedSeats.includes(seatNum)) {
+        onSelectSeats([]);
+      } else {
+        onSelectSeats([seatNum]);
+      }
+    }
+  };
+
+  const clearSelection = () => {
+    onSelectSeats([]);
   };
 
   const renderSeat = (seatNumber: number) => {
@@ -30,15 +53,16 @@ export const SeatSelector: React.FC<SeatSelectorProps> = ({
     
     const seatNum = seatNumber.toString();
     const status = getSeatStatus(seatNum);
+    const selectionIndex = selectedSeats.indexOf(seatNum);
     
     return (
       <button
         key={seatNum}
         type="button"
         disabled={status === 'occupied'}
-        onClick={() => onSelectSeat(seatNum)}
+        onClick={() => handleSeatClick(seatNum)}
         className={cn(
-          'w-10 h-10 rounded-lg border-2 flex items-center justify-center text-xs font-bold transition-all',
+          'w-10 h-10 rounded-lg border-2 flex items-center justify-center text-xs font-bold transition-all relative',
           status === 'available' && 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 cursor-pointer',
           status === 'occupied' && 'bg-muted border-muted-foreground/30 text-muted-foreground cursor-not-allowed',
           status === 'selected' && 'bg-primary border-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background'
@@ -50,12 +74,36 @@ export const SeatSelector: React.FC<SeatSelectorProps> = ({
         ) : (
           seatNum
         )}
+        {multiSelect && status === 'selected' && selectionIndex >= 0 && (
+          <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-primary-foreground text-primary text-[10px] rounded-full flex items-center justify-center font-bold border border-primary">
+            {selectionIndex + 1}
+          </span>
+        )}
       </button>
     );
   };
 
   return (
     <div className="space-y-3">
+      {/* Multi-select indicator */}
+      {multiSelect && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2 text-xs text-blue-700 dark:text-blue-300 flex items-center justify-between">
+          <span>Mode groupe activé - Cliquez pour sélectionner plusieurs sièges</span>
+          {selectedSeats.length > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={clearSelection}
+              className="h-6 px-2 text-xs text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+            >
+              <X className="w-3 h-3 mr-1" />
+              Effacer
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Bus front indicator */}
       <div className="flex justify-center">
         <div className="bg-muted text-muted-foreground text-xs px-4 py-1 rounded-t-xl border border-b-0 border-border">
@@ -127,11 +175,18 @@ export const SeatSelector: React.FC<SeatSelectorProps> = ({
         </div>
       </div>
 
-      {/* Selected seat display */}
-      {selectedSeat && (
+      {/* Selected seats display */}
+      {selectedSeats.length > 0 && (
         <div className="text-center">
-          <span className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-semibold">
-            Siège sélectionné: <span className="bg-primary text-primary-foreground px-2 py-0.5 rounded">{selectedSeat}</span>
+          <span className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-semibold flex-wrap justify-center">
+            {selectedSeats.length === 1 ? 'Siège sélectionné:' : `${selectedSeats.length} sièges sélectionnés:`}
+            <span className="flex gap-1 flex-wrap justify-center">
+              {selectedSeats.map((seat, idx) => (
+                <span key={seat} className="bg-primary text-primary-foreground px-2 py-0.5 rounded text-xs">
+                  {seat}
+                </span>
+              ))}
+            </span>
           </span>
         </div>
       )}
