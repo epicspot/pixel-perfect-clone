@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { Search, Plus, Filter, Ticket, TrendingUp, Bus, Printer, XCircle, RotateCcw, Eye, MoreHorizontal, Package, AlertTriangle, Monitor } from 'lucide-react';
+import { Search, Plus, Filter, Ticket, TrendingUp, Bus, Printer, XCircle, RotateCcw, Eye, MoreHorizontal, Package, AlertTriangle, Monitor, Armchair } from 'lucide-react';
+import { SeatSelector } from '@/components/tickets/SeatSelector';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
@@ -734,34 +735,24 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
             </div>
           </div>
 
-          {/* Seat Number Selection */}
+          {/* Visual Seat Selection */}
           {selectedTrip && selectedCapacity && (
-            <div>
-              <Label className="text-xs">Numéro de siège</Label>
-              <Select value={seatNumber} onValueChange={setSeatNumber}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Sélectionner un siège" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: selectedCapacity.capacity }, (_, i) => {
-                    const seatNum = (i + 1).toString();
-                    const isOccupied = occupiedSeats?.includes(seatNum);
-                    return (
-                      <SelectItem 
-                        key={seatNum} 
-                        value={seatNum}
-                        disabled={isOccupied}
-                        className={cn(isOccupied && 'opacity-50 line-through')}
-                      >
-                        Siège {seatNum} {isOccupied && '(occupé)'}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                {occupiedSeats?.length || 0} siège(s) déjà occupé(s)
-              </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs flex items-center gap-1.5">
+                  <Armchair className="w-4 h-4" />
+                  Sélection du siège
+                </Label>
+                <span className="text-xs text-muted-foreground">
+                  {occupiedSeats?.length || 0} / {selectedCapacity.capacity} occupés
+                </span>
+              </div>
+              <SeatSelector
+                totalSeats={selectedCapacity.capacity}
+                occupiedSeats={occupiedSeats || []}
+                selectedSeat={seatNumber}
+                onSelectSeat={setSeatNumber}
+              />
             </div>
           )}
 
