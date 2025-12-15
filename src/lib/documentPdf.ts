@@ -80,10 +80,19 @@ const generateQRCode = async (data: string): Promise<string> => {
   }
 };
 
+// Company info interface for tickets
+interface TicketCompanyInfo {
+  name: string;
+  logoUrl?: string | null;
+  address?: string;
+  phone?: string;
+  email?: string;
+}
+
 // Generate individual ticket receipt with tear-off stub and QR code
-export const generateTicketPdf = async (ticket: TicketData, companyName = 'Transport Express', logoUrl?: string | null) => {
+export const generateTicketPdf = async (ticket: TicketData, company: TicketCompanyInfo = { name: 'Transport Express' }) => {
   const doc = new jsPDF({
-    format: [80, 300], // Longer receipt format for stub and seat display
+    format: [80, 320], // Longer receipt format for stub and seat display with company info
     unit: 'mm',
   });
   
@@ -93,9 +102,9 @@ export const generateTicketPdf = async (ticket: TicketData, companyName = 'Trans
   // ========== MAIN TICKET SECTION ==========
   
   // Logo (if available)
-  if (logoUrl) {
+  if (company.logoUrl) {
     try {
-      doc.addImage(logoUrl, 'PNG', (pageWidth - 12) / 2, y, 12, 12);
+      doc.addImage(company.logoUrl, 'PNG', (pageWidth - 12) / 2, y, 12, 12);
       y += 14;
     } catch (e) {
       console.warn('Could not add logo to PDF:', e);
@@ -105,8 +114,25 @@ export const generateTicketPdf = async (ticket: TicketData, companyName = 'Trans
   // Header
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text(companyName, pageWidth / 2, y, { align: 'center' });
-  y += 6;
+  doc.text(company.name, pageWidth / 2, y, { align: 'center' });
+  y += 5;
+
+  // Company address & contact
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  if (company.address) {
+    doc.text(company.address, pageWidth / 2, y, { align: 'center' });
+    y += 3;
+  }
+  if (company.phone) {
+    doc.text('Tel: ' + company.phone, pageWidth / 2, y, { align: 'center' });
+    y += 3;
+  }
+  if (company.email) {
+    doc.text(company.email, pageWidth / 2, y, { align: 'center' });
+    y += 3;
+  }
+  y += 2;
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
@@ -657,9 +683,9 @@ const shipmentTypeLabels: Record<string, string> = {
   express: 'Courrier express',
 };
 
-export const generateShipmentPdf = async (shipment: ShipmentData, companyName = 'Transport Express', logoUrl?: string | null) => {
+export const generateShipmentPdf = async (shipment: ShipmentData, company: CompanyInfo = { name: 'Transport Express' }) => {
   const doc = new jsPDF({
-    format: [80, 220],
+    format: [80, 240],
     unit: 'mm',
   });
   
@@ -667,14 +693,14 @@ export const generateShipmentPdf = async (shipment: ShipmentData, companyName = 
   let y = 10;
 
   // Logo
-  if (logoUrl) {
+  if (company.logoUrl) {
     try {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       await new Promise((resolve, reject) => {
         img.onload = resolve;
         img.onerror = reject;
-        img.src = logoUrl;
+        img.src = company.logoUrl;
       });
       const logoWidth = 20;
       const logoHeight = (img.height / img.width) * logoWidth;
@@ -688,8 +714,25 @@ export const generateShipmentPdf = async (shipment: ShipmentData, companyName = 
   // Header
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text(companyName, pageWidth / 2, y, { align: 'center' });
-  y += 5;
+  doc.text(company.name, pageWidth / 2, y, { align: 'center' });
+  y += 4;
+
+  // Company address & contact
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  if (company.address) {
+    doc.text(company.address, pageWidth / 2, y, { align: 'center' });
+    y += 3;
+  }
+  if (company.phone) {
+    doc.text('Tel: ' + company.phone, pageWidth / 2, y, { align: 'center' });
+    y += 3;
+  }
+  if (company.email) {
+    doc.text(company.email, pageWidth / 2, y, { align: 'center' });
+    y += 3;
+  }
+  y += 2;
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
@@ -892,22 +935,21 @@ export const generateShipmentsReportPdf = async (
   shipments: ShipmentReportData[],
   filters: ReportFilters,
   stats: ReportStats,
-  companyName = 'Transport Express',
-  logoUrl?: string | null
+  company: CompanyInfo = { name: 'Transport Express' }
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   let headerY = 15;
 
   // Logo
-  if (logoUrl) {
+  if (company.logoUrl) {
     try {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       await new Promise((resolve, reject) => {
         img.onload = resolve;
         img.onerror = reject;
-        img.src = logoUrl;
+        img.src = company.logoUrl;
       });
       const logoHeight = 15;
       const logoWidth = (img.width / img.height) * logoHeight;
@@ -921,19 +963,22 @@ export const generateShipmentsReportPdf = async (
   // Header
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.text(companyName, pageWidth / 2, headerY, { align: 'center' });
-  headerY += 8;
+  doc.text(company.name, pageWidth / 2, headerY, { align: 'center' });
+  headerY += 5;
 
-  doc.setFontSize(14);
-  doc.text('RAPPORT DES EXPEDITIONS', pageWidth / 2, headerY, { align: 'center' });
-  headerY += 8;
-
-  // Period
-  doc.setFontSize(10);
+  // Company address & contact
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  const periodText = 'Periode: ' + format(new Date(filters.startDate), 'dd/MM/yyyy') + ' - ' + format(new Date(filters.endDate), 'dd/MM/yyyy');
-  doc.text(periodText, pageWidth / 2, headerY, { align: 'center' });
-  headerY += 6;
+  if (company.address) {
+    doc.text(company.address, pageWidth / 2, headerY, { align: 'center' });
+    headerY += 4;
+  }
+  if (company.phone || company.email) {
+    const contactInfo = [company.phone, company.email].filter(Boolean).join(' | ');
+    doc.text(contactInfo, pageWidth / 2, headerY, { align: 'center' });
+    headerY += 4;
+  }
+  headerY += 4;
 
   // Filters info
   let filterText = '';

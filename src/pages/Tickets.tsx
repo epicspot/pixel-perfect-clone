@@ -102,6 +102,20 @@ const Tickets = () => {
     queryFn: () => api.getTickets({ agency_id: filterAgencyId }),
   });
 
+  // Company settings for PDF generation
+  const { data: companySettings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('company_name, logo_url, address, phone, email')
+        .limit(1)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const tickets = data?.data || [];
   const filteredTickets = tickets.filter(t => 
     t.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -296,7 +310,7 @@ const Tickets = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={async () => await generateTicketPdf(ticket)}>
+                            <DropdownMenuItem onClick={async () => await generateTicketPdf(ticket, { name: companySettings?.company_name || 'Transport Express', logoUrl: companySettings?.logo_url, address: companySettings?.address, phone: companySettings?.phone, email: companySettings?.email })}>
                               <Printer className="w-4 h-4 mr-2" />
                               Imprimer
                             </DropdownMenuItem>
@@ -381,6 +395,20 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
         .eq('type', 'excess_baggage')
         .single();
       if (error) return null;
+      return data;
+    },
+  });
+
+  // Company settings for PDF generation
+  const { data: companySettings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('company_name, logo_url, address, phone, email')
+        .limit(1)
+        .single();
+      if (error) throw error;
       return data;
     },
   });
@@ -599,7 +627,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
             departure_datetime: selectedTrip.departure_datetime,
           } : undefined,
         };
-        await generateTicketPdf(ticketForPrint);
+        await generateTicketPdf(ticketForPrint, { name: companySettings?.company_name || 'Transport Express', logoUrl: companySettings?.logo_url, address: companySettings?.address, phone: companySettings?.phone, email: companySettings?.email });
       }
 
       const totalAmount = effectivePrice * createdTickets.length;

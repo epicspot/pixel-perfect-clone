@@ -188,7 +188,7 @@ export default function Paie() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('company_settings')
-        .select('company_name, logo_url')
+        .select('company_name, logo_url, address, phone, email')
         .limit(1)
         .single();
       if (error) throw error;
@@ -711,7 +711,7 @@ export default function Paie() {
                       <>
                         <Button
                           variant="outline"
-                          onClick={() => generatePeriodSummaryPdf(selectedPeriod, entries, staffList || [], companySettings?.company_name || 'Transport Express', companySettings?.logo_url)}
+                          onClick={() => generatePeriodSummaryPdf(selectedPeriod, entries, staffList || [], { name: companySettings?.company_name || 'Transport Express', logoUrl: companySettings?.logo_url, address: companySettings?.address, phone: companySettings?.phone, email: companySettings?.email })}
                         >
                           <Download className="w-4 h-4 mr-2" />
                           Export PDF
@@ -936,7 +936,7 @@ export default function Paie() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => generatePayslipPdf(entry, selectedPeriod, getStaffName(entry.staff_id), companySettings?.company_name || 'Transport Express', companySettings?.logo_url)}
+                                      onClick={() => generatePayslipPdf(entry, selectedPeriod, getStaffName(entry.staff_id), { name: companySettings?.company_name || 'Transport Express', logoUrl: companySettings?.logo_url, address: companySettings?.address, phone: companySettings?.phone, email: companySettings?.email })}
                                       title="Télécharger PDF"
                                     >
                                       <Download className="w-4 h-4" />
@@ -1328,7 +1328,7 @@ export default function Paie() {
               <Button
                 variant="outline"
                 disabled={!periods || periods.length === 0}
-                onClick={() => generateAllPeriodsStatsPdf(periods || [], allEntries || [], agencies || [], staffList || [], companySettings?.company_name || 'Transport Express', companySettings?.logo_url)}
+                onClick={() => generateAllPeriodsStatsPdf(periods || [], allEntries || [], agencies || [], staffList || [], { name: companySettings?.company_name || 'Transport Express', logoUrl: companySettings?.logo_url, address: companySettings?.address, phone: companySettings?.phone, email: companySettings?.email })}
               >
                 <Download className="w-4 h-4 mr-2" />
                 Export rapport PDF
