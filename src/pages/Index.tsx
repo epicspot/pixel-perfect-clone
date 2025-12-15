@@ -35,6 +35,7 @@ import MarqueeBanner from '@/components/dashboard/MarqueeBanner';
 import { TodaySessionsWidget } from '@/components/dashboard/TodaySessionsWidget';
 import { getRoleLabel, UserRole } from '@/lib/permissions';
 import { RoleSpecificStats } from '@/components/dashboard/RoleSpecificStats';
+import { ProactiveAlerts } from '@/components/dashboard/ProactiveAlerts';
 
 type PeriodType = 'today' | 'week' | 'month';
 
@@ -187,6 +188,9 @@ const Index = () => {
             ))}
           </div>
         </div>
+
+        {/* Proactive Alerts */}
+        <ProactiveAlerts agencyId={selectedAgencyId ? Number(selectedAgencyId) : undefined} />
 
         {/* Role-Specific Stats */}
         <RoleSpecificStats agencyId={selectedAgencyId ? Number(selectedAgencyId) : undefined} />
