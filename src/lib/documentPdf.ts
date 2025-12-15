@@ -83,7 +83,7 @@ const generateQRCode = async (data: string): Promise<string> => {
 // Generate individual ticket receipt with tear-off stub and QR code
 export const generateTicketPdf = async (ticket: TicketData, companyName = 'Transport Express', logoUrl?: string | null) => {
   const doc = new jsPDF({
-    format: [80, 280], // Longer receipt format for stub
+    format: [80, 300], // Longer receipt format for stub and seat display
     unit: 'mm',
   });
   
@@ -112,18 +112,41 @@ export const generateTicketPdf = async (ticket: TicketData, companyName = 'Trans
   doc.setFont('helvetica', 'normal');
   doc.text('TICKET DE TRANSPORT', pageWidth / 2, y, { align: 'center' });
   y += 8;
-  doc.setFont('helvetica', 'normal');
-  doc.text('TICKET DE TRANSPORT', pageWidth / 2, y, { align: 'center' });
-  y += 8;
 
   // Ticket reference
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text(ticket.reference || `#${ticket.id}`, pageWidth / 2, y, { align: 'center' });
-  y += 8;
+  y += 6;
+
+  // ========== PROMINENT SEAT NUMBER DISPLAY ==========
+  if (ticket.seat_number) {
+    y += 2;
+    // Draw seat number box
+    const boxWidth = 50;
+    const boxHeight = 18;
+    const boxX = (pageWidth - boxWidth) / 2;
+    
+    doc.setDrawColor(0);
+    doc.setFillColor(240, 240, 240);
+    doc.roundedRect(boxX, y, boxWidth, boxHeight, 3, 3, 'FD');
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    doc.text('SIEGE N°', pageWidth / 2, y + 5, { align: 'center' });
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0);
+    doc.text(ticket.seat_number, pageWidth / 2, y + 13, { align: 'center' });
+    
+    y += boxHeight + 4;
+  }
 
   // Divider
   doc.setDrawColor(200);
+  doc.setTextColor(0);
   doc.line(5, y, pageWidth - 5, y);
   y += 5;
 
@@ -168,14 +191,6 @@ export const generateTicketPdf = async (ticket: TicketData, companyName = 'Trans
       doc.text(ticket.trip.vehicle.registration_number || '-', 25, y);
       y += 5;
     }
-  }
-
-  if (ticket.seat_number) {
-    doc.setFont('helvetica', 'bold');
-    doc.text('Siege:', 5, y);
-    doc.setFont('helvetica', 'normal');
-    doc.text(ticket.seat_number, 25, y);
-    y += 5;
   }
 
   // Payment info
@@ -270,6 +285,14 @@ export const generateTicketPdf = async (ticket: TicketData, companyName = 'Trans
   doc.setFont('helvetica', 'bold');
   doc.text(ticket.reference || `#${ticket.id}`, pageWidth / 2, y, { align: 'center' });
   y += 5;
+
+  // Seat number on stub (prominent display)
+  if (ticket.seat_number) {
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`SIEGE ${ticket.seat_number}`, pageWidth / 2, y, { align: 'center' });
+    y += 5;
+  }
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
