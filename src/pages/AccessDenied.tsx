@@ -3,6 +3,12 @@ import { Button } from "@/components/ui/button";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { getRoleLabel, UserRole, roleRoutePermissions } from "@/lib/permissions";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 // Categories with their routes
 const routeCategories: Record<string, { label: string; routes: Record<string, string> }> = {
@@ -124,33 +130,38 @@ const AccessDenied = () => {
           )}
         </div>
 
-        {/* Accessible modules grouped by category */}
+        {/* Accessible modules grouped by category with accordion */}
         {groupedRoutes.length > 0 && (
-          <div className="bg-muted/50 rounded-lg p-4 text-left space-y-4 max-h-64 overflow-y-auto">
-            <h2 className="text-sm font-semibold text-foreground sticky top-0 bg-muted/50 pb-2">
+          <div className="bg-muted/50 rounded-lg p-4 text-left max-h-72 overflow-y-auto">
+            <h2 className="text-sm font-semibold text-foreground mb-3">
               Modules accessibles :
             </h2>
-            <div className="space-y-4">
+            <Accordion type="multiple" defaultValue={groupedRoutes.map(c => c.key)} className="space-y-1">
               {groupedRoutes.map((category) => (
-                <div key={category.key} className="space-y-1">
-                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <AccordionItem key={category.key} value={category.key} className="border-none">
+                  <AccordionTrigger className="py-2 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide hover:no-underline hover:bg-muted/50 rounded-md">
                     {category.label}
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-                    {category.routes.map(([route, label]) => (
-                      <Link
-                        key={route}
-                        to={route}
-                        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
-                      >
-                        <ChevronRight className="h-3 w-3" />
-                        {label}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
+                    <span className="ml-2 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                      {category.routes.length}
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-2 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                      {category.routes.map(([route, label]) => (
+                        <Link
+                          key={route}
+                          to={route}
+                          className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+                        >
+                          <ChevronRight className="h-3 w-3" />
+                          {label}
+                        </Link>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
               ))}
-            </div>
+            </Accordion>
           </div>
         )}
 
