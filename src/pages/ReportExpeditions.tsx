@@ -74,7 +74,7 @@ export default function ReportExpeditions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('company_settings')
-        .select('company_name, logo_url')
+        .select('company_name, logo_url, address, phone, email')
         .limit(1)
         .single();
       if (error) throw error;
@@ -142,8 +142,7 @@ export default function ReportExpeditions() {
         agencyFilter: agencyFilter !== 'all' ? agencies?.find(a => a.id === parseInt(agencyFilter))?.name : undefined,
       },
       stats,
-      companySettings?.company_name || 'Transport Express',
-      companySettings?.logo_url
+      { name: companySettings?.company_name || 'Transport Express', logoUrl: companySettings?.logo_url, address: companySettings?.address, phone: companySettings?.phone, email: companySettings?.email }
     );
   };
 

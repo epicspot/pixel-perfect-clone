@@ -77,6 +77,9 @@ interface Shipment {
 interface CompanySettings {
   company_name: string;
   logo_url: string | null;
+  address?: string;
+  phone?: string;
+  email?: string;
 }
 
 const shipmentTypeLabels: Record<ShipmentType, string> = {
@@ -190,7 +193,7 @@ export default function Expeditions() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("company_settings")
-        .select("company_name, logo_url")
+        .select("company_name, logo_url, address, phone, email")
         .limit(1)
         .single();
       if (error) throw error;
@@ -514,7 +517,7 @@ export default function Expeditions() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => generateShipmentPdf(shipment as any, companySettings?.company_name || 'Transport Express', companySettings?.logo_url)}
+                              onClick={() => generateShipmentPdf(shipment as any, { name: companySettings?.company_name || 'Transport Express', logoUrl: companySettings?.logo_url, address: companySettings?.address, phone: companySettings?.phone, email: companySettings?.email })}
                               title="Imprimer bordereau"
                             >
                               <Printer className="w-4 h-4" />

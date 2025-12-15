@@ -29,26 +29,34 @@ interface Staff {
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
+// Company info interface for payroll documents
+interface PayrollCompanyInfo {
+  name: string;
+  logoUrl?: string | null;
+  address?: string;
+  phone?: string;
+  email?: string;
+}
+
 export const generatePayslipPdf = async (
   entry: PayrollEntry,
   period: PayrollPeriod,
   staffName: string,
-  companyName = 'Transport Express',
-  logoUrl?: string | null
+  company: PayrollCompanyInfo = { name: 'Transport Express' }
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   let headerY = 15;
 
   // Logo
-  if (logoUrl) {
+  if (company.logoUrl) {
     try {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       await new Promise((resolve, reject) => {
         img.onload = resolve;
         img.onerror = reject;
-        img.src = logoUrl;
+        img.src = company.logoUrl;
       });
       const logoHeight = 15;
       const logoWidth = (img.width / img.height) * logoHeight;
@@ -62,8 +70,22 @@ export const generatePayslipPdf = async (
   // Company name
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text(companyName, pageWidth / 2, headerY, { align: 'center' });
-  headerY += 8;
+  doc.text(company.name, pageWidth / 2, headerY, { align: 'center' });
+  headerY += 5;
+
+  // Company address & contact
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  if (company.address) {
+    doc.text(company.address, pageWidth / 2, headerY, { align: 'center' });
+    headerY += 4;
+  }
+  if (company.phone || company.email) {
+    const contactInfo = [company.phone, company.email].filter(Boolean).join(' | ');
+    doc.text(contactInfo, pageWidth / 2, headerY, { align: 'center' });
+    headerY += 4;
+  }
+  headerY += 4;
 
   // Header
   doc.setFontSize(20);
@@ -135,8 +157,7 @@ export const generatePeriodSummaryPdf = async (
   period: PayrollPeriod,
   entries: PayrollEntry[],
   staffList: Staff[],
-  companyName = 'Transport Express',
-  logoUrl?: string | null
+  company: PayrollCompanyInfo = { name: 'Transport Express' }
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -145,14 +166,14 @@ export const generatePeriodSummaryPdf = async (
   const getStaffName = (id: number) => staffList.find((s) => s.id === id)?.full_name || '-';
 
   // Logo
-  if (logoUrl) {
+  if (company.logoUrl) {
     try {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       await new Promise((resolve, reject) => {
         img.onload = resolve;
         img.onerror = reject;
-        img.src = logoUrl;
+        img.src = company.logoUrl;
       });
       const logoHeight = 15;
       const logoWidth = (img.width / img.height) * logoHeight;
@@ -166,8 +187,22 @@ export const generatePeriodSummaryPdf = async (
   // Company name
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text(companyName, pageWidth / 2, headerY, { align: 'center' });
-  headerY += 8;
+  doc.text(company.name, pageWidth / 2, headerY, { align: 'center' });
+  headerY += 5;
+
+  // Company address & contact
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  if (company.address) {
+    doc.text(company.address, pageWidth / 2, headerY, { align: 'center' });
+    headerY += 4;
+  }
+  if (company.phone || company.email) {
+    const contactInfo = [company.phone, company.email].filter(Boolean).join(' | ');
+    doc.text(contactInfo, pageWidth / 2, headerY, { align: 'center' });
+    headerY += 4;
+  }
+  headerY += 4;
 
   // Header
   doc.setFontSize(20);
@@ -255,22 +290,21 @@ export const generateAllPeriodsStatsPdf = async (
   allEntries: any[],
   agencies: { id: number; name: string }[],
   staffList: Staff[],
-  companyName = 'Transport Express',
-  logoUrl?: string | null
+  company: PayrollCompanyInfo = { name: 'Transport Express' }
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   let headerY = 15;
 
   // Logo
-  if (logoUrl) {
+  if (company.logoUrl) {
     try {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       await new Promise((resolve, reject) => {
         img.onload = resolve;
         img.onerror = reject;
-        img.src = logoUrl;
+        img.src = company.logoUrl;
       });
       const logoHeight = 15;
       const logoWidth = (img.width / img.height) * logoHeight;
@@ -284,8 +318,22 @@ export const generateAllPeriodsStatsPdf = async (
   // Company name
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text(companyName, pageWidth / 2, headerY, { align: 'center' });
-  headerY += 8;
+  doc.text(company.name, pageWidth / 2, headerY, { align: 'center' });
+  headerY += 5;
+
+  // Company address & contact
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  if (company.address) {
+    doc.text(company.address, pageWidth / 2, headerY, { align: 'center' });
+    headerY += 4;
+  }
+  if (company.phone || company.email) {
+    const contactInfo = [company.phone, company.email].filter(Boolean).join(' | ');
+    doc.text(contactInfo, pageWidth / 2, headerY, { align: 'center' });
+    headerY += 4;
+  }
+  headerY += 4;
 
   // Header
   doc.setFontSize(20);
