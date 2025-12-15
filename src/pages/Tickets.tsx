@@ -76,6 +76,9 @@ const Tickets = () => {
 
   const isAdmin = profile?.role === 'admin';
   const isCashier = profile?.role === 'cashier';
+  const isManager = profile?.role === 'manager';
+  // Seuls les admins, managers et guichetiers peuvent vendre des tickets
+  const canSellTickets = isAdmin || isCashier || isManager;
   const filterAgencyId = isAdmin 
     ? (adminAgencyFilter ? Number(adminAgencyFilter) : undefined)
     : profile?.agency_id || undefined;
@@ -153,11 +156,15 @@ const Tickets = () => {
             <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Vente de tickets</h1>
             <p className="text-muted-foreground text-sm mt-1">Gérez les ventes et les tickets de transport</p>
           </div>
-          <NewTicketDialog 
-            open={isDialogOpen} 
-            onOpenChange={setIsDialogOpen}
-            onSuccess={() => queryClient.invalidateQueries({ queryKey: ['tickets'] })}
-          />
+          {canSellTickets && (
+            <NewTicketDialog 
+              open={isDialogOpen} 
+              onOpenChange={setIsDialogOpen}
+              onSuccess={() => queryClient.invalidateQueries({ queryKey: ['tickets'] })}
+              userAgencyId={profile?.agency_id}
+              isAdmin={isAdmin}
+            />
+          )}
         </div>
 
         {/* Stats Cards */}
@@ -348,9 +355,11 @@ interface NewTicketDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  userAgencyId?: number | null;
+  isAdmin?: boolean;
 }
 
-const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, onSuccess }) => {
+const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, onSuccess, userAgencyId, isAdmin }) => {
   const { user } = useAuth();
   const [tripId, setTripId] = React.useState<string>('');
   const [customerName, setCustomerName] = React.useState('');
@@ -467,10 +476,18 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
   });
 
   // Filter trips available for sale (only planned, scheduled, or boarding)
+  // For non-admin users, only show trips departing from their agency
   const allTrips = tripsData?.data || [];
   const trips = allTrips.filter(t => {
     const status = t.status as string;
-    return status === 'planned' || status === 'scheduled' || status === 'boarding';
+    const isValidStatus = status === 'planned' || status === 'scheduled' || status === 'boarding';
+    
+    // Si admin, montrer tous les voyages avec statut valide
+    if (isAdmin) return isValidStatus;
+    
+    // Pour les guichetiers/managers, filtrer par agence de départ
+    const departureAgencyId = (t.route?.departure_agency as any)?.id;
+    return isValidStatus && departureAgencyId === userAgencyId;
   });
 
   // Helper to get trip capacity info
