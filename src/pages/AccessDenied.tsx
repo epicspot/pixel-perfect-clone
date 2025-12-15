@@ -4,33 +4,63 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { getRoleLabel, UserRole, roleRoutePermissions } from "@/lib/permissions";
 
-// Labels for routes in French
-const routeLabels: Record<string, string> = {
-  '/': 'Tableau de bord',
-  '/tickets': 'Billetterie',
-  '/expeditions': 'Expéditions',
-  '/voyages': 'Voyages',
-  '/depenses': 'Dépenses',
-  '/carburant': 'Carburant',
-  '/maintenance': 'Maintenance',
-  '/staff': 'Personnel',
-  '/paie': 'Paie',
-  '/guichets': 'Guichets',
-  '/cloture-caisse': 'Clôture de caisse',
-  '/rapports': 'Rapports',
-  '/rapports/agence': 'Rapport agence',
-  '/rapports/trajets': 'Rapport trajets',
-  '/rapports/caisse': 'Rapport caisse',
-  '/rapports/expeditions': 'Rapport expéditions',
-  '/rapports/sessions': 'Sessions de caisse',
-  '/comptabilite': 'Comptabilité',
-  '/admin': 'Administration',
-  '/audit-logs': 'Journaux d\'audit',
-  '/parametres': 'Paramètres',
-  '/suivi-souches': 'Suivi souches',
-  '/scan': 'Scanner tickets',
-  '/cout-vehicules': 'Coûts véhicules',
-  '/expeditions-dashboard': 'Dashboard expéditions',
+// Categories with their routes
+const routeCategories: Record<string, { label: string; routes: Record<string, string> }> = {
+  general: {
+    label: 'Général',
+    routes: {
+      '/': 'Tableau de bord',
+    }
+  },
+  operations: {
+    label: 'Opérations',
+    routes: {
+      '/tickets': 'Billetterie',
+      '/expeditions': 'Expéditions',
+      '/voyages': 'Voyages',
+      '/guichets': 'Guichets',
+      '/cloture-caisse': 'Clôture de caisse',
+      '/scan': 'Scanner tickets',
+    }
+  },
+  logistics: {
+    label: 'Logistique',
+    routes: {
+      '/carburant': 'Carburant',
+      '/maintenance': 'Maintenance',
+      '/cout-vehicules': 'Coûts véhicules',
+    }
+  },
+  finance: {
+    label: 'Finance & Comptabilité',
+    routes: {
+      '/depenses': 'Dépenses',
+      '/comptabilite': 'Comptabilité',
+      '/paie': 'Paie',
+    }
+  },
+  reports: {
+    label: 'Rapports',
+    routes: {
+      '/rapports': 'Rapports',
+      '/rapports/agence': 'Rapport agence',
+      '/rapports/trajets': 'Rapport trajets',
+      '/rapports/caisse': 'Rapport caisse',
+      '/rapports/expeditions': 'Rapport expéditions',
+      '/rapports/sessions': 'Sessions de caisse',
+      '/expeditions-dashboard': 'Dashboard expéditions',
+    }
+  },
+  admin: {
+    label: 'Administration',
+    routes: {
+      '/admin': 'Administration',
+      '/staff': 'Personnel',
+      '/parametres': 'Paramètres',
+      '/audit-logs': 'Journaux d\'audit',
+      '/suivi-souches': 'Suivi souches',
+    }
+  },
 };
 
 const AccessDenied = () => {
@@ -39,6 +69,19 @@ const AccessDenied = () => {
 
   const userRole = profile?.role as UserRole;
   const accessibleRoutes = userRole && roleRoutePermissions[userRole] ? roleRoutePermissions[userRole] : [];
+
+  // Group accessible routes by category
+  const groupedRoutes = Object.entries(routeCategories)
+    .map(([key, category]) => {
+      const categoryRoutes = Object.entries(category.routes)
+        .filter(([route]) => accessibleRoutes.includes(route));
+      return {
+        key,
+        label: category.label,
+        routes: categoryRoutes,
+      };
+    })
+    .filter(category => category.routes.length > 0);
 
   const handleRefreshAndRedirect = () => {
     if (accessibleRoutes.length > 0) {
@@ -62,7 +105,7 @@ const AccessDenied = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="max-w-md w-full text-center space-y-6 animate-fade-in">
+      <div className="max-w-lg w-full text-center space-y-6 animate-fade-in">
         <div className="flex justify-center">
           <div className="rounded-full bg-destructive/10 p-6">
             <ShieldX className="h-16 w-16 text-destructive" />
@@ -81,26 +124,32 @@ const AccessDenied = () => {
           )}
         </div>
 
-        {/* Accessible modules section */}
-        {accessibleRoutes.length > 0 && (
-          <div className="bg-muted/50 rounded-lg p-4 text-left space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">Modules accessibles :</h2>
-            <div className="grid grid-cols-1 gap-1 max-h-48 overflow-y-auto">
-              {accessibleRoutes.slice(0, 10).map((route) => (
-                <Link
-                  key={route}
-                  to={route}
-                  className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                  {routeLabels[route] || route}
-                </Link>
+        {/* Accessible modules grouped by category */}
+        {groupedRoutes.length > 0 && (
+          <div className="bg-muted/50 rounded-lg p-4 text-left space-y-4 max-h-64 overflow-y-auto">
+            <h2 className="text-sm font-semibold text-foreground sticky top-0 bg-muted/50 pb-2">
+              Modules accessibles :
+            </h2>
+            <div className="space-y-4">
+              {groupedRoutes.map((category) => (
+                <div key={category.key} className="space-y-1">
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {category.label}
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    {category.routes.map(([route, label]) => (
+                      <Link
+                        key={route}
+                        to={route}
+                        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+                      >
+                        <ChevronRight className="h-3 w-3" />
+                        {label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               ))}
-              {accessibleRoutes.length > 10 && (
-                <p className="text-xs text-muted-foreground px-3 py-1">
-                  +{accessibleRoutes.length - 10} autres modules...
-                </p>
-              )}
             </div>
           </div>
         )}
