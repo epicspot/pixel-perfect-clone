@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, Trip } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -98,6 +99,7 @@ const SIEGE_AGENCY_ID = '4';
 
 const Voyages = () => {
   const { profile } = useAuth();
+  const { canCreate, canEdit, canDelete } = usePermissions();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
@@ -107,8 +109,11 @@ const Voyages = () => {
   const [adminAgencyFilter, setAdminAgencyFilter] = React.useState(SIEGE_AGENCY_ID);
 
   const isAdmin = profile?.role === 'admin';
-  const isManager = profile?.role === 'manager';
-  const canManageTrips = isAdmin || isManager;
+  // Use permissions from database
+  const canCreateTrips = canCreate('voyages');
+  const canEditTrips = canEdit('voyages');
+  const canDeleteTrips = canDelete('voyages');
+  const canManageTrips = canCreateTrips || canEditTrips;
   const filterAgencyId = isAdmin 
     ? (adminAgencyFilter ? Number(adminAgencyFilter) : undefined)
     : profile?.agency_id || undefined;
@@ -238,7 +243,7 @@ const Voyages = () => {
             <h1 className="text-xl md:text-2xl font-display font-bold text-foreground">Voyages</h1>
             <p className="text-muted-foreground text-sm mt-1">Planifiez et gérez les départs</p>
           </div>
-          {canManageTrips && (
+          {canCreateTrips && (
             <NewTripDialog 
               open={isDialogOpen} 
               onOpenChange={setIsDialogOpen}
@@ -247,14 +252,14 @@ const Voyages = () => {
           )}
         </div>
 
-        {/* Read-only alert for non-managers */}
-        {!canManageTrips && (
+        {/* Read-only alert for users without permissions */}
+        {!canCreateTrips && !canEditTrips && (
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-start gap-3">
             <Bus className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="font-medium text-blue-800 dark:text-blue-200">Consultation uniquement</p>
               <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                Seuls les chefs d'agence (managers) et les administrateurs peuvent créer et modifier les voyages.
+                Vous n'avez pas les droits pour créer ou modifier les voyages.
               </p>
             </div>
           </div>
@@ -483,7 +488,7 @@ const Voyages = () => {
                       </p>
                       <div className="flex items-center gap-1">
                         {/* Replacement vehicle button - shown for departed or boarding trips */}
-                        {canManageTrips && ['departed', 'in_progress', 'boarding'].includes(trip.status) && (
+                        {canEditTrips && ['departed', 'in_progress', 'boarding'].includes(trip.status) && (
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -503,42 +508,42 @@ const Voyages = () => {
                         >
                           <FileText className="w-3 h-3" />
                         </Button>
-                        {canManageTrips && (
-                          <>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-7 w-7"
-                              onClick={() => setEditingTrip(trip)}
-                              title="Modifier le voyage"
-                            >
-                              <Pencil className="w-3 h-3" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Supprimer ce voyage ?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Cette action est irréversible.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => deleteMutation.mutate(trip)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Supprimer
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </>
+                        {canEditTrips && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-7 w-7"
+                            onClick={() => setEditingTrip(trip)}
+                            title="Modifier le voyage"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                        )}
+                        {canDeleteTrips && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Supprimer ce voyage ?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Cette action est irréversible.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteMutation.mutate(trip)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Supprimer
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         )}
                       </div>
                     </div>
@@ -556,9 +561,9 @@ const Voyages = () => {
               Aucun voyage
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {canManageTrips ? "Créez votre premier voyage pour commencer." : "Aucun voyage programmé pour le moment."}
+              {canCreateTrips ? "Créez votre premier voyage pour commencer." : "Aucun voyage programmé pour le moment."}
             </p>
-            {canManageTrips && (
+            {canCreateTrips && (
               <Button onClick={() => setIsDialogOpen(true)} className="bg-primary text-primary-foreground">
                 <Plus className="w-4 h-4 mr-2" />
                 Créer un voyage

@@ -7,15 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Building2, Route, Bus, Users, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Building2, Route, Bus, Users, Plus, Pencil, Trash2, Loader2, Shield } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { getRoleLabel, getRoleColorClasses, UserRole } from "@/lib/permissions";
 import { audit } from "@/lib/audit";
+import { PermissionsManager } from "@/components/admin/PermissionsManager";
 
-type Tab = "agencies" | "routes" | "vehicles" | "users";
+type Tab = "agencies" | "routes" | "vehicles" | "users" | "permissions";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value) + " F";
@@ -68,12 +69,23 @@ const Admin = () => {
             active={activeTab === "users"}
             onClick={() => setActiveTab("users")}
           />
+          <TabButton
+            icon={Shield}
+            label="Permissions"
+            active={activeTab === "permissions"}
+            onClick={() => setActiveTab("permissions")}
+          />
         </div>
 
         {activeTab === "agencies" && <AgenciesTab />}
         {activeTab === "routes" && <RoutesTab />}
         {activeTab === "vehicles" && <VehiclesTab />}
         {activeTab === "users" && <UsersTab />}
+        {activeTab === "permissions" && (
+          <Card className="p-6">
+            <PermissionsManager />
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   );

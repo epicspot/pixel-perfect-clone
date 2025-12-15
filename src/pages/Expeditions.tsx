@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
 import { logAudit } from "@/lib/audit";
 import { generateShipmentPdf } from "@/lib/documentPdf";
 import { format } from "date-fns";
@@ -124,6 +125,7 @@ function generateReference(type: ShipmentType, agencyCode: string): string {
 
 export default function Expeditions() {
   const { user } = useAuth();
+  const { canCreate, canEdit, canDelete } = usePermissions();
   const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -131,6 +133,11 @@ export default function Expeditions() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [isNewDialogOpen, setIsNewDialogOpen] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
+  
+  // Permissions
+  const canCreateExpeditions = canCreate('expeditions');
+  const canEditExpeditions = canEdit('expeditions');
+  const canDeleteExpeditions = canDelete('expeditions');
 
   // Liste des expéditions
   const { data: shipments, isLoading } = useQuery({
