@@ -338,9 +338,9 @@ const Tickets = () => {
                               Imprimer
                             </DropdownMenuItem>
                             <TicketDetailsMenuItem ticket={ticket} />
-                            <DropdownMenuSeparator />
-                            {ticket.status === 'paid' && (
+                            {canEditTickets && ticket.status === 'paid' && (
                               <>
+                                <DropdownMenuSeparator />
                                 <CancelTicketMenuItem ticket={ticket} onSuccess={() => queryClient.invalidateQueries({ queryKey: ['tickets'] })} />
                                 <RefundTicketMenuItem ticket={ticket} onSuccess={() => queryClient.invalidateQueries({ queryKey: ['tickets'] })} />
                               </>
