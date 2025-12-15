@@ -31,6 +31,30 @@ import { toast } from 'sonner';
 import { hasRouteAccess, getRoleLabel, UserRole } from '@/lib/permissions';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { ModuleType } from '@/hooks/usePermissions';
+
+// Map routes to their corresponding module in the database
+const routeToModule: Record<string, ModuleType | null> = {
+  '/': null, // Dashboard always visible
+  '/tickets': 'tickets',
+  '/expeditions': 'expeditions',
+  '/controle-tickets': 'tickets', // Related to tickets
+  '/suivi-souches': 'tickets', // Related to tickets
+  '/voyages': 'voyages',
+  '/guichets': 'guichets',
+  '/cloture-caisse': 'guichets', // Related to guichets
+  '/carburant': 'carburant',
+  '/maintenance': 'maintenance',
+  '/couts-vehicules': 'maintenance', // Related to maintenance/carburant
+  '/comptabilite': 'comptabilite',
+  '/rapports': 'rapports',
+  '/staff': 'staff',
+  '/depenses': 'depenses',
+  '/paie': 'paie',
+  '/admin': null, // Admin page - controlled by role only
+  '/audit': null, // Audit page - controlled by role only
+  '/parametres': null, // Settings always visible
+};
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
@@ -63,6 +87,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { signOut, profile } = useAuth();
   const navigate = useNavigate();
+  const userRole = profile?.role;
 
   // Fetch company settings for logo
   const { data: companySettings } = useQuery({
@@ -76,6 +101,45 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       return data;
     },
     staleTime: 1000 * 60 * 5,
+  });
+
+  // Fetch module permissions for user's role
+  const { data: modulePermissions } = useQuery({
+    queryKey: ['sidebar-permissions', userRole],
+    queryFn: async () => {
+      if (!userRole) return [];
+      const { data, error } = await supabase
+        .from('role_permissions')
+        .select('module, can_view')
+        .eq('role', userRole);
+      if (error) {
+        console.error('Error fetching permissions:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!userRole,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Check if user can view a module
+  const canViewModule = (route: string): boolean => {
+    const module = routeToModule[route];
+    // Routes without module mapping (null) are controlled by role-based route access only
+    if (module === null) return true;
+    // Admin always has access
+    if (userRole === 'admin') return true;
+    // Check database permissions
+    const permission = modulePermissions?.find(p => p.module === module);
+    return permission?.can_view ?? false;
+  };
+
+  // Filter nav items based on both route access AND module permissions
+  const filteredNavItems = navItems.filter(item => {
+    // First check role-based route access
+    if (!hasRouteAccess(profile?.role as UserRole, item.to)) return false;
+    // Then check module-level can_view permission
+    return canViewModule(item.to);
   });
 
   const handleLogout = async () => {
@@ -173,9 +237,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {navItems
-          .filter((item) => hasRouteAccess(profile?.role as UserRole, item.to))
-          .map((item) => (
+        {filteredNavItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
