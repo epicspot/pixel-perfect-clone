@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Server, Bell, Shield, Package, Save, Building2, Upload, X, Image, AlertTriangle } from 'lucide-react';
+import { Server, Bell, Shield, Package, Save, Building2, Upload, X, Image, AlertTriangle, Hash, FileText } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useState, useEffect, useRef } from 'react';
@@ -43,6 +44,18 @@ const Parametres = () => {
   const [uploading, setUploading] = useState(false);
   const [discrepancyThreshold, setDiscrepancyThreshold] = useState('5000');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Numbering settings
+  const [ticketPrefix, setTicketPrefix] = useState('TKT');
+  const [ticketSeparator, setTicketSeparator] = useState('-');
+  const [ticketDigits, setTicketDigits] = useState('6');
+  const [ticketIncludeAgency, setTicketIncludeAgency] = useState(true);
+  const [ticketIncludeYear, setTicketIncludeYear] = useState(true);
+  const [manifestPrefix, setManifestPrefix] = useState('MAN');
+  const [manifestSeparator, setManifestSeparator] = useState('-');
+  const [manifestDigits, setManifestDigits] = useState('5');
+  const [manifestIncludeAgency, setManifestIncludeAgency] = useState(true);
+  const [manifestIncludeDate, setManifestIncludeDate] = useState(true);
   // Fetch company settings
   const { data: companySettings, isLoading: companyLoading } = useQuery({
     queryKey: ['company-settings'],
@@ -68,26 +81,36 @@ const Parametres = () => {
     }
   }, [companySettings]);
 
-  // Fetch discrepancy threshold
-  const { data: thresholdSetting, isLoading: thresholdLoading } = useQuery({
-    queryKey: ['cash-discrepancy-threshold'],
+  // Fetch all app settings
+  const { data: appSettings, isLoading: settingsLoading } = useQuery({
+    queryKey: ['app-settings'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('app_settings')
-        .select('*')
-        .eq('key', 'cash_discrepancy_threshold')
-        .maybeSingle();
+        .select('*');
       if (error) throw error;
       return data;
     },
   });
 
-  // Initialize threshold when data loads
+  // Initialize settings when data loads
   useEffect(() => {
-    if (thresholdSetting) {
-      setDiscrepancyThreshold(thresholdSetting.value || '5000');
+    if (appSettings) {
+      const findSetting = (key: string) => appSettings.find(s => s.key === key)?.value;
+      
+      setDiscrepancyThreshold(findSetting('cash_discrepancy_threshold') || '5000');
+      setTicketPrefix(findSetting('ticket_prefix') || 'TKT');
+      setTicketSeparator(findSetting('ticket_separator') || '-');
+      setTicketDigits(findSetting('ticket_digits') || '6');
+      setTicketIncludeAgency(findSetting('ticket_include_agency') !== 'false');
+      setTicketIncludeYear(findSetting('ticket_include_year') !== 'false');
+      setManifestPrefix(findSetting('manifest_prefix') || 'MAN');
+      setManifestSeparator(findSetting('manifest_separator') || '-');
+      setManifestDigits(findSetting('manifest_digits') || '5');
+      setManifestIncludeAgency(findSetting('manifest_include_agency') !== 'false');
+      setManifestIncludeDate(findSetting('manifest_include_date') !== 'false');
     }
-  }, [thresholdSetting]);
+  }, [appSettings]);
 
   // Fetch pricing
   const { data: pricing, isLoading: pricingLoading } = useQuery({
@@ -152,18 +175,31 @@ const Parametres = () => {
     },
   });
 
-  // Update discrepancy threshold mutation
-  const updateThreshold = useMutation({
-    mutationFn: async (value: string) => {
-      const { error } = await supabase
+  // Update app setting mutation
+  const updateAppSetting = useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: string }) => {
+      // Try to update first
+      const { data: existing } = await supabase
         .from('app_settings')
-        .update({ value, updated_at: new Date().toISOString() })
-        .eq('key', 'cash_discrepancy_threshold');
-      if (error) throw error;
+        .select('id')
+        .eq('key', key)
+        .maybeSingle();
+      
+      if (existing) {
+        const { error } = await supabase
+          .from('app_settings')
+          .update({ value, updated_at: new Date().toISOString() })
+          .eq('key', key);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('app_settings')
+          .insert({ key, value });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cash-discrepancy-threshold'] });
-      toast.success('Seuil d\'alerte mis à jour');
+      queryClient.invalidateQueries({ queryKey: ['app-settings'] });
     },
     onError: (error: any) => {
       toast.error(error.message || 'Erreur lors de la mise à jour');
@@ -176,7 +212,46 @@ const Parametres = () => {
       toast.error('Veuillez entrer un montant valide');
       return;
     }
-    updateThreshold.mutate(value.toString());
+    updateAppSetting.mutate({ key: 'cash_discrepancy_threshold', value: value.toString() });
+    toast.success('Seuil d\'alerte mis à jour');
+  };
+
+  const handleSaveNumberingSettings = async () => {
+    try {
+      await Promise.all([
+        updateAppSetting.mutateAsync({ key: 'ticket_prefix', value: ticketPrefix }),
+        updateAppSetting.mutateAsync({ key: 'ticket_separator', value: ticketSeparator }),
+        updateAppSetting.mutateAsync({ key: 'ticket_digits', value: ticketDigits }),
+        updateAppSetting.mutateAsync({ key: 'ticket_include_agency', value: ticketIncludeAgency.toString() }),
+        updateAppSetting.mutateAsync({ key: 'ticket_include_year', value: ticketIncludeYear.toString() }),
+        updateAppSetting.mutateAsync({ key: 'manifest_prefix', value: manifestPrefix }),
+        updateAppSetting.mutateAsync({ key: 'manifest_separator', value: manifestSeparator }),
+        updateAppSetting.mutateAsync({ key: 'manifest_digits', value: manifestDigits }),
+        updateAppSetting.mutateAsync({ key: 'manifest_include_agency', value: manifestIncludeAgency.toString() }),
+        updateAppSetting.mutateAsync({ key: 'manifest_include_date', value: manifestIncludeDate.toString() }),
+      ]);
+      toast.success('Configuration de numérotation enregistrée');
+    } catch (error) {
+      toast.error('Erreur lors de l\'enregistrement');
+    }
+  };
+
+  // Generate preview for ticket numbering
+  const getTicketPreview = () => {
+    const parts: string[] = [];
+    if (ticketIncludeAgency) parts.push('OUA');
+    if (ticketIncludeYear) parts.push(new Date().getFullYear().toString());
+    parts.push('0'.repeat(parseInt(ticketDigits) || 6).slice(0, -1) + '1');
+    return ticketPrefix + ticketSeparator + parts.join(ticketSeparator);
+  };
+
+  // Generate preview for manifest numbering
+  const getManifestPreview = () => {
+    const parts: string[] = [];
+    if (manifestIncludeAgency) parts.push('OUA');
+    if (manifestIncludeDate) parts.push(new Date().toISOString().slice(0, 10).replace(/-/g, ''));
+    parts.push('0'.repeat(parseInt(manifestDigits) || 5).slice(0, -1) + '1');
+    return manifestPrefix + manifestSeparator + parts.join(manifestSeparator);
   };
 
   const handleSaveCompanySettings = () => {
@@ -515,9 +590,186 @@ const Parametres = () => {
           </Card>
         )}
 
-        {/* Cash Discrepancy Alert Settings - Admin only */}
+        {/* Numbering Configuration - Admin only */}
         {isAdmin && (
           <Card className="p-6 animate-slide-up" style={{ animationDelay: '75ms' }}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Hash className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="font-display font-semibold text-lg">Numérotation des Documents</h2>
+                <p className="text-sm text-muted-foreground">Configurez le format des numéros de tickets et manifestes</p>
+              </div>
+            </div>
+            
+            {settingsLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Ticket Numbering */}
+                <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-4 h-4 text-primary" />
+                    <h3 className="font-medium">Numérotation des Tickets</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                      <Label className="text-xs">Préfixe</Label>
+                      <Input
+                        value={ticketPrefix}
+                        onChange={(e) => setTicketPrefix(e.target.value.toUpperCase())}
+                        placeholder="TKT"
+                        maxLength={5}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Séparateur</Label>
+                      <Select value={ticketSeparator} onValueChange={setTicketSeparator}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="-">Tiret (-)</SelectItem>
+                          <SelectItem value="/">Slash (/)</SelectItem>
+                          <SelectItem value=".">Point (.)</SelectItem>
+                          <SelectItem value="">Aucun</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Nb. chiffres</Label>
+                      <Select value={ticketDigits} onValueChange={setTicketDigits}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="4">4 chiffres</SelectItem>
+                          <SelectItem value="5">5 chiffres</SelectItem>
+                          <SelectItem value="6">6 chiffres</SelectItem>
+                          <SelectItem value="7">7 chiffres</SelectItem>
+                          <SelectItem value="8">8 chiffres</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <Switch 
+                          checked={ticketIncludeAgency} 
+                          onCheckedChange={setTicketIncludeAgency}
+                          id="ticket-agency"
+                        />
+                        <Label htmlFor="ticket-agency" className="text-xs">Code agence</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch 
+                          checked={ticketIncludeYear} 
+                          onCheckedChange={setTicketIncludeYear}
+                          id="ticket-year"
+                        />
+                        <Label htmlFor="ticket-year" className="text-xs">Année</Label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3 p-2 bg-background rounded border">
+                    <p className="text-xs text-muted-foreground">Aperçu:</p>
+                    <p className="font-mono font-bold text-primary">{getTicketPreview()}</p>
+                  </div>
+                </div>
+
+                {/* Manifest Numbering */}
+                <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-4 h-4 text-secondary" />
+                    <h3 className="font-medium">Numérotation des Manifestes</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                      <Label className="text-xs">Préfixe</Label>
+                      <Input
+                        value={manifestPrefix}
+                        onChange={(e) => setManifestPrefix(e.target.value.toUpperCase())}
+                        placeholder="MAN"
+                        maxLength={5}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Séparateur</Label>
+                      <Select value={manifestSeparator} onValueChange={setManifestSeparator}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="-">Tiret (-)</SelectItem>
+                          <SelectItem value="/">Slash (/)</SelectItem>
+                          <SelectItem value=".">Point (.)</SelectItem>
+                          <SelectItem value="">Aucun</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Nb. chiffres</Label>
+                      <Select value={manifestDigits} onValueChange={setManifestDigits}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="4">4 chiffres</SelectItem>
+                          <SelectItem value="5">5 chiffres</SelectItem>
+                          <SelectItem value="6">6 chiffres</SelectItem>
+                          <SelectItem value="7">7 chiffres</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <Switch 
+                          checked={manifestIncludeAgency} 
+                          onCheckedChange={setManifestIncludeAgency}
+                          id="manifest-agency"
+                        />
+                        <Label htmlFor="manifest-agency" className="text-xs">Code agence</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch 
+                          checked={manifestIncludeDate} 
+                          onCheckedChange={setManifestIncludeDate}
+                          id="manifest-date"
+                        />
+                        <Label htmlFor="manifest-date" className="text-xs">Date</Label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3 p-2 bg-background rounded border">
+                    <p className="text-xs text-muted-foreground">Aperçu:</p>
+                    <p className="font-mono font-bold text-secondary">{getManifestPreview()}</p>
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={handleSaveNumberingSettings}
+                  disabled={updateAppSetting.isPending}
+                  className="w-full sm:w-auto"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Enregistrer la configuration
+                </Button>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Cash Discrepancy Alert Settings - Admin only */}
+        {isAdmin && (
+          <Card className="p-6 animate-slide-up" style={{ animationDelay: '100ms' }}>
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 rounded-lg bg-destructive/10">
                 <AlertTriangle className="w-5 h-5 text-destructive" />
@@ -528,7 +780,7 @@ const Parametres = () => {
               </div>
             </div>
             
-            {thresholdLoading ? (
+            {settingsLoading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
               </div>
@@ -552,7 +804,7 @@ const Parametres = () => {
                   </div>
                   <Button 
                     onClick={handleSaveThreshold}
-                    disabled={updateThreshold.isPending}
+                    disabled={updateAppSetting.isPending}
                   >
                     <Save className="w-4 h-4 mr-2" />
                     Enregistrer
