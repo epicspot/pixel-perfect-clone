@@ -332,20 +332,22 @@ export default function Expeditions() {
                 Tableau de bord
               </Link>
             </Button>
-            <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="w-4 h-4" />
-                  Nouvelle expédition
-                </Button>
-              </DialogTrigger>
-              <NewShipmentDialog
-                onSubmit={(data) => createShipment.mutate(data)}
-                isLoading={createShipment.isPending}
-                agencies={agencies}
-                trips={trips}
-              />
-            </Dialog>
+            {canCreateExpeditions && (
+              <Dialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Nouvelle expédition
+                  </Button>
+                </DialogTrigger>
+                <NewShipmentDialog
+                  onSubmit={(data) => createShipment.mutate(data)}
+                  isLoading={createShipment.isPending}
+                  agencies={agencies}
+                  trips={trips}
+                />
+              </Dialog>
+            )}
           </div>
         </div>
 
