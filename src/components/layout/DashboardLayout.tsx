@@ -2,9 +2,12 @@ import { Sidebar } from './Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRoleLabel } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
-import { LogOut, Bell, Building2, Bus } from 'lucide-react';
+import { LogOut, Bell, Building2, Bus, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
+import { useState } from 'react';
+import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +23,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -33,23 +37,49 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Sidebar />
+    <div className="min-h-screen bg-background transition-colors duration-300">
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       {/* Top Header Bar */}
-      <header className="fixed top-0 right-0 left-64 h-16 bg-card border-b border-border z-30 px-6 flex items-center justify-between transition-all duration-300">
-        {/* Left side - can add breadcrumbs or title here */}
+      <header className={cn(
+        "fixed top-0 right-0 h-14 sm:h-16 bg-card/95 backdrop-blur-sm border-b border-border z-30",
+        "px-4 sm:px-6 flex items-center justify-between",
+        "transition-all duration-300",
+        "left-0 lg:left-64"
+      )}>
+        {/* Left side - Mobile menu + Agency */}
         <div className="flex items-center gap-3">
+          {/* Mobile menu button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="lg:hidden"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+          
           {profile?.agency_name && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-lg">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-lg">
               <Building2 className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium text-primary">{profile.agency_name}</span>
             </div>
           )}
         </div>
 
-        {/* Right side - User info */}
-        <div className="flex items-center gap-4">
+        {/* Right side - Theme toggle + User info */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          {/* Theme Toggle */}
+          <ThemeToggle variant="compact" />
+          
           {/* Notifications placeholder */}
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="w-5 h-5 text-muted-foreground" />
@@ -91,13 +121,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       </header>
 
-      {/* Main content with top padding for header */}
-      <main className="ml-64 pt-16 p-8 pb-20 transition-all duration-300">
+      {/* Main content with responsive padding */}
+      <main className={cn(
+        "pt-14 sm:pt-16 p-4 sm:p-6 lg:p-8 pb-20",
+        "transition-all duration-300",
+        "lg:ml-64"
+      )}>
         {children}
       </main>
 
-      {/* Animated Footer */}
-      <footer className="fixed bottom-0 right-0 left-64 h-12 bg-card/80 backdrop-blur-sm border-t border-border z-30 flex items-center justify-center overflow-hidden">
+      {/* Animated Footer - Hidden on mobile */}
+      <footer className={cn(
+        "fixed bottom-0 right-0 h-10 sm:h-12 bg-card/80 backdrop-blur-sm border-t border-border z-30",
+        "hidden lg:flex items-center justify-center overflow-hidden",
+        "left-64 transition-all duration-300"
+      )}>
         <div className="flex items-center gap-3 animate-footer-slide">
           {/* Animated Bus */}
           <div className="relative">

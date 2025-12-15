@@ -20,7 +20,8 @@ import {
   ScrollText,
   Download,
   Package,
-  Monitor
+  Monitor,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -53,7 +54,12 @@ const navItems = [
   { to: '/parametres', icon: Settings, label: 'Parametres' },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const { signOut, profile } = useAuth();
   const navigate = useNavigate();
@@ -86,12 +92,29 @@ export function Sidebar() {
   return (
     <aside 
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen bg-sidebar transition-all duration-300 flex flex-col",
-        collapsed ? "w-20" : "w-64"
+        "fixed left-0 top-0 z-50 h-screen bg-sidebar flex flex-col",
+        "transition-all duration-300 ease-out",
+        // Desktop styles
+        "lg:translate-x-0",
+        collapsed ? "lg:w-20" : "lg:w-64",
+        // Mobile styles - slide in/out
+        isOpen ? "translate-x-0 w-64" : "-translate-x-full w-64"
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
+      <div className="flex items-center justify-between p-4 border-b border-sidebar-border relative">
+        {/* Mobile close button */}
+        {onClose && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="lg:hidden absolute right-2 top-2 text-sidebar-foreground hover:bg-sidebar-accent"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        )}
+        
         {!collapsed && (
           <div className="flex items-center gap-3 animate-fade-in">
             <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center shadow-glow overflow-hidden">
@@ -118,11 +141,12 @@ export function Sidebar() {
             )}
           </div>
         )}
+        {/* Desktop collapse button */}
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setCollapsed(!collapsed)}
-          className="text-sidebar-foreground hover:bg-sidebar-accent absolute -right-3 top-6 bg-sidebar border border-sidebar-border rounded-full w-6 h-6 p-0"
+          className="hidden lg:flex text-sidebar-foreground hover:bg-sidebar-accent absolute -right-3 top-6 bg-sidebar border border-sidebar-border rounded-full w-6 h-6 p-0"
         >
           {collapsed ? <Menu className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
         </Button>
