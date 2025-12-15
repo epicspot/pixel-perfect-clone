@@ -566,6 +566,8 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
         const sequentialNumber = ((existingTicketCount || 0) + i + 1).toString().padStart(6, '0');
         const reference = `${agencyCode}-${year}-${sequentialNumber}`;
 
+        const departureAgencyId = (selectedTrip?.route?.departure_agency as any)?.id;
+        
         const { data: newTicket, error } = await supabase.from('tickets').insert({
           trip_id: Number(tripId),
           customer_name: customerName.trim(),
@@ -578,6 +580,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
           sold_at: new Date().toISOString(),
           reference,
           session_id: activeSession?.id || null,
+          agency_id: departureAgencyId,
         }).select().single();
 
         if (error) throw error;
