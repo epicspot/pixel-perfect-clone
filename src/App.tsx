@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { hasRouteAccess, UserRole } from "@/lib/permissions";
+import { hasRouteAccess, UserRole, roleRoutePermissions } from "@/lib/permissions";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Lazy load all pages for code-splitting
@@ -36,7 +36,6 @@ const Guichets = lazy(() => import("./pages/Guichets"));
 const ReportSessions = lazy(() => import("./pages/ReportSessions"));
 const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
-const AccessDenied = lazy(() => import("./pages/AccessDenied"));
 const Install = lazy(() => import("./pages/Install"));
 
 const queryClient = new QueryClient({
@@ -71,10 +70,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Check role-based access
-  const hasAccess = hasRouteAccess(profile?.role as UserRole, location.pathname);
+  // Check role-based access - redirect to first accessible route if no access
+  const userRole = profile?.role as UserRole;
+  const hasAccess = hasRouteAccess(userRole, location.pathname);
   if (!hasAccess) {
-    return <Navigate to="/acces-refuse" replace />;
+    const accessibleRoutes = roleRoutePermissions[userRole] || [];
+    const firstRoute = accessibleRoutes[0] || '/';
+    return <Navigate to={firstRoute} replace />;
   }
 
   return <>{children}</>;
@@ -286,7 +288,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
-        <Route path="/acces-refuse" element={<AccessDenied />} />
+        
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
