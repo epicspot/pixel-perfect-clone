@@ -658,24 +658,24 @@ function NewShipmentDialog({ onSubmit, isLoading, agencies, trips }: NewShipment
   };
 
   return (
-    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+    <DialogContent className="w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
       <DialogHeader>
-        <DialogTitle>Nouvelle expédition</DialogTitle>
+        <DialogTitle className="text-base sm:text-lg">Nouvelle expédition</DialogTitle>
       </DialogHeader>
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
         <Tabs defaultValue="parcel" onValueChange={(v) => setType(v as ShipmentType)}>
-          <TabsList className="grid grid-cols-4 w-full">
-            <TabsTrigger value="parcel">Colis</TabsTrigger>
-            <TabsTrigger value="express">Express</TabsTrigger>
-            <TabsTrigger value="excess_baggage">Excédent</TabsTrigger>
-            <TabsTrigger value="unaccompanied_baggage">Non accompagné</TabsTrigger>
+          <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full h-auto gap-1">
+            <TabsTrigger value="parcel" className="text-xs sm:text-sm py-2">Colis</TabsTrigger>
+            <TabsTrigger value="express" className="text-xs sm:text-sm py-2">Express</TabsTrigger>
+            <TabsTrigger value="excess_baggage" className="text-xs sm:text-sm py-2">Excédent</TabsTrigger>
+            <TabsTrigger value="unaccompanied_baggage" className="text-xs sm:text-sm py-2">Non accompagné</TabsTrigger>
           </TabsList>
         </Tabs>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {/* Voyage */}
-          <div className="col-span-2">
-            <Label>Voyage associé (optionnel)</Label>
+          <div className="sm:col-span-2">
+            <Label className="text-xs sm:text-sm">Voyage associé (optionnel)</Label>
             <Select
               value={tripId}
               onValueChange={(v) => {
@@ -687,14 +687,14 @@ function NewShipmentDialog({ onSubmit, isLoading, agencies, trips }: NewShipment
                 }
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Sélectionner un voyage" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Aucun voyage</SelectItem>
                 {trips.map((trip: any) => (
                   <SelectItem key={trip.id} value={trip.id.toString()}>
-                    {trip.route?.name} - {format(new Date(trip.departure_datetime), "dd/MM/yyyy HH:mm", { locale: fr })}
+                    <span className="truncate">{trip.route?.name} - {format(new Date(trip.departure_datetime), "dd/MM/yyyy HH:mm", { locale: fr })}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -703,9 +703,9 @@ function NewShipmentDialog({ onSubmit, isLoading, agencies, trips }: NewShipment
 
           {/* Agences */}
           <div>
-            <Label>Agence départ *</Label>
+            <Label className="text-xs sm:text-sm">Agence départ *</Label>
             <Select value={departureAgencyId} onValueChange={setDepartureAgencyId}>
-              <SelectTrigger>
+              <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Sélectionner" />
               </SelectTrigger>
               <SelectContent>
@@ -718,9 +718,9 @@ function NewShipmentDialog({ onSubmit, isLoading, agencies, trips }: NewShipment
             </Select>
           </div>
           <div>
-            <Label>Agence arrivée *</Label>
+            <Label className="text-xs sm:text-sm">Agence arrivée *</Label>
             <Select value={arrivalAgencyId} onValueChange={setArrivalAgencyId}>
-              <SelectTrigger>
+              <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Sélectionner" />
               </SelectTrigger>
               <SelectContent>
@@ -735,69 +735,70 @@ function NewShipmentDialog({ onSubmit, isLoading, agencies, trips }: NewShipment
 
           {/* Expéditeur */}
           <div>
-            <Label>Nom expéditeur *</Label>
-            <Input value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Nom complet" />
+            <Label className="text-xs sm:text-sm">Nom expéditeur *</Label>
+            <Input value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Nom complet" className="mt-1" />
           </div>
           <div>
-            <Label>Téléphone expéditeur</Label>
-            <Input value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} placeholder="Numéro" />
+            <Label className="text-xs sm:text-sm">Téléphone expéditeur</Label>
+            <Input value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} placeholder="Numéro" className="mt-1" />
           </div>
 
           {/* Destinataire */}
           <div>
-            <Label>Nom destinataire *</Label>
-            <Input value={receiverName} onChange={(e) => setReceiverName(e.target.value)} placeholder="Nom complet" />
+            <Label className="text-xs sm:text-sm">Nom destinataire *</Label>
+            <Input value={receiverName} onChange={(e) => setReceiverName(e.target.value)} placeholder="Nom complet" className="mt-1" />
           </div>
           <div>
-            <Label>Téléphone destinataire</Label>
-            <Input value={receiverPhone} onChange={(e) => setReceiverPhone(e.target.value)} placeholder="Numéro" />
+            <Label className="text-xs sm:text-sm">Téléphone destinataire</Label>
+            <Input value={receiverPhone} onChange={(e) => setReceiverPhone(e.target.value)} placeholder="Numéro" className="mt-1" />
           </div>
 
           {/* Description */}
-          <div className="col-span-2">
-            <Label>Description</Label>
+          <div className="sm:col-span-2">
+            <Label className="text-xs sm:text-sm">Description</Label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Description du contenu..."
               rows={2}
+              className="mt-1"
             />
           </div>
 
-          {/* Tarifs */}
+          {/* Tarifs - 2x2 grid on mobile, 4 columns on desktop */}
           <div>
-            <Label>Poids (kg)</Label>
-            <Input type="number" step="0.1" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} />
+            <Label className="text-xs sm:text-sm">Poids (kg)</Label>
+            <Input type="number" step="0.1" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} className="mt-1" />
           </div>
           <div>
-            <Label>Quantité</Label>
-            <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+            <Label className="text-xs sm:text-sm">Quantité</Label>
+            <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="mt-1" />
           </div>
           <div>
-            <Label>Prix/kg (F CFA)</Label>
-            <Input type="number" value={pricePerKg} onChange={(e) => setPricePerKg(e.target.value)} />
+            <Label className="text-xs sm:text-sm">Prix/kg (F CFA)</Label>
+            <Input type="number" value={pricePerKg} onChange={(e) => setPricePerKg(e.target.value)} className="mt-1" />
           </div>
           <div>
-            <Label>Frais de base (F CFA)</Label>
-            <Input type="number" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} />
+            <Label className="text-xs sm:text-sm">Frais de base (F CFA)</Label>
+            <Input type="number" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} className="mt-1" />
           </div>
 
           {/* Total */}
-          <div className="col-span-2 p-4 bg-muted rounded-lg">
-            <div className="flex justify-between items-center">
-              <span className="font-medium">Montant total</span>
-              <span className="text-2xl font-bold text-primary">{totalAmount.toLocaleString("fr-FR")} F CFA</span>
+          <div className="sm:col-span-2 p-4 bg-muted rounded-lg">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+              <span className="font-medium text-sm sm:text-base">Montant total</span>
+              <span className="text-xl sm:text-2xl font-bold text-primary">{totalAmount.toLocaleString("fr-FR")} F CFA</span>
             </div>
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
           <DialogClose asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" className="w-full sm:w-auto">
               Annuler
             </Button>
           </DialogClose>
-          <Button type="submit" disabled={isLoading}>
+          <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
             {isLoading ? "Création..." : "Créer l'expédition"}
           </Button>
         </DialogFooter>

@@ -671,9 +671,9 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
           Vendre un ticket
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nouvelle vente de ticket</DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">Nouvelle vente de ticket</DialogTitle>
         </DialogHeader>
         
         {/* Session warning inside dialog */}
@@ -708,9 +708,9 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
                       className={cn(isFull && 'opacity-50')}
                     >
                       <div className="flex items-center justify-between w-full gap-2">
-                        <span>{trip.route?.name || 'Route inconnue'} - {new Date(trip.departure_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="truncate">{trip.route?.name || 'Route inconnue'} - {new Date(trip.departure_datetime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
                         <span className={cn(
-                          'text-[10px] px-1.5 py-0.5 rounded-full font-medium',
+                          'text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0',
                           isFull 
                             ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
                             : remaining <= 5 
@@ -730,13 +730,15 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
           {/* Trip Info */}
           {selectedTrip && selectedCapacity && (
             <div className="bg-muted/50 rounded-lg p-3 text-xs space-y-2">
-              <p className="font-semibold text-card-foreground">{selectedTrip.route?.name}</p>
-              <p className="text-muted-foreground">
-                Départ: {new Date(selectedTrip.departure_datetime).toLocaleString('fr-FR')}
-              </p>
-              <p className="text-muted-foreground">
-                Véhicule: {selectedTrip.vehicle?.registration_number || 'Non assigné'}
-              </p>
+              <p className="font-semibold text-card-foreground truncate">{selectedTrip.route?.name}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                <p className="text-muted-foreground truncate">
+                  Départ: {new Date(selectedTrip.departure_datetime).toLocaleString('fr-FR')}
+                </p>
+                <p className="text-muted-foreground truncate">
+                  Véhicule: {selectedTrip.vehicle?.registration_number || 'Non assigné'}
+                </p>
+              </div>
               
               {/* Capacity indicator */}
               <div className="pt-2 border-t border-border/50">
@@ -766,9 +768,9 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
             </div>
           )}
 
-          {/* Customer Info */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2 sm:col-span-1">
+          {/* Customer Info - Responsive Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
               <Label className="text-xs">Nom du client *</Label>
               <Input
                 value={customerName}
@@ -777,7 +779,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
                 className="mt-1"
               />
             </div>
-            <div className="col-span-2 sm:col-span-1">
+            <div>
               <Label className="text-xs">Téléphone</Label>
               <Input
                 value={customerPhone}
@@ -791,12 +793,12 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
           {/* Visual Seat Selection */}
           {selectedTrip && selectedCapacity && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <Label className="text-xs flex items-center gap-1.5">
                   <Armchair className="w-4 h-4" />
                   Sélection des sièges
                 </Label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                     <Checkbox 
                       checked={isGroupMode}
@@ -847,10 +849,10 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
             </p>
           </div>
 
-          {/* Payment Method */}
+          {/* Payment Method - Responsive Grid */}
           <div>
             <Label className="text-xs">Moyen de paiement</Label>
-            <div className="grid grid-cols-2 gap-2 mt-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
               {(['cash', 'mobile_money', 'card', 'other'] as PaymentMethod[]).map((method) => {
                 const config = paymentConfig[method];
                 const isActive = paymentMethod === method;
@@ -860,7 +862,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
                     type="button"
                     onClick={() => setPaymentMethod(method)}
                     className={cn(
-                      'px-3 py-2 rounded-lg border text-xs text-left transition-colors',
+                      'px-3 py-2 rounded-lg border text-xs text-center sm:text-left transition-colors',
                       isActive
                         ? 'bg-foreground text-background border-foreground'
                         : 'bg-card border-border text-card-foreground hover:bg-muted'
@@ -892,7 +894,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
             
             {hasExcessBaggage && (
               <div className="bg-muted/50 rounded-lg p-3 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <Label className="text-xs">Poids (kg)</Label>
                     <Input
@@ -915,24 +917,26 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
                     />
                   </div>
                 </div>
-                <div>
-                  <Label className="text-xs">Frais de base (F)</Label>
-                  <Input
-                    type="number"
-                    value={baggageBasePrice}
-                    onChange={(e) => setBaggageBasePrice(e.target.value)}
-                    placeholder="1000"
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Description</Label>
-                  <Input
-                    value={baggageDescription}
-                    onChange={(e) => setBaggageDescription(e.target.value)}
-                    placeholder="Description du bagage"
-                    className="mt-1"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Frais de base (F)</Label>
+                    <Input
+                      type="number"
+                      value={baggageBasePrice}
+                      onChange={(e) => setBaggageBasePrice(e.target.value)}
+                      placeholder="1000"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Description</Label>
+                    <Input
+                      value={baggageDescription}
+                      onChange={(e) => setBaggageDescription(e.target.value)}
+                      placeholder="Description du bagage"
+                      className="mt-1"
+                    />
+                  </div>
                 </div>
                 {baggageTotal > 0 && (
                   <div className="flex justify-between items-center pt-2 border-t border-border/50">
@@ -960,15 +964,15 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+          {/* Actions - Responsive */}
+          <div className="flex flex-col-reverse sm:flex-row gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:flex-1">
               Annuler
             </Button>
             <Button 
               type="submit" 
               disabled={isSubmitting || !tripId || !customerName.trim()}
-              className="flex-1 bg-primary text-primary-foreground"
+              className="w-full sm:flex-1 bg-primary text-primary-foreground"
             >
               {isSubmitting ? 'Enregistrement...' : 'Vendre le ticket'}
             </Button>
