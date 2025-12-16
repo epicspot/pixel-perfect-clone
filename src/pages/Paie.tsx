@@ -47,8 +47,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
-import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2, Download, Pencil, Trash2, CheckCircle, XCircle, Banknote, Search, RefreshCw, Unlock, Lock } from 'lucide-react';
+import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2, Download, Pencil, Trash2, CheckCircle, XCircle, Banknote, Search, RefreshCw, Unlock, Lock, FileSpreadsheet } from 'lucide-react';
 import { generatePayslipPdf, generatePeriodSummaryPdf, generateAllPeriodsStatsPdf } from '@/lib/payrollPdf';
+import * as XLSX from 'xlsx';
 
 interface PayrollPeriod {
   id: number;
@@ -645,6 +646,36 @@ export default function Paie() {
     setPeriodDialogOpen(true);
   };
 
+  // Excel export function
+  const exportToExcel = (period: PayrollPeriod, entriesData: PayrollEntry[]) => {
+    const data = entriesData.map((entry) => ({
+      'Employé': getStaffName(entry.staff_id),
+      'Salaire de base': entry.base_salary,
+      'Primes': entry.bonuses,
+      'Indemnités': entry.allowances,
+      'Retenues': entry.deductions,
+      'Salaire net': entry.net_salary,
+      'Validée': entry.validated_at ? 'Oui' : 'Non',
+      'Date validation': entry.validated_at ? format(new Date(entry.validated_at), 'dd/MM/yyyy') : '-',
+      'Payée': entry.paid_at ? 'Oui' : 'Non',
+      'Mode paiement': entry.payment_method ? getPaymentMethodLabel(entry.payment_method) : '-',
+      'Date paiement': entry.paid_at ? format(new Date(entry.paid_at), 'dd/MM/yyyy') : '-',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Fiches de paie');
+
+    // Auto-adjust column widths
+    const colWidths = Object.keys(data[0] || {}).map((key) => ({
+      wch: Math.max(key.length, 15)
+    }));
+    ws['!cols'] = colWidths;
+
+    XLSX.writeFile(wb, `fiches_paie_${period.label.replace(/\s+/g, '_')}.xlsx`);
+    toast.success('Fichier Excel généré');
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -917,7 +948,14 @@ export default function Paie() {
                           onClick={() => generatePeriodSummaryPdf(selectedPeriod, entries, staffList || [], { name: companySettings?.company_name || 'Transport Express', logoUrl: companySettings?.logo_url, address: companySettings?.address, phone: companySettings?.phone, email: companySettings?.email, rccm: companySettings?.rccm, ifu: companySettings?.ifu })}
                         >
                           <Download className="w-4 h-4 mr-2" />
-                          Export PDF
+                          PDF
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => exportToExcel(selectedPeriod, entries)}
+                        >
+                          <FileSpreadsheet className="w-4 h-4 mr-2" />
+                          Excel
                         </Button>
                         {selectedPeriod.status === 'open' && entries.some(e => !e.validated_at) && (
                           <Button
