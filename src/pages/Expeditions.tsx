@@ -30,6 +30,7 @@ import { logAudit } from "@/lib/audit";
 import { generateShipmentPdf } from "@/lib/documentPdf";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { setGlobalLoading } from "@/hooks/useLoadingProgress";
 
 type ShipmentType = "excess_baggage" | "unaccompanied_baggage" | "parcel" | "express";
 type ShipmentStatus = "pending" | "in_transit" | "delivered" | "cancelled";
@@ -229,6 +230,7 @@ export default function Expeditions() {
       is_excess_baggage: boolean;
       ticket_id?: number | null;
     }) => {
+      setGlobalLoading(true);
       const agency = agencies.find((a: any) => a.id === data.departure_agency_id);
       const agencyCode = (agency as any)?.code || "XXX";
 
@@ -251,6 +253,7 @@ export default function Expeditions() {
       return result as Shipment;
     },
     onSuccess: (data) => {
+      setGlobalLoading(false);
       queryClient.invalidateQueries({ queryKey: ["shipments"] });
       toast.success("Expédition créée avec succès");
       logAudit({
@@ -262,6 +265,7 @@ export default function Expeditions() {
       setIsNewDialogOpen(false);
     },
     onError: (error: any) => {
+      setGlobalLoading(false);
       toast.error(error.message || "Erreur lors de la création");
     },
   });
@@ -807,8 +811,8 @@ function NewShipmentDialog({ onSubmit, isLoading, agencies, trips }: NewShipment
               Annuler
             </Button>
           </DialogClose>
-          <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
-            {isLoading ? "Création..." : "Créer l'expédition"}
+          <Button type="submit" disabled={isLoading} isLoading={isLoading} className="w-full sm:w-auto">
+            Créer l'expédition
           </Button>
         </DialogFooter>
       </form>

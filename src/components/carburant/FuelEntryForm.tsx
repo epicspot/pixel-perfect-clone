@@ -24,6 +24,7 @@ import {
 import { Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { FormGrid, FormFieldWrapper, FormActions } from '@/components/ui/responsive-form';
+import { setGlobalLoading } from '@/hooks/useLoadingProgress';
 
 const fuelEntrySchema = z.object({
   vehicle_id: z.number({ required_error: 'Sélectionnez un véhicule' }),
@@ -75,7 +76,8 @@ export const FuelEntryForm: React.FC<FuelEntryFormProps> = ({ entry, trigger }) 
   const totalAmount = (liters || 0) * (pricePerLiter || 0);
 
   const createMutation = useMutation({
-    mutationFn: (data: FuelEntryFormData) => {
+    mutationFn: async (data: FuelEntryFormData) => {
+      setGlobalLoading(true);
       const vehicle = vehicles?.find((v) => v.id === data.vehicle_id);
       return api.createFuelEntry({
         vehicle_id: data.vehicle_id,
@@ -87,18 +89,21 @@ export const FuelEntryForm: React.FC<FuelEntryFormProps> = ({ entry, trigger }) 
       });
     },
     onSuccess: () => {
+      setGlobalLoading(false);
       toast({ title: 'Entrée carburant ajoutée' });
       invalidateQueries();
       form.reset();
       setOpen(false);
     },
     onError: (error: Error) => {
+      setGlobalLoading(false);
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: FuelEntryFormData) => {
+    mutationFn: async (data: FuelEntryFormData) => {
+      setGlobalLoading(true);
       const vehicle = vehicles?.find((v) => v.id === data.vehicle_id);
       return api.updateFuelEntry(entry!.id, {
         vehicle_id: data.vehicle_id,
@@ -110,11 +115,13 @@ export const FuelEntryForm: React.FC<FuelEntryFormProps> = ({ entry, trigger }) 
       });
     },
     onSuccess: () => {
+      setGlobalLoading(false);
       toast({ title: 'Entrée carburant modifiée' });
       invalidateQueries();
       setOpen(false);
     },
     onError: (error: Error) => {
+      setGlobalLoading(false);
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
     },
   });
@@ -228,8 +235,8 @@ export const FuelEntryForm: React.FC<FuelEntryFormProps> = ({ entry, trigger }) 
             <Button type="button" variant="outline" onClick={() => setOpen(false)} className="w-full sm:w-auto">
               Annuler
             </Button>
-            <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
-              {isPending ? 'Enregistrement...' : isEditing ? 'Modifier' : 'Enregistrer'}
+            <Button type="submit" disabled={isPending} isLoading={isPending} className="w-full sm:w-auto">
+              {isEditing ? 'Modifier' : 'Enregistrer'}
             </Button>
           </FormActions>
         </form>
