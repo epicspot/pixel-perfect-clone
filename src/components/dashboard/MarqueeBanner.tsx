@@ -22,13 +22,13 @@ const MarqueeBanner: React.FC = () => {
   const logoUrl = settings?.logo_url;
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-r from-primary via-primary/90 to-primary rounded-2xl mb-6 shadow-lg">
+    <div className="relative overflow-hidden bg-gradient-to-r from-primary via-primary/90 to-primary rounded-2xl shadow-lg border border-primary/20">
       {/* Animated background pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.1)_10px,rgba(255,255,255,0.1)_20px)]" />
       </div>
       
-      <div className="relative py-3 flex items-center">
+      <div className="relative py-4 flex items-center min-h-[56px]">
         {/* Scrolling content */}
         <div className="flex animate-marquee whitespace-nowrap">
           {[...Array(3)].map((_, idx) => (
@@ -62,7 +62,7 @@ const MarqueeBanner: React.FC = () => {
         </div>
         
         {/* Duplicate for seamless loop */}
-        <div className="flex animate-marquee2 whitespace-nowrap absolute top-0 left-0 py-3">
+        <div className="flex animate-marquee2 whitespace-nowrap absolute top-0 left-0 py-4 min-h-[56px] items-center">
           {[...Array(3)].map((_, idx) => (
             <div key={idx} className="flex items-center mx-8">
               {/* Animated Logo */}
