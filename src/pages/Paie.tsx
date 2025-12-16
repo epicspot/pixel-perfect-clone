@@ -47,9 +47,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
-import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2, Download, Pencil, Trash2, CheckCircle, XCircle, Banknote, Search, RefreshCw, Unlock, Lock, FileSpreadsheet } from 'lucide-react';
+import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2, Download, Pencil, Trash2, CheckCircle, XCircle, Banknote, Search, RefreshCw, Unlock, Lock, FileSpreadsheet, AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { generatePayslipPdf, generatePeriodSummaryPdf, generateAllPeriodsStatsPdf } from '@/lib/payrollPdf';
 import * as XLSX from 'xlsx';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface PayrollPeriod {
   id: number;
@@ -1880,6 +1881,10 @@ export default function Paie() {
               const deductionVariation = calcVariation(currentDeductions, previousDeductions);
               const countVariation = calcVariation(currentEntries.length, previousEntries.length);
 
+              // Alert threshold (10% by default)
+              const ALERT_THRESHOLD = 10;
+              const showAlert = Math.abs(totalVariation) > ALERT_THRESHOLD;
+
               const VariationBadge = ({ value }: { value: number }) => (
                 <Badge 
                   variant={value >= 0 ? "default" : "destructive"}
@@ -1889,62 +1894,185 @@ export default function Paie() {
                 </Badge>
               );
 
+              // Employee comparison data
+              const allStaffIds = new Set([
+                ...currentEntries.map(e => e.staff_id),
+                ...previousEntries.map(e => e.staff_id)
+              ]);
+
+              const employeeComparison = Array.from(allStaffIds).map(staffId => {
+                const current = currentEntries.find(e => e.staff_id === staffId);
+                const previous = previousEntries.find(e => e.staff_id === staffId);
+                const currentNet = current ? Number(current.net_salary) : 0;
+                const previousNet = previous ? Number(previous.net_salary) : 0;
+                const variation = calcVariation(currentNet, previousNet);
+                
+                return {
+                  staffId,
+                  name: getStaffName(staffId),
+                  currentNet,
+                  previousNet,
+                  difference: currentNet - previousNet,
+                  variation,
+                  status: !previous ? 'new' : !current ? 'removed' : 'existing'
+                };
+              }).sort((a, b) => Math.abs(b.variation) - Math.abs(a.variation));
+
               return (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BarChart3 className="w-5 h-5" />
-                      Comparatif N vs N-1
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {currentPeriod.label} vs {previousPeriod.label}
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="p-4 rounded-lg bg-muted/50 space-y-2">
-                        <p className="text-sm text-muted-foreground">Masse salariale</p>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-lg font-bold">{formatCurrency(currentTotal)}</p>
-                            <p className="text-xs text-muted-foreground">vs {formatCurrency(previousTotal)}</p>
+                <>
+                  {/* Alert for significant variation */}
+                  {showAlert && (
+                    <Alert variant={totalVariation > 0 ? "default" : "destructive"}>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Variation importante détectée</AlertTitle>
+                      <AlertDescription>
+                        La masse salariale a {totalVariation > 0 ? 'augmenté' : 'diminué'} de{' '}
+                        <strong>{Math.abs(totalVariation).toFixed(1)}%</strong> par rapport à la période précédente
+                        ({formatCurrency(Math.abs(currentTotal - previousTotal))} {totalVariation > 0 ? 'de plus' : 'de moins'}).
+                        Seuil d'alerte : {ALERT_THRESHOLD}%
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <BarChart3 className="w-5 h-5" />
+                        Comparatif N vs N-1
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {currentPeriod.label} vs {previousPeriod.label}
+                      </p>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Summary cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                          <p className="text-sm text-muted-foreground">Masse salariale</p>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-lg font-bold">{formatCurrency(currentTotal)}</p>
+                              <p className="text-xs text-muted-foreground">vs {formatCurrency(previousTotal)}</p>
+                            </div>
+                            <VariationBadge value={totalVariation} />
                           </div>
-                          <VariationBadge value={totalVariation} />
+                        </div>
+                        <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                          <p className="text-sm text-muted-foreground">Primes</p>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-lg font-bold">{formatCurrency(currentBonuses)}</p>
+                              <p className="text-xs text-muted-foreground">vs {formatCurrency(previousBonuses)}</p>
+                            </div>
+                            <VariationBadge value={bonusVariation} />
+                          </div>
+                        </div>
+                        <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                          <p className="text-sm text-muted-foreground">Retenues</p>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-lg font-bold">{formatCurrency(currentDeductions)}</p>
+                              <p className="text-xs text-muted-foreground">vs {formatCurrency(previousDeductions)}</p>
+                            </div>
+                            <VariationBadge value={deductionVariation} />
+                          </div>
+                        </div>
+                        <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                          <p className="text-sm text-muted-foreground">Nombre de fiches</p>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-lg font-bold">{currentEntries.length}</p>
+                              <p className="text-xs text-muted-foreground">vs {previousEntries.length}</p>
+                            </div>
+                            <VariationBadge value={countVariation} />
+                          </div>
                         </div>
                       </div>
-                      <div className="p-4 rounded-lg bg-muted/50 space-y-2">
-                        <p className="text-sm text-muted-foreground">Primes</p>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-lg font-bold">{formatCurrency(currentBonuses)}</p>
-                            <p className="text-xs text-muted-foreground">vs {formatCurrency(previousBonuses)}</p>
-                          </div>
-                          <VariationBadge value={bonusVariation} />
+
+                      {/* Employee comparison table */}
+                      <div>
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Users className="w-4 h-4" />
+                          Détail par employé
+                        </h4>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Employé</TableHead>
+                                <TableHead className="text-right">{currentPeriod.label}</TableHead>
+                                <TableHead className="text-right">{previousPeriod.label}</TableHead>
+                                <TableHead className="text-right">Écart</TableHead>
+                                <TableHead className="text-right">Variation</TableHead>
+                                <TableHead className="text-center">Statut</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {employeeComparison.slice(0, 10).map((emp) => (
+                                <TableRow key={emp.staffId}>
+                                  <TableCell className="font-medium">{emp.name}</TableCell>
+                                  <TableCell className="text-right">
+                                    {emp.currentNet > 0 ? formatCurrency(emp.currentNet) : '-'}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {emp.previousNet > 0 ? formatCurrency(emp.previousNet) : '-'}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <span className={emp.difference > 0 ? 'text-green-600' : emp.difference < 0 ? 'text-destructive' : ''}>
+                                      {emp.difference !== 0 && (emp.difference > 0 ? '+' : '')}
+                                      {formatCurrency(emp.difference)}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex items-center justify-end gap-1">
+                                      {emp.status === 'existing' && (
+                                        <>
+                                          {emp.variation > 0 ? (
+                                            <TrendingUp className="w-4 h-4 text-green-600" />
+                                          ) : emp.variation < 0 ? (
+                                            <TrendingDown className="w-4 h-4 text-destructive" />
+                                          ) : (
+                                            <Minus className="w-4 h-4 text-muted-foreground" />
+                                          )}
+                                          <span className={emp.variation > 0 ? 'text-green-600' : emp.variation < 0 ? 'text-destructive' : ''}>
+                                            {emp.variation > 0 ? '+' : ''}{emp.variation.toFixed(1)}%
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {emp.status === 'new' && (
+                                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                        Nouveau
+                                      </Badge>
+                                    )}
+                                    {emp.status === 'removed' && (
+                                      <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                                        Absent
+                                      </Badge>
+                                    )}
+                                    {emp.status === 'existing' && emp.variation !== 0 && Math.abs(emp.variation) > 20 && (
+                                      <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                                        <AlertTriangle className="w-3 h-3 mr-1" />
+                                        Notable
+                                      </Badge>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                          {employeeComparison.length > 10 && (
+                            <p className="text-sm text-muted-foreground mt-2 text-center">
+                              Affichage des 10 variations les plus importantes sur {employeeComparison.length} employés
+                            </p>
+                          )}
                         </div>
                       </div>
-                      <div className="p-4 rounded-lg bg-muted/50 space-y-2">
-                        <p className="text-sm text-muted-foreground">Retenues</p>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-lg font-bold">{formatCurrency(currentDeductions)}</p>
-                            <p className="text-xs text-muted-foreground">vs {formatCurrency(previousDeductions)}</p>
-                          </div>
-                          <VariationBadge value={deductionVariation} />
-                        </div>
-                      </div>
-                      <div className="p-4 rounded-lg bg-muted/50 space-y-2">
-                        <p className="text-sm text-muted-foreground">Nombre de fiches</p>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-lg font-bold">{currentEntries.length}</p>
-                            <p className="text-xs text-muted-foreground">vs {previousEntries.length}</p>
-                          </div>
-                          <VariationBadge value={countVariation} />
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </>
               );
             })()}
 
