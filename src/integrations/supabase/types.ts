@@ -914,6 +914,47 @@ export type Database = {
         }
         Relationships: []
       }
+      shipment_route_pricing: {
+        Row: {
+          base_price: number
+          created_at: string
+          id: number
+          is_active: boolean
+          price_per_kg: number
+          route_id: number | null
+          shipment_type: string
+          updated_at: string
+        }
+        Insert: {
+          base_price?: number
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          price_per_kg?: number
+          route_id?: number | null
+          shipment_type: string
+          updated_at?: string
+        }
+        Update: {
+          base_price?: number
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          price_per_kg?: number
+          route_id?: number | null
+          shipment_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipment_route_pricing_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shipments: {
         Row: {
           arrival_agency_id: number | null
