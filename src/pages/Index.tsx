@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -73,6 +74,23 @@ const Index = () => {
     }),
   });
 
+  // Fetch app settings for marquee visibility
+  const { data: appSettings } = useQuery({
+    queryKey: ['app-settings-dashboard'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('key, value')
+        .eq('key', 'show_marquee_banner')
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const showMarqueeBanner = appSettings?.value !== 'false';
+
   const isAdmin = profile?.role === 'admin';
   const isAdminView = ['admin', 'manager', 'accountant'].includes(profile?.role ?? '');
 
@@ -133,7 +151,7 @@ const Index = () => {
     <DashboardLayout>
       <div className="space-y-8">
         {/* Marquee Banner */}
-        <MarqueeBanner />
+        {showMarqueeBanner && <MarqueeBanner />}
         
         {/* Header with Welcome */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in">
