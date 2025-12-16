@@ -76,6 +76,11 @@ const Parametres = () => {
   const [manifestDigits, setManifestDigits] = useState('5');
   const [manifestIncludeAgency, setManifestIncludeAgency] = useState(true);
   const [manifestIncludeDate, setManifestIncludeDate] = useState(true);
+  const [shipmentPrefix, setShipmentPrefix] = useState('EXP');
+  const [shipmentSeparator, setShipmentSeparator] = useState('-');
+  const [shipmentDigits, setShipmentDigits] = useState('6');
+  const [shipmentIncludeAgency, setShipmentIncludeAgency] = useState(true);
+  const [shipmentIncludeDate, setShipmentIncludeDate] = useState(true);
   const [showMarqueeBanner, setShowMarqueeBanner] = useState(true);
   const [marqueeSpeed, setMarqueeSpeed] = useState('30');
   const [marqueeColorFrom, setMarqueeColorFrom] = useState('#059669');
@@ -198,6 +203,11 @@ const Parametres = () => {
       setManifestDigits(findSetting('manifest_digits') || '5');
       setManifestIncludeAgency(findSetting('manifest_include_agency') !== 'false');
       setManifestIncludeDate(findSetting('manifest_include_date') !== 'false');
+      setShipmentPrefix(findSetting('shipment_prefix') || 'EXP');
+      setShipmentSeparator(findSetting('shipment_separator') || '-');
+      setShipmentDigits(findSetting('shipment_digits') || '6');
+      setShipmentIncludeAgency(findSetting('shipment_include_agency') !== 'false');
+      setShipmentIncludeDate(findSetting('shipment_include_date') !== 'false');
       setShowMarqueeBanner(findSetting('show_marquee_banner') !== 'false');
       setMarqueeSpeed(findSetting('marquee_speed') || '30');
       setMarqueeColorFrom(findSetting('marquee_color_from') || '#059669');
@@ -325,6 +335,11 @@ const Parametres = () => {
         updateAppSetting.mutateAsync({ key: 'manifest_digits', value: manifestDigits }),
         updateAppSetting.mutateAsync({ key: 'manifest_include_agency', value: manifestIncludeAgency.toString() }),
         updateAppSetting.mutateAsync({ key: 'manifest_include_date', value: manifestIncludeDate.toString() }),
+        updateAppSetting.mutateAsync({ key: 'shipment_prefix', value: shipmentPrefix }),
+        updateAppSetting.mutateAsync({ key: 'shipment_separator', value: shipmentSeparator }),
+        updateAppSetting.mutateAsync({ key: 'shipment_digits', value: shipmentDigits }),
+        updateAppSetting.mutateAsync({ key: 'shipment_include_agency', value: shipmentIncludeAgency.toString() }),
+        updateAppSetting.mutateAsync({ key: 'shipment_include_date', value: shipmentIncludeDate.toString() }),
       ]);
       toast.success('Configuration de numérotation enregistrée');
     } catch (error) {
@@ -350,6 +365,16 @@ const Parametres = () => {
     if (manifestIncludeDate) parts.push(new Date().toISOString().slice(0, 10).replace(/-/g, ''));
     parts.push('0'.repeat(parseInt(manifestDigits) || 5).slice(0, -1) + '1');
     return manifestPrefix + sep + parts.join(sep);
+  };
+
+  // Generate preview for shipment numbering
+  const getShipmentPreview = () => {
+    const sep = shipmentSeparator === 'none' ? '' : shipmentSeparator;
+    const parts: string[] = [];
+    if (shipmentIncludeAgency) parts.push('OUA');
+    if (shipmentIncludeDate) parts.push(new Date().toISOString().slice(0, 10).replace(/-/g, ''));
+    parts.push('0'.repeat(parseInt(shipmentDigits) || 6).slice(0, -1) + '1');
+    return shipmentPrefix + sep + parts.join(sep);
   };
 
   // Security handlers
@@ -980,7 +1005,7 @@ const Parametres = () => {
               </div>
               <div>
                 <h2 className="font-display font-semibold text-lg">Numérotation des Documents</h2>
-                <p className="text-sm text-muted-foreground">Configurez le format des numéros de tickets et manifestes</p>
+                <p className="text-sm text-muted-foreground">Configurez le format des numéros de tickets, manifestes et bordereaux</p>
               </div>
             </div>
             
@@ -1132,6 +1157,79 @@ const Parametres = () => {
                   <div className="mt-3 p-2 bg-background rounded border">
                     <p className="text-xs text-muted-foreground">Aperçu:</p>
                     <p className="font-mono font-bold text-secondary">{getManifestPreview()}</p>
+                  </div>
+                </div>
+
+                {/* Shipment Numbering */}
+                <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Package className="w-4 h-4 text-orange-500" />
+                    <h3 className="font-medium">Numérotation des Bordereaux d'Expédition</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                      <Label className="text-xs">Préfixe</Label>
+                      <Input
+                        value={shipmentPrefix}
+                        onChange={(e) => setShipmentPrefix(e.target.value.toUpperCase())}
+                        placeholder="EXP"
+                        maxLength={5}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Séparateur</Label>
+                      <Select value={shipmentSeparator} onValueChange={setShipmentSeparator}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="-">Tiret (-)</SelectItem>
+                          <SelectItem value="/">Slash (/)</SelectItem>
+                          <SelectItem value=".">Point (.)</SelectItem>
+                          <SelectItem value="none">Aucun</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Nb. chiffres</Label>
+                      <Select value={shipmentDigits} onValueChange={setShipmentDigits}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="4">4 chiffres</SelectItem>
+                          <SelectItem value="5">5 chiffres</SelectItem>
+                          <SelectItem value="6">6 chiffres</SelectItem>
+                          <SelectItem value="7">7 chiffres</SelectItem>
+                          <SelectItem value="8">8 chiffres</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <Switch 
+                          checked={shipmentIncludeAgency} 
+                          onCheckedChange={setShipmentIncludeAgency}
+                          id="shipment-agency"
+                        />
+                        <Label htmlFor="shipment-agency" className="text-xs">Code agence</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch 
+                          checked={shipmentIncludeDate} 
+                          onCheckedChange={setShipmentIncludeDate}
+                          id="shipment-date"
+                        />
+                        <Label htmlFor="shipment-date" className="text-xs">Date</Label>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3 p-2 bg-background rounded border">
+                    <p className="text-xs text-muted-foreground">Aperçu:</p>
+                    <p className="font-mono font-bold text-orange-500">{getShipmentPreview()}</p>
                   </div>
                 </div>
 
