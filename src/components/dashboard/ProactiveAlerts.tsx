@@ -161,6 +161,53 @@ export const ProactiveAlerts: React.FC<ProactiveAlertsProps> = ({ agencyId }) =>
     enabled: ['admin', 'mechanic', 'manager'].includes(role || ''),
   });
 
+  // Query for idle vehicles (no trip in 24h+)
+  const { data: idleVehicles } = useQuery({
+    queryKey: ['idle-vehicles-alert', effectiveAgencyId],
+    queryFn: async () => {
+      // Get active vehicles
+      let vehicleQuery = supabase
+        .from('vehicles')
+        .select('id, registration_number')
+        .eq('status', 'active');
+      
+      if (effectiveAgencyId) {
+        vehicleQuery = vehicleQuery.eq('agency_id', effectiveAgencyId);
+      }
+      
+      const { data: vehicles } = await vehicleQuery;
+      if (!vehicles || vehicles.length === 0) return [];
+
+      // Get vehicles on active trips
+      const { data: activeTrips } = await supabase
+        .from('trips')
+        .select('vehicle_id')
+        .in('status', ['boarding', 'departed', 'in_progress'])
+        .not('vehicle_id', 'is', null);
+
+      const activeVehicleIds = new Set(activeTrips?.map(t => t.vehicle_id) || []);
+
+      // Get latest trip per vehicle
+      const twentyFourHoursAgo = new Date();
+      twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+
+      const { data: recentTrips } = await supabase
+        .from('trips')
+        .select('vehicle_id, arrival_datetime, departure_datetime')
+        .not('vehicle_id', 'is', null)
+        .in('status', ['arrived', 'departed'])
+        .gte('departure_datetime', twentyFourHoursAgo.toISOString());
+
+      const recentVehicleIds = new Set(recentTrips?.map(t => t.vehicle_id) || []);
+
+      // Filter vehicles that are not on active trip and had no trip in 24h
+      return vehicles.filter(v => 
+        !activeVehicleIds.has(v.id) && !recentVehicleIds.has(v.id)
+      );
+    },
+    enabled: ['admin', 'manager'].includes(role || ''),
+  });
+
   // Build alerts array
   const alerts: Alert[] = [];
 
@@ -254,6 +301,21 @@ export const ProactiveAlerts: React.FC<ProactiveAlertsProps> = ({ agencyId }) =>
       action: {
         label: 'Voir les véhicules',
         href: '/maintenance'
+      }
+    });
+  }
+
+  // Idle vehicles (24h+ without trip)
+  if (idleVehicles && idleVehicles.length > 0) {
+    alerts.push({
+      id: 'idle-vehicles',
+      type: 'warning',
+      icon: Clock,
+      title: `${idleVehicles.length} véhicule(s) immobilisé(s) +24h`,
+      description: `Sans voyage depuis plus de 24 heures: ${idleVehicles.slice(0, 3).map((v: any) => v.registration_number).join(', ')}${idleVehicles.length > 3 ? '...' : ''}`,
+      action: {
+        label: 'Planifier un voyage',
+        href: '/voyages'
       }
     });
   }
