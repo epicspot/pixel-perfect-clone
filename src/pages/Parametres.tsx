@@ -62,6 +62,9 @@ const Parametres = () => {
   const [manifestIncludeAgency, setManifestIncludeAgency] = useState(true);
   const [manifestIncludeDate, setManifestIncludeDate] = useState(true);
   const [showMarqueeBanner, setShowMarqueeBanner] = useState(true);
+  const [marqueeSpeed, setMarqueeSpeed] = useState('30');
+  const [marqueeColorFrom, setMarqueeColorFrom] = useState('#059669');
+  const [marqueeColorTo, setMarqueeColorTo] = useState('#14b8a6');
 
   // Security state
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -180,6 +183,9 @@ const Parametres = () => {
       setManifestIncludeAgency(findSetting('manifest_include_agency') !== 'false');
       setManifestIncludeDate(findSetting('manifest_include_date') !== 'false');
       setShowMarqueeBanner(findSetting('show_marquee_banner') !== 'false');
+      setMarqueeSpeed(findSetting('marquee_speed') || '30');
+      setMarqueeColorFrom(findSetting('marquee_color_from') || '#059669');
+      setMarqueeColorTo(findSetting('marquee_color_to') || '#14b8a6');
     }
   }, [appSettings]);
 
@@ -1167,6 +1173,83 @@ const Parametres = () => {
                   }}
                 />
               </div>
+
+              {showMarqueeBanner && (
+                <>
+                  <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                    <div>
+                      <Label>Vitesse de défilement</Label>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Ajustez la vitesse de défilement de la bande (10 = rapide, 60 = lent)
+                      </p>
+                      <div className="flex items-center gap-4">
+                        <span className="text-xs text-muted-foreground">Rapide</span>
+                        <input
+                          type="range"
+                          min="10"
+                          max="60"
+                          value={marqueeSpeed}
+                          onChange={(e) => setMarqueeSpeed(e.target.value)}
+                          className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                        <span className="text-xs text-muted-foreground">Lent</span>
+                        <span className="text-sm font-medium w-10 text-center">{marqueeSpeed}s</span>
+                        <Button
+                          size="sm"
+                          onClick={() => updateAppSetting.mutate({ key: 'marquee_speed', value: marqueeSpeed })}
+                          disabled={updateAppSetting.isPending}
+                        >
+                          <Save className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                    <div>
+                      <Label>Couleurs de la bande</Label>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Personnalisez les couleurs du dégradé de fond
+                      </p>
+                      <div className="flex flex-wrap items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs">Début:</Label>
+                          <input
+                            type="color"
+                            value={marqueeColorFrom}
+                            onChange={(e) => setMarqueeColorFrom(e.target.value)}
+                            className="w-10 h-10 rounded-lg cursor-pointer border border-border"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs">Fin:</Label>
+                          <input
+                            type="color"
+                            value={marqueeColorTo}
+                            onChange={(e) => setMarqueeColorTo(e.target.value)}
+                            className="w-10 h-10 rounded-lg cursor-pointer border border-border"
+                          />
+                        </div>
+                        <div 
+                          className="flex-1 h-8 rounded-lg min-w-[100px]"
+                          style={{ background: `linear-gradient(to right, ${marqueeColorFrom}, ${marqueeColorTo})` }}
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            updateAppSetting.mutate({ key: 'marquee_color_from', value: marqueeColorFrom });
+                            updateAppSetting.mutate({ key: 'marquee_color_to', value: marqueeColorTo });
+                          }}
+                          disabled={updateAppSetting.isPending}
+                        >
+                          <Save className="w-3 h-3 mr-1" />
+                          Enregistrer
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </Card>
         )}

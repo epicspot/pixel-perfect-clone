@@ -3,7 +3,17 @@ import { Bus } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-const MarqueeBanner: React.FC = () => {
+interface MarqueeBannerProps {
+  speed?: number;
+  colorFrom?: string;
+  colorTo?: string;
+}
+
+const MarqueeBanner: React.FC<MarqueeBannerProps> = ({ 
+  speed = 30, 
+  colorFrom = '#059669', 
+  colorTo = '#14b8a6' 
+}) => {
   const { data: settings } = useQuery({
     queryKey: ['company-settings'],
     queryFn: async () => {
@@ -21,8 +31,23 @@ const MarqueeBanner: React.FC = () => {
   const slogan = settings?.slogan || 'Votre partenaire de confiance pour tous vos voyages • Sécurité • Confort • Ponctualité';
   const logoUrl = settings?.logo_url;
 
+  const gradientStyle = {
+    background: `linear-gradient(to right, ${colorFrom}, ${colorTo})`,
+  };
+
+  const animationStyle = {
+    animation: `marquee ${speed}s linear infinite`,
+  };
+
+  const animation2Style = {
+    animation: `marquee2 ${speed}s linear infinite`,
+  };
+
   return (
-    <div className="relative overflow-hidden bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 dark:from-emerald-700 dark:via-emerald-600 dark:to-teal-600 rounded-2xl shadow-lg border border-emerald-400/30">
+    <div 
+      className="relative overflow-hidden rounded-2xl shadow-lg border border-white/20"
+      style={gradientStyle}
+    >
       {/* Animated background pattern */}
       <div className="absolute inset-0 opacity-15">
         <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.15)_10px,rgba(255,255,255,0.15)_20px)]" />
@@ -30,7 +55,7 @@ const MarqueeBanner: React.FC = () => {
       
       <div className="relative py-4 flex items-center min-h-[60px]">
         {/* Scrolling content */}
-        <div className="flex animate-marquee whitespace-nowrap">
+        <div className="flex whitespace-nowrap" style={animationStyle}>
           {[...Array(3)].map((_, idx) => (
             <div key={idx} className="flex items-center mx-8">
               {/* Animated Logo */}
@@ -62,7 +87,7 @@ const MarqueeBanner: React.FC = () => {
         </div>
         
         {/* Duplicate for seamless loop */}
-        <div className="flex animate-marquee2 whitespace-nowrap absolute top-0 left-0 py-4 min-h-[60px] items-center">
+        <div className="flex whitespace-nowrap absolute top-0 left-0 py-4 min-h-[60px] items-center" style={animation2Style}>
           {[...Array(3)].map((_, idx) => (
             <div key={idx} className="flex items-center mx-8">
               {/* Animated Logo */}
@@ -95,8 +120,14 @@ const MarqueeBanner: React.FC = () => {
       </div>
       
       {/* Gradient overlays for smooth edges */}
-      <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-emerald-600 dark:from-emerald-700 to-transparent z-10" />
-      <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-teal-500 dark:from-teal-600 to-transparent z-10" />
+      <div 
+        className="absolute left-0 top-0 bottom-0 w-20 z-10" 
+        style={{ background: `linear-gradient(to right, ${colorFrom}, transparent)` }}
+      />
+      <div 
+        className="absolute right-0 top-0 bottom-0 w-20 z-10" 
+        style={{ background: `linear-gradient(to left, ${colorTo}, transparent)` }}
+      />
     </div>
   );
 };

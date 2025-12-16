@@ -74,22 +74,27 @@ const Index = () => {
     }),
   });
 
-  // Fetch app settings for marquee visibility
-  const { data: appSettings } = useQuery({
-    queryKey: ['app-settings-dashboard'],
+  // Fetch app settings for marquee visibility and customization
+  const { data: marqueeSettings } = useQuery({
+    queryKey: ['app-settings-marquee'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('app_settings')
         .select('key, value')
-        .eq('key', 'show_marquee_banner')
-        .maybeSingle();
+        .in('key', ['show_marquee_banner', 'marquee_speed', 'marquee_color_from', 'marquee_color_to']);
       if (error) throw error;
       return data;
     },
     staleTime: 1000 * 60 * 5,
   });
 
-  const showMarqueeBanner = appSettings?.value !== 'false';
+  const getMarqueeSetting = (key: string, defaultValue: string) => 
+    marqueeSettings?.find(s => s.key === key)?.value || defaultValue;
+
+  const showMarqueeBanner = getMarqueeSetting('show_marquee_banner', 'true') !== 'false';
+  const marqueeSpeed = parseInt(getMarqueeSetting('marquee_speed', '30'));
+  const marqueeColorFrom = getMarqueeSetting('marquee_color_from', '#059669');
+  const marqueeColorTo = getMarqueeSetting('marquee_color_to', '#14b8a6');
 
   const isAdmin = profile?.role === 'admin';
   const isAdminView = ['admin', 'manager', 'accountant'].includes(profile?.role ?? '');
@@ -151,7 +156,13 @@ const Index = () => {
     <DashboardLayout>
       <div className="space-y-8">
         {/* Marquee Banner */}
-        {showMarqueeBanner && <MarqueeBanner />}
+        {showMarqueeBanner && (
+          <MarqueeBanner 
+            speed={marqueeSpeed} 
+            colorFrom={marqueeColorFrom} 
+            colorTo={marqueeColorTo} 
+          />
+        )}
         
         {/* Header with Welcome */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-fade-in">
