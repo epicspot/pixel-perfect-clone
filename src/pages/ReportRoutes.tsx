@@ -6,21 +6,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Route, TrendingUp, Ticket, Bus, Loader2, Download, FileSpreadsheet } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { generateRoutesReportPdf } from '@/lib/reportsPdf';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { PeriodFilter, PeriodRange, getPeriodFromPreset } from '@/components/reports/PeriodFilter';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
 };
 
 const ReportRoutes = () => {
-  const [period] = useState(() => {
-    const now = new Date();
-    return { start: startOfMonth(now), end: endOfMonth(now) };
-  });
+  const [period, setPeriod] = useState<PeriodRange>(() => getPeriodFromPreset('this_month'));
 
   // Fetch routes with trips and tickets
   const { data: reportData, isLoading } = useQuery({
@@ -133,21 +131,24 @@ const ReportRoutes = () => {
           <div>
             <h1 className="text-3xl font-display font-bold text-foreground">Rapport par Ligne</h1>
             <p className="text-muted-foreground mt-1">
-              Performance des lignes pour {format(period.start, 'MMMM yyyy', { locale: fr })}
+              Performance des lignes — {period.label}
             </p>
           </div>
-          {reportData && reportData.rows.length > 0 && (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleExportPdf}>
-                <Download className="w-4 h-4 mr-2" />
-                PDF
-              </Button>
-              <Button variant="outline" onClick={handleExportExcel}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Excel
-              </Button>
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <PeriodFilter value={period} onChange={setPeriod} />
+            {reportData && reportData.rows.length > 0 && (
+              <>
+                <Button variant="outline" onClick={handleExportPdf}>
+                  <Download className="w-4 h-4 mr-2" />
+                  PDF
+                </Button>
+                <Button variant="outline" onClick={handleExportExcel}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Excel
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Stats Cards */}

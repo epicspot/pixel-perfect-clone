@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, Download, TrendingUp, Users, Ticket, Bus, Loader2, Package, Monitor, Building2 } from 'lucide-react';
+import { FileText, Download, TrendingUp, Users, Ticket, Bus, Loader2, Package, Monitor, Building2, BarChart3 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -173,17 +173,47 @@ const Rapports = () => {
 
         {/* Reports Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Global Synthesis Report Card */}
+          <Card 
+            className="p-6 hover:border-primary/30 hover:shadow-lg transition-all duration-300 cursor-pointer animate-slide-up border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10"
+            onClick={() => navigate('/rapports/synthese')}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 rounded-lg gradient-primary">
+                <BarChart3 className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
+                Complet
+              </span>
+            </div>
+            
+            <h3 className="font-display font-semibold text-lg text-card-foreground mb-2">
+              Synthèse Globale
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Vue d'ensemble de tous les indicateurs clés : recettes, coûts, marge
+            </p>
+            
+            <div className="flex items-center justify-between pt-4 border-t border-border">
+              <span className="text-xs text-muted-foreground">Tous indicateurs</span>
+              <Button variant="ghost" size="sm" className="gap-2 text-primary hover:text-primary">
+                Consulter
+              </Button>
+            </div>
+          </Card>
+
           {/* Manifest Report Card */}
           <Card 
             className="p-6 hover:border-primary/30 hover:shadow-lg transition-all duration-300 cursor-pointer animate-slide-up border-primary/20"
             onClick={() => setManifestOpen(true)}
+            style={{ animationDelay: '50ms' }}
           >
             <div className="flex items-start justify-between mb-4">
               <div className="p-3 rounded-lg gradient-primary">
                 <Bus className="w-6 h-6 text-primary-foreground" />
               </div>
               <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
-                Nouveau
+                PDF
               </span>
             </div>
             
@@ -213,7 +243,7 @@ const Rapports = () => {
                 <Package className="w-6 h-6 text-primary-foreground" />
               </div>
               <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
-                Nouveau
+                PDF & Excel
               </span>
             </div>
             
@@ -243,7 +273,7 @@ const Rapports = () => {
                 <Monitor className="w-6 h-6 text-primary-foreground" />
               </div>
               <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
-                Nouveau
+                PDF & Excel
               </span>
             </div>
             
@@ -266,7 +296,7 @@ const Rapports = () => {
             <Card 
               key={report.id}
               className="p-6 hover:border-primary/30 hover:shadow-lg transition-all duration-300 cursor-pointer animate-slide-up"
-              style={{ animationDelay: `${(index + 3) * 100}ms` }}
+              style={{ animationDelay: `${(index + 4) * 50}ms` }}
               onClick={() => navigate(report.route)}
             >
               <div className="flex items-start justify-between mb-4">

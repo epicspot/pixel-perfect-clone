@@ -7,11 +7,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Building2, TrendingUp, Ticket, Users, Loader2, Download, FileSpreadsheet } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { generateAgencyReportPdf } from '@/lib/reportsPdf';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import { PeriodFilter, PeriodRange, getPeriodFromPreset } from '@/components/reports/PeriodFilter';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
@@ -19,10 +20,7 @@ const formatCurrency = (value: number) => {
 
 const ReportAgency = () => {
   const [selectedAgencyId, setSelectedAgencyId] = useState<string>('all');
-  const [period] = useState(() => {
-    const now = new Date();
-    return { start: startOfMonth(now), end: endOfMonth(now) };
-  });
+  const [period, setPeriod] = useState<PeriodRange>(() => getPeriodFromPreset('this_month'));
 
   // Fetch agencies
   const { data: agencies = [] } = useQuery({
@@ -169,21 +167,24 @@ const ReportAgency = () => {
           <div>
             <h1 className="text-3xl font-display font-bold text-foreground">Rapport par Agence</h1>
             <p className="text-muted-foreground mt-1">
-              Performance des agences pour {format(period.start, 'MMMM yyyy', { locale: fr })}
+              Performance des agences — {period.label}
             </p>
           </div>
-          {reportData && reportData.rows.length > 0 && (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleExportPdf}>
-                <Download className="w-4 h-4 mr-2" />
-                PDF
-              </Button>
-              <Button variant="outline" onClick={handleExportExcel}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Excel
-              </Button>
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <PeriodFilter value={period} onChange={setPeriod} />
+            {reportData && reportData.rows.length > 0 && (
+              <>
+                <Button variant="outline" onClick={handleExportPdf}>
+                  <Download className="w-4 h-4 mr-2" />
+                  PDF
+                </Button>
+                <Button variant="outline" onClick={handleExportExcel}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Excel
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Filters */}
