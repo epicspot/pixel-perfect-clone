@@ -5,8 +5,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/hooks/use-toast';
 import { Eye, Plus, Pencil, Trash2 } from 'lucide-react';
+import { audit } from '@/lib/audit';
 
 const allRoles: UserRole[] = ['admin', 'manager', 'cashier', 'accountant', 'mechanic'];
+
+const fieldLabels: Record<string, string> = {
+  can_view: 'Voir',
+  can_create: 'Créer',
+  can_edit: 'Modifier',
+  can_delete: 'Supprimer',
+};
 
 export const PermissionsManager: React.FC = () => {
   const { allPermissions, isLoading, updatePermission } = useAllPermissions();
@@ -28,6 +36,13 @@ export const PermissionsManager: React.FC = () => {
 
     try {
       await updatePermission(permission.id, { [field]: value });
+      
+      // Log audit for permission change
+      await audit.permissionChange(
+        permission.id,
+        `Permission "${fieldLabels[field]}" ${value ? 'activée' : 'désactivée'} pour le rôle "${roleLabels[permission.role as UserRole]}" sur le module "${moduleLabels[permission.module as ModuleType]}"`
+      );
+      
       toast({
         title: 'Permission mise à jour',
         description: `${moduleLabels[permission.module as ModuleType]} - ${roleLabels[permission.role as UserRole]}`,

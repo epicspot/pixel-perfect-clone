@@ -71,6 +71,9 @@ const actionConfig: Record<string, { label: string; color: string }> = {
   USER_DELETE: { label: 'Suppression utilisateur', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
   PDF_EXPORT: { label: 'Export PDF', color: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400' },
   EXCEL_EXPORT: { label: 'Export Excel', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+  SHIPMENT_CREATE: { label: 'Création expédition', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
+  SHIPMENT_STATUS_CHANGE: { label: 'Statut expédition', color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400' },
+  PERMISSION_CHANGE: { label: 'Modification permission', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' },
 };
 
 const entityLabels: Record<string, string> = {
@@ -83,6 +86,8 @@ const entityLabels: Record<string, string> = {
   payroll_entry: 'Paie',
   user: 'Utilisateur',
   report: 'Rapport',
+  shipment: 'Expédition',
+  permission: 'Permission',
 };
 
 export default function AuditLogs() {

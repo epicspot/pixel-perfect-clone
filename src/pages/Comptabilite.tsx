@@ -7,9 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -19,7 +21,8 @@ import {
   ArrowDownRight,
   Calendar,
   Building2,
-  BarChart3
+  BarChart3,
+  Lock
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -43,10 +46,12 @@ type PeriodType = 'this_month' | 'last_month' | 'this_year' | 'custom';
 
 const Comptabilite = () => {
   const { profile } = useAuth();
+  const { canView } = usePermissions();
   const [periodType, setPeriodType] = useState<PeriodType>('this_month');
   const [agencyFilter, setAgencyFilter] = useState('');
   
   const isAdmin = profile?.role === 'admin';
+  const canViewComptabilite = canView('comptabilite');
   const filterAgencyId = isAdmin 
     ? (agencyFilter ? Number(agencyFilter) : undefined)
     : profile?.agency_id || undefined;
@@ -249,6 +254,16 @@ const Comptabilite = () => {
             </p>
           </div>
         </div>
+
+        {/* Read-only Alert */}
+        {!canViewComptabilite && (
+          <Alert variant="default" className="border-amber-200 bg-amber-50 dark:bg-amber-900/20">
+            <Lock className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-700 dark:text-amber-400">
+              Vous n'avez pas les permissions pour accéder à la comptabilité.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Filters */}
         <div className="flex flex-wrap gap-4 items-end">
