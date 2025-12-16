@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from 'recharts';
 import {
   Select,
   SelectContent,
@@ -869,19 +870,46 @@ export default function Paie() {
           <TabsContent value="entries" className="space-y-4">
             {selectedPeriod && (
               <>
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div>
-                    <h2 className="text-lg font-semibold">{selectedPeriod.label}</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Total net: {formatCurrency(totalNet)} ({entries?.length || 0} fiches)
-                      {entries && entries.length > 0 && (
-                        <span className="ml-2">
-                          • {entries.filter(e => e.validated_at).length} validée(s)
-                        </span>
-                      )}
-                    </p>
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div>
+                      <h2 className="text-lg font-semibold">{selectedPeriod.label}</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Total net: {formatCurrency(totalNet)} ({entries?.length || 0} fiches)
+                        {entries && entries.length > 0 && (
+                          <span className="ml-2">
+                            • {entries.filter(e => e.validated_at).length} validée(s)
+                          </span>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+
+                  {/* Search and Generate All */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <div className="relative flex-1 max-w-sm">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Rechercher un employé..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    {selectedPeriod.status === 'open' && canCreatePayroll && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => generateAllEntriesMutation.mutate()}
+                        disabled={generateAllEntriesMutation.isPending}
+                      >
+                        <RefreshCw className={`w-4 h-4 mr-2 ${generateAllEntriesMutation.isPending ? 'animate-spin' : ''}`} />
+                        Générer toutes les fiches
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 justify-end">
                     {entries && entries.length > 0 && (
                       <>
                         <Button
@@ -918,14 +946,14 @@ export default function Paie() {
                         )}
                       </>
                     )}
-                    {selectedPeriod.status === 'open' && (
-                      <Dialog open={entryDialogOpen} onOpenChange={setEntryDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button>
-                            <Plus className="w-4 h-4 mr-2" />
-                            Ajouter fiche
-                          </Button>
-                        </DialogTrigger>
+                  {selectedPeriod.status === 'open' && canCreatePayroll && (
+                    <Dialog open={entryDialogOpen} onOpenChange={setEntryDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Ajouter fiche
+                        </Button>
+                      </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
                             <DialogTitle>Nouvelle fiche de paie</DialogTitle>
@@ -1025,9 +1053,8 @@ export default function Paie() {
                             </div>
                           </form>
                         </DialogContent>
-                      </Dialog>
-                    )}
-                  </div>
+                    </Dialog>
+                  )}
                 </div>
 
                 <Card>
@@ -1038,7 +1065,7 @@ export default function Paie() {
                           <Skeleton key={i} className="h-12 w-full" />
                         ))}
                       </div>
-                    ) : entries && entries.length > 0 ? (
+                    ) : filteredEntries && filteredEntries.length > 0 ? (
                       <div className="overflow-x-auto">
                         <Table>
                           <TableHeader>
@@ -1055,7 +1082,7 @@ export default function Paie() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {entries.map((entry) => (
+                            {filteredEntries.map((entry) => (
                               <TableRow key={entry.id}>
                                 <TableCell className="font-medium">
                                   {getStaffName(entry.staff_id)}
@@ -1560,6 +1587,115 @@ export default function Paie() {
               </Card>
             </div>
 
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Salary Evolution Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Évolution de la masse salariale</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {periods && periods.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={280}>
+                      <LineChart
+                        data={[...periods].reverse().map((period) => {
+                          const periodEntries = allEntries?.filter(
+                            (e) => e.payroll_period_id === period.id
+                          ) || [];
+                          return {
+                            name: period.label,
+                            total: periodEntries.reduce((sum, e) => sum + Number(e.net_salary), 0),
+                            fiches: periodEntries.length,
+                          };
+                        })}
+                        margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} className="text-muted-foreground" />
+                        <YAxis 
+                          tick={{ fontSize: 12 }} 
+                          tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
+                          className="text-muted-foreground"
+                        />
+                        <Tooltip 
+                          formatter={(value: number) => [formatCurrency(value), 'Masse salariale']}
+                          contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="total" 
+                          stroke="hsl(var(--primary))" 
+                          strokeWidth={2}
+                          dot={{ fill: 'hsl(var(--primary))' }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[280px] flex items-center justify-center text-muted-foreground">
+                      Aucune donnée disponible
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Agency Distribution Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Répartition par agence</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const agencyData = agencies?.map((agency) => {
+                      const agencyEntries = allEntries?.filter(
+                        (e: any) => e.staff?.agency_id === agency.id
+                      ) || [];
+                      return {
+                        name: agency.name,
+                        value: agencyEntries.reduce((sum, e) => sum + Number(e.net_salary), 0),
+                      };
+                    }).filter(d => d.value > 0) || [];
+
+                    const COLORS = [
+                      'hsl(var(--primary))',
+                      'hsl(var(--chart-2))',
+                      'hsl(var(--chart-3))',
+                      'hsl(var(--chart-4))',
+                      'hsl(var(--chart-5))',
+                    ];
+
+                    return agencyData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <PieChart>
+                          <Pie
+                            data={agencyData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                            outerRadius={90}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {agencyData.map((_, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            formatter={(value: number) => [formatCurrency(value), 'Masse salariale']}
+                            contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-[280px] flex items-center justify-center text-muted-foreground">
+                        Aucune donnée disponible
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Stats by Period */}
             <Card>
               <CardHeader>
@@ -1728,6 +1864,34 @@ export default function Paie() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Delete Period Confirmation Dialog */}
+        <AlertDialog open={deletePeriodDialogOpen} onOpenChange={setDeletePeriodDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Supprimer cette période de paie ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {periodToDelete && (
+                  <>
+                    <span className="font-medium text-foreground">{periodToDelete.label}</span>
+                    <br />
+                    Cette action supprimera définitivement la période et toutes ses fiches de paie associées.
+                    Cette action est irréversible.
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setPeriodToDelete(null)}>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => periodToDelete && deletePeriodMutation.mutate(periodToDelete.id)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
