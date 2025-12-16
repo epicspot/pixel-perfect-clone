@@ -36,6 +36,7 @@ import { TodaySessionsWidget } from '@/components/dashboard/TodaySessionsWidget'
 import { getRoleLabel, UserRole } from '@/lib/permissions';
 import { RoleSpecificStats } from '@/components/dashboard/RoleSpecificStats';
 import { ProactiveAlerts } from '@/components/dashboard/ProactiveAlerts';
+import { VehicleAvailabilityWidget } from '@/components/dashboard/VehicleAvailabilityWidget';
 
 type PeriodType = 'today' | 'week' | 'month';
 
@@ -434,6 +435,11 @@ const Index = () => {
             {/* Today's Sessions Widget - for managers and admins */}
             {isAdminView && (
               <TodaySessionsWidget agencyId={selectedAgencyId ? Number(selectedAgencyId) : undefined} />
+            )}
+
+            {/* Vehicle Availability Widget - for managers, admins and mechanics */}
+            {['admin', 'manager', 'mechanic'].includes(profile?.role || '') && (
+              <VehicleAvailabilityWidget agencyId={selectedAgencyId ? Number(selectedAgencyId) : undefined} />
             )}
           </>
         )}
