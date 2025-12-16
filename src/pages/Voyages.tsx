@@ -664,16 +664,41 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
     },
   });
 
+  // Fetch vehicles currently on active trips (boarding or departed)
+  const { data: vehiclesOnActiveTrips } = useQuery({
+    queryKey: ['vehicles-on-active-trips'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('trips')
+        .select('vehicle_id')
+        .in('status', ['boarding', 'departed', 'in_progress']);
+      
+      if (error) throw error;
+      
+      // Return a Set of vehicle IDs that are currently on active trips
+      const activeVehicleIds = new Set<number>();
+      data?.forEach(trip => {
+        if (trip.vehicle_id) {
+          activeVehicleIds.add(trip.vehicle_id);
+        }
+      });
+      return activeVehicleIds;
+    },
+  });
+
   // Get the departure agency of selected route for vehicle filtering
   const routeForVehicleFilter = routes?.find(r => r.id.toString() === routeId);
   const departureAgencyId = routeForVehicleFilter?.departure_agency_id;
 
-  // Filter vehicles based on their current location
+  // Filter vehicles based on their current location and exclude vehicles on active trips
   const vehicles = React.useMemo(() => {
     if (!allVehicles) return [];
     
     return allVehicles.filter(v => {
-      // Vehicles from Siège are always available
+      // Exclude vehicles currently on active trips (boarding, departed, in_progress)
+      if (vehiclesOnActiveTrips?.has(v.id)) return false;
+      
+      // Vehicles from Siège are always available (if not on active trip)
       if (v.agency_id === Number(SIEGE_AGENCY_ID)) return true;
       
       // If no route selected, show all vehicles (for admin) or user's agency vehicles
@@ -688,7 +713,7 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
       // Show vehicle if it's currently at the departure agency
       return currentLocation === departureAgencyId;
     });
-  }, [allVehicles, vehicleLocations, departureAgencyId, isAdmin, userAgencyId]);
+  }, [allVehicles, vehicleLocations, vehiclesOnActiveTrips, departureAgencyId, isAdmin, userAgencyId]);
 
   // Fetch drivers and assistants from staff table
   const { data: allStaff } = useQuery({
