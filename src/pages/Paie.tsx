@@ -1802,6 +1802,152 @@ export default function Paie() {
               </Card>
             </div>
 
+            {/* Bonuses and Deductions Evolution Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Évolution des primes et retenues</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {periods && periods.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart
+                      data={[...periods].reverse().map((period) => {
+                        const periodEntries = allEntries?.filter(
+                          (e) => e.payroll_period_id === period.id
+                        ) || [];
+                        return {
+                          name: period.label,
+                          primes: periodEntries.reduce((sum, e) => sum + Number(e.bonuses), 0),
+                          indemnites: periodEntries.reduce((sum, e) => sum + Number(e.allowances), 0),
+                          retenues: periodEntries.reduce((sum, e) => sum + Number(e.deductions), 0),
+                        };
+                      })}
+                      margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                      <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} tick={{ fontSize: 11 }} />
+                      <Tooltip 
+                        formatter={(value: number, name: string) => [
+                          formatCurrency(value), 
+                          name === 'primes' ? 'Primes' : name === 'indemnites' ? 'Indemnités' : 'Retenues'
+                        ]}
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                      />
+                      <Legend 
+                        formatter={(value) => value === 'primes' ? 'Primes' : value === 'indemnites' ? 'Indemnités' : 'Retenues'}
+                      />
+                      <Bar dataKey="primes" fill="hsl(var(--chart-2))" name="primes" />
+                      <Bar dataKey="indemnites" fill="hsl(var(--chart-3))" name="indemnites" />
+                      <Bar dataKey="retenues" fill="hsl(var(--chart-4))" name="retenues" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                    Aucune donnée disponible
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Comparative N vs N-1 */}
+            {(() => {
+              const sortedPeriods = [...(periods || [])].sort((a, b) => 
+                new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+              );
+              const currentPeriod = sortedPeriods[0];
+              const previousPeriod = sortedPeriods[1];
+
+              if (!currentPeriod || !previousPeriod) return null;
+
+              const currentEntries = allEntries?.filter(e => e.payroll_period_id === currentPeriod.id) || [];
+              const previousEntries = allEntries?.filter(e => e.payroll_period_id === previousPeriod.id) || [];
+
+              const currentTotal = currentEntries.reduce((sum, e) => sum + Number(e.net_salary), 0);
+              const previousTotal = previousEntries.reduce((sum, e) => sum + Number(e.net_salary), 0);
+              const currentBonuses = currentEntries.reduce((sum, e) => sum + Number(e.bonuses), 0);
+              const previousBonuses = previousEntries.reduce((sum, e) => sum + Number(e.bonuses), 0);
+              const currentDeductions = currentEntries.reduce((sum, e) => sum + Number(e.deductions), 0);
+              const previousDeductions = previousEntries.reduce((sum, e) => sum + Number(e.deductions), 0);
+
+              const calcVariation = (current: number, previous: number) => {
+                if (previous === 0) return current > 0 ? 100 : 0;
+                return ((current - previous) / previous) * 100;
+              };
+
+              const totalVariation = calcVariation(currentTotal, previousTotal);
+              const bonusVariation = calcVariation(currentBonuses, previousBonuses);
+              const deductionVariation = calcVariation(currentDeductions, previousDeductions);
+              const countVariation = calcVariation(currentEntries.length, previousEntries.length);
+
+              const VariationBadge = ({ value }: { value: number }) => (
+                <Badge 
+                  variant={value >= 0 ? "default" : "destructive"}
+                  className={value >= 0 ? "bg-green-600" : ""}
+                >
+                  {value >= 0 ? '+' : ''}{value.toFixed(1)}%
+                </Badge>
+              );
+
+              return (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5" />
+                      Comparatif N vs N-1
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      {currentPeriod.label} vs {previousPeriod.label}
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                        <p className="text-sm text-muted-foreground">Masse salariale</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-lg font-bold">{formatCurrency(currentTotal)}</p>
+                            <p className="text-xs text-muted-foreground">vs {formatCurrency(previousTotal)}</p>
+                          </div>
+                          <VariationBadge value={totalVariation} />
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                        <p className="text-sm text-muted-foreground">Primes</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-lg font-bold">{formatCurrency(currentBonuses)}</p>
+                            <p className="text-xs text-muted-foreground">vs {formatCurrency(previousBonuses)}</p>
+                          </div>
+                          <VariationBadge value={bonusVariation} />
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                        <p className="text-sm text-muted-foreground">Retenues</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-lg font-bold">{formatCurrency(currentDeductions)}</p>
+                            <p className="text-xs text-muted-foreground">vs {formatCurrency(previousDeductions)}</p>
+                          </div>
+                          <VariationBadge value={deductionVariation} />
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                        <p className="text-sm text-muted-foreground">Nombre de fiches</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-lg font-bold">{currentEntries.length}</p>
+                            <p className="text-xs text-muted-foreground">vs {previousEntries.length}</p>
+                          </div>
+                          <VariationBadge value={countVariation} />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             {/* Stats by Period */}
             <Card>
               <CardHeader>
