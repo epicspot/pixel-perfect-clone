@@ -401,3 +401,176 @@ export const generateCashiersReportPdf = (
 
   doc.save(`rapport_caissiers_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
 };
+
+// Synthesis Report PDF
+export const generateSynthesisReportPdf = (
+  data: {
+    totalRevenue: number;
+    ticketRevenue: number;
+    shipmentRevenue: number;
+    totalCosts: number;
+    fuelCost: number;
+    maintenanceCost: number;
+    expensesCost: number;
+    netResult: number;
+    profitMargin: number;
+    ticketsCount: number;
+    tripsCount: number;
+    shipmentsCount: number;
+    fuelLiters: number;
+    maintenanceOrders: number;
+    sessionsCount: number;
+    totalDiscrepancy: number;
+    sessionsWithDiscrepancy: number;
+    paymentBreakdown: Array<{ method: string; count: number; total: number }>;
+    expensesByCategory: Array<{ name: string; amount: number }>;
+  },
+  period: { start: Date; end: Date },
+  companyInfo: CompanyInfo
+) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  // Header
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text(companyInfo.name, pageWidth / 2, 20, { align: 'center' });
+
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'normal');
+  doc.text('RAPPORT DE SYNTHÈSE GLOBALE', pageWidth / 2, 28, { align: 'center' });
+
+  doc.setFontSize(10);
+  doc.text(
+    `Période: ${format(period.start, 'dd MMM yyyy', { locale: fr })} - ${format(period.end, 'dd MMM yyyy', { locale: fr })}`,
+    pageWidth / 2,
+    35,
+    { align: 'center' }
+  );
+
+  // Key Financial Indicators
+  let yPos = 50;
+  doc.setFillColor(41, 128, 185);
+  doc.rect(14, yPos - 5, pageWidth - 28, 8, 'F');
+  doc.setTextColor(255);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('INDICATEURS FINANCIERS', 18, yPos);
+  doc.setTextColor(0);
+
+  yPos += 15;
+  const financialData = [
+    ['Recettes Totales', formatCurrency(data.totalRevenue)],
+    ['  • Billets de transport', formatCurrency(data.ticketRevenue)],
+    ['  • Expéditions & Bagages', formatCurrency(data.shipmentRevenue)],
+    ['Coûts Totaux', formatCurrency(data.totalCosts)],
+    ['  • Carburant', formatCurrency(data.fuelCost)],
+    ['  • Maintenance', formatCurrency(data.maintenanceCost)],
+    ['  • Autres dépenses', formatCurrency(data.expensesCost)],
+    ['Résultat Net', formatCurrency(data.netResult)],
+    ['Marge Bénéficiaire', `${data.profitMargin.toFixed(1)}%`],
+  ];
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  financialData.forEach((row, idx) => {
+    const isTotal = idx === 0 || idx === 3 || idx === 7 || idx === 8;
+    if (isTotal) doc.setFont('helvetica', 'bold');
+    else doc.setFont('helvetica', 'normal');
+    
+    doc.text(row[0], 18, yPos);
+    doc.text(row[1], pageWidth - 18, yPos, { align: 'right' });
+    yPos += 7;
+  });
+
+  // Operations Summary
+  yPos += 10;
+  doc.setFillColor(46, 204, 113);
+  doc.rect(14, yPos - 5, pageWidth - 28, 8, 'F');
+  doc.setTextColor(255);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('INDICATEURS OPÉRATIONNELS', 18, yPos);
+  doc.setTextColor(0);
+
+  yPos += 15;
+  const opsData = [
+    ['Tickets vendus', data.ticketsCount.toLocaleString()],
+    ['Voyages effectués', data.tripsCount.toString()],
+    ['Expéditions', data.shipmentsCount.toString()],
+    ['Litres carburant', data.fuelLiters.toLocaleString() + ' L'],
+    ['Ordres de maintenance', data.maintenanceOrders.toString()],
+    ['Sessions de caisse', data.sessionsCount.toString()],
+  ];
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  opsData.forEach((row) => {
+    doc.text(row[0], 18, yPos);
+    doc.text(row[1], pageWidth - 18, yPos, { align: 'right' });
+    yPos += 7;
+  });
+
+  // Payment Breakdown Table
+  yPos += 10;
+  autoTable(doc, {
+    startY: yPos,
+    head: [['Mode de Paiement', 'Tickets', 'Montant']],
+    body: data.paymentBreakdown.map((p) => {
+      const label = p.method === 'cash' ? 'Espèces' : 
+                   p.method === 'mobile_money' ? 'Mobile Money' : 
+                   p.method === 'card' ? 'Carte' : 'Autre';
+      return [label, p.count.toString(), formatCurrency(p.total)];
+    }),
+    headStyles: { fillColor: [52, 73, 94], fontSize: 9 },
+    styles: { fontSize: 8, cellPadding: 3 },
+    columnStyles: {
+      0: { cellWidth: 60 },
+      1: { halign: 'center' },
+      2: { halign: 'right' },
+    },
+  });
+
+  // Expenses by Category (new page if needed)
+  if ((doc as any).lastAutoTable.finalY > 220) {
+    doc.addPage();
+    yPos = 20;
+  } else {
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+  }
+
+  if (data.expensesByCategory.length > 0) {
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Catégorie de Dépense', 'Montant']],
+      body: data.expensesByCategory.slice(0, 10).map((e) => [e.name, formatCurrency(e.amount)]),
+      headStyles: { fillColor: [231, 76, 60], fontSize: 9 },
+      styles: { fontSize: 8, cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 100 },
+        1: { halign: 'right' },
+      },
+    });
+  }
+
+  // Footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(
+      `Généré le ${format(new Date(), 'dd/MM/yyyy à HH:mm', { locale: fr })}`,
+      14,
+      doc.internal.pageSize.getHeight() - 10
+    );
+    doc.text(
+      `Page ${i}/${pageCount}`,
+      pageWidth - 14,
+      doc.internal.pageSize.getHeight() - 10,
+      { align: 'right' }
+    );
+  }
+
+  doc.save(`synthese_globale_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+};

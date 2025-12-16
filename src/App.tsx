@@ -34,6 +34,7 @@ const ReportExpeditions = lazy(() => import("./pages/ReportExpeditions"));
 const ShipmentsDashboard = lazy(() => import("./pages/ShipmentsDashboard"));
 const Guichets = lazy(() => import("./pages/Guichets"));
 const ReportSessions = lazy(() => import("./pages/ReportSessions"));
+const ReportSynthesis = lazy(() => import("./pages/ReportSynthesis"));
 const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Install = lazy(() => import("./pages/Install"));
@@ -285,6 +286,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <ReportSessions />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/rapports/synthese"
+          element={
+            <ProtectedRoute>
+              <ReportSynthesis />
             </ProtectedRoute>
           }
         />
