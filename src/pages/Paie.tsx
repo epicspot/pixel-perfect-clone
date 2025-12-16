@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -46,7 +46,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
-import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2, Download, Pencil, Trash2, CheckCircle, XCircle, Banknote } from 'lucide-react';
+import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2, Download, Pencil, Trash2, CheckCircle, XCircle, Banknote, Search, RefreshCw, Unlock, Lock } from 'lucide-react';
 import { generatePayslipPdf, generatePeriodSummaryPdf, generateAllPeriodsStatsPdf } from '@/lib/payrollPdf';
 
 interface PayrollPeriod {
@@ -96,12 +96,16 @@ export default function Paie() {
   const [entryDialogOpen, setEntryDialogOpen] = useState(false);
   const [editEntryDialogOpen, setEditEntryDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletePeriodDialogOpen, setDeletePeriodDialogOpen] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<PayrollPeriod | null>(null);
+  const [periodToDelete, setPeriodToDelete] = useState<PayrollPeriod | null>(null);
   const [editingEntry, setEditingEntry] = useState<PayrollEntry | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<PayrollEntry | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [bulkPaymentDialogOpen, setBulkPaymentDialogOpen] = useState(false);
   const [entryToPay, setEntryToPay] = useState<PayrollEntry | null>(null);
+  const [editingPeriod, setEditingPeriod] = useState<PayrollPeriod | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Permissions from database
   const canCreatePayroll = canCreate('paie');
@@ -416,6 +420,108 @@ export default function Paie() {
     },
   });
 
+  // Reopen period mutation
+  const reopenPeriodMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase
+        .from('payroll_periods')
+        .update({ status: 'open' })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Période réouverte');
+      queryClient.invalidateQueries({ queryKey: ['payroll-periods'] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  // Update period mutation
+  const updatePeriodMutation = useMutation({
+    mutationFn: async (data: { id: number; label: string; start_date: string; end_date: string }) => {
+      const { error } = await supabase
+        .from('payroll_periods')
+        .update({
+          label: data.label,
+          start_date: data.start_date,
+          end_date: data.end_date,
+        })
+        .eq('id', data.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Période mise à jour');
+      queryClient.invalidateQueries({ queryKey: ['payroll-periods'] });
+      setPeriodDialogOpen(false);
+      setEditingPeriod(null);
+      setPeriodForm({ start_date: '', end_date: '', label: '' });
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  // Delete period mutation
+  const deletePeriodMutation = useMutation({
+    mutationFn: async (id: number) => {
+      // First delete all entries
+      await supabase.from('payroll_entries').delete().eq('payroll_period_id', id);
+      // Then delete period
+      const { error } = await supabase.from('payroll_periods').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Période supprimée');
+      queryClient.invalidateQueries({ queryKey: ['payroll-periods'] });
+      queryClient.invalidateQueries({ queryKey: ['payroll-entries'] });
+      setDeletePeriodDialogOpen(false);
+      setPeriodToDelete(null);
+      if (selectedPeriod?.id === periodToDelete?.id) {
+        setSelectedPeriod(null);
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
+  // Generate all entries mutation
+  const generateAllEntriesMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedPeriod || !staffList) return;
+      
+      const existingStaffIds = new Set(entries?.map(e => e.staff_id) || []);
+      const staffToAdd = staffList.filter(s => !existingStaffIds.has(s.id) && s.base_salary);
+      
+      if (staffToAdd.length === 0) {
+        throw new Error('Tous les employés ont déjà une fiche');
+      }
+      
+      const newEntries = staffToAdd.map(s => ({
+        payroll_period_id: selectedPeriod.id,
+        staff_id: s.id,
+        base_salary: s.base_salary || 0,
+        bonuses: 0,
+        allowances: 0,
+        deductions: 0,
+        net_salary: s.base_salary || 0,
+      }));
+      
+      const { error } = await supabase.from('payroll_entries').insert(newEntries);
+      if (error) throw error;
+      return staffToAdd.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`${count} fiches générées`);
+      queryClient.invalidateQueries({ queryKey: ['payroll-entries'] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Erreur: ${error.message}`);
+    },
+  });
+
   // Mark entry as paid mutation
   const markPaidMutation = useMutation({
     mutationFn: async (data: { id: number; payment_method: string; paid_at: string }) => {
@@ -520,6 +626,24 @@ export default function Paie() {
 
   const totalNet = entries?.reduce((acc, e) => acc + Number(e.net_salary), 0) || 0;
 
+  // Filter entries by search
+  const filteredEntries = useMemo(() => {
+    if (!entries || !searchQuery) return entries || [];
+    const query = searchQuery.toLowerCase();
+    return entries.filter(e => getStaffName(e.staff_id).toLowerCase().includes(query));
+  }, [entries, searchQuery, staffList]);
+
+  // Open period dialog for editing
+  const handleEditPeriod = (period: PayrollPeriod) => {
+    setEditingPeriod(period);
+    setPeriodForm({
+      label: period.label,
+      start_date: period.start_date,
+      end_date: period.end_date,
+    });
+    setPeriodDialogOpen(true);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -555,7 +679,13 @@ export default function Paie() {
           <TabsContent value="periods" className="space-y-4">
             <div className="flex justify-end">
               {canCreatePayroll && (
-                <Dialog open={periodDialogOpen} onOpenChange={setPeriodDialogOpen}>
+                <Dialog open={periodDialogOpen} onOpenChange={(open) => {
+                  setPeriodDialogOpen(open);
+                  if (!open) {
+                    setEditingPeriod(null);
+                    setPeriodForm({ start_date: '', end_date: '', label: '' });
+                  }
+                }}>
                   <DialogTrigger asChild>
                     <Button>
                       <Plus className="w-4 h-4 mr-2" />
@@ -564,12 +694,16 @@ export default function Paie() {
                   </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Créer une période de paie</DialogTitle>
+                    <DialogTitle>{editingPeriod ? 'Modifier la période' : 'Créer une période de paie'}</DialogTitle>
                   </DialogHeader>
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      createPeriodMutation.mutate(periodForm);
+                      if (editingPeriod) {
+                        updatePeriodMutation.mutate({ id: editingPeriod.id, ...periodForm });
+                      } else {
+                        createPeriodMutation.mutate(periodForm);
+                      }
                     }}
                     className="space-y-4"
                   >
@@ -616,13 +750,13 @@ export default function Paie() {
                       >
                         Annuler
                       </Button>
-                      <Button type="submit" disabled={createPeriodMutation.isPending}>
-                        Créer
-                      </Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                        <Button type="submit" disabled={createPeriodMutation.isPending || updatePeriodMutation.isPending}>
+                          {editingPeriod ? 'Enregistrer' : 'Créer'}
+                        </Button>
+                      </div>
+                    </form>
+                  </DialogContent>
+                </Dialog>
               )}
             </div>
 
@@ -662,29 +796,61 @@ export default function Paie() {
                               {period.status === 'open' ? 'Ouverte' : 'Clôturée'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedPeriod(period);
-                                  setActiveTab('entries');
-                                }}
-                              >
-                                Voir fiches
-                              </Button>
-                              {period.status === 'open' && (
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
                                 <Button
-                                  variant="secondary"
+                                  variant="outline"
                                   size="sm"
-                                  onClick={() => closePeriodMutation.mutate(period.id)}
+                                  onClick={() => {
+                                    setSelectedPeriod(period);
+                                    setActiveTab('entries');
+                                  }}
                                 >
-                                  Clôturer
+                                  Voir fiches
                                 </Button>
-                              )}
-                            </div>
-                          </TableCell>
+                                {period.status === 'open' && canEditPayroll && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditPeriod(period)}
+                                    >
+                                      <Pencil className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={() => closePeriodMutation.mutate(period.id)}
+                                    >
+                                      <Lock className="w-4 h-4 mr-1" />
+                                      Clôturer
+                                    </Button>
+                                  </>
+                                )}
+                                {period.status === 'closed' && canEditPayroll && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => reopenPeriodMutation.mutate(period.id)}
+                                  >
+                                    <Unlock className="w-4 h-4 mr-1" />
+                                    Rouvrir
+                                  </Button>
+                                )}
+                                {canDeletePayroll && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      setPeriodToDelete(period);
+                                      setDeletePeriodDialogOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
