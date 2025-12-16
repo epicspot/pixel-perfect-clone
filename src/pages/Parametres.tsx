@@ -61,6 +61,7 @@ const Parametres = () => {
   const [manifestDigits, setManifestDigits] = useState('5');
   const [manifestIncludeAgency, setManifestIncludeAgency] = useState(true);
   const [manifestIncludeDate, setManifestIncludeDate] = useState(true);
+  const [showMarqueeBanner, setShowMarqueeBanner] = useState(true);
 
   // Security state
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -178,6 +179,7 @@ const Parametres = () => {
       setManifestDigits(findSetting('manifest_digits') || '5');
       setManifestIncludeAgency(findSetting('manifest_include_agency') !== 'false');
       setManifestIncludeDate(findSetting('manifest_include_date') !== 'false');
+      setShowMarqueeBanner(findSetting('show_marquee_banner') !== 'false');
     }
   }, [appSettings]);
 
@@ -1130,6 +1132,42 @@ const Parametres = () => {
                 </p>
               </div>
             )}
+          </Card>
+        )}
+
+        {/* Display Settings - Admin only */}
+        {isAdmin && (
+          <Card className="p-6 animate-slide-up" style={{ animationDelay: '130ms' }}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 rounded-lg bg-blue-500/10">
+                <Eye className="w-5 h-5 text-blue-500" />
+              </div>
+              <div>
+                <h2 className="font-display font-semibold text-lg">Affichage Tableau de Bord</h2>
+                <p className="text-sm text-muted-foreground">Personnalisez l'affichage du tableau de bord</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <Label>Bande défilante</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Afficher la bande défilante avec le nom et slogan de la compagnie sur le tableau de bord
+                  </p>
+                </div>
+                <Switch
+                  checked={showMarqueeBanner}
+                  onCheckedChange={(checked) => {
+                    setShowMarqueeBanner(checked);
+                    updateAppSetting.mutate({ 
+                      key: 'show_marquee_banner', 
+                      value: checked.toString() 
+                    });
+                  }}
+                />
+              </div>
+            </div>
           </Card>
         )}
 
