@@ -1209,8 +1209,43 @@ const Parametres = () => {
                     <div>
                       <Label>Couleurs de la bande</Label>
                       <p className="text-xs text-muted-foreground mb-3">
-                        Personnalisez les couleurs du dégradé de fond
+                        Choisissez un thème prédéfini ou personnalisez les couleurs
                       </p>
+                      
+                      {/* Color Presets */}
+                      <div className="mb-4">
+                        <Label className="text-xs mb-2 block">Thèmes prédéfinis</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { name: 'Émeraude', from: '#059669', to: '#14b8a6' },
+                            { name: 'Océan', from: '#0284c7', to: '#06b6d4' },
+                            { name: 'Violet', from: '#7c3aed', to: '#a855f7' },
+                            { name: 'Rose', from: '#db2777', to: '#f472b6' },
+                            { name: 'Soleil', from: '#d97706', to: '#fbbf24' },
+                            { name: 'Forêt', from: '#166534', to: '#22c55e' },
+                            { name: 'Nuit', from: '#1e293b', to: '#475569' },
+                            { name: 'Feu', from: '#dc2626', to: '#f97316' },
+                          ].map((preset) => (
+                            <button
+                              key={preset.name}
+                              onClick={() => {
+                                setMarqueeColorFrom(preset.from);
+                                setMarqueeColorTo(preset.to);
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-all hover:scale-105 hover:shadow-md ${
+                                marqueeColorFrom === preset.from && marqueeColorTo === preset.to 
+                                  ? 'ring-2 ring-primary ring-offset-2' 
+                                  : ''
+                              }`}
+                              style={{ background: `linear-gradient(to right, ${preset.from}, ${preset.to})` }}
+                            >
+                              {preset.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Custom Colors */}
                       <div className="flex flex-wrap items-center gap-4">
                         <div className="flex items-center gap-2">
                           <Label className="text-xs">Début:</Label>
