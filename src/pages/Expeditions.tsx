@@ -114,14 +114,34 @@ const statusColors: Record<ShipmentStatus, string> = {
   cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
-// Génère une référence unique
-function generateReference(type: ShipmentType, agencyCode: string): string {
-  const prefix = type === "express" ? "EXP" : type === "parcel" ? "COL" : "BAG";
-  const year = new Date().getFullYear();
-  const random = Math.floor(Math.random() * 100000)
-    .toString()
-    .padStart(5, "0");
-  return `${prefix}-${agencyCode}-${year}-${random}`;
+// Génère une référence unique basée sur la configuration
+function generateReference(
+  agencyCode: string,
+  sequentialNumber: number,
+  settings: {
+    prefix: string;
+    separator: string;
+    digits: number;
+    includeAgency: boolean;
+    includeDate: boolean;
+  }
+): string {
+  const { prefix, separator, digits, includeAgency, includeDate } = settings;
+  const parts: string[] = [prefix];
+  
+  if (includeAgency && agencyCode) {
+    parts.push(agencyCode);
+  }
+  
+  if (includeDate) {
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+    parts.push(dateStr);
+  }
+  
+  parts.push(sequentialNumber.toString().padStart(digits, "0"));
+  
+  return parts.join(separator);
 }
 
 export default function Expeditions() {
@@ -211,6 +231,38 @@ export default function Expeditions() {
     },
   });
 
+  // Paramètres de numérotation des expéditions
+  const { data: numberingSettings } = useQuery({
+    queryKey: ["shipment-numbering-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("app_settings")
+        .select("key, value")
+        .in("key", [
+          "shipment_prefix",
+          "shipment_separator",
+          "shipment_digits",
+          "shipment_include_agency",
+          "shipment_include_date",
+        ]);
+      
+      if (error) throw error;
+      
+      const settings: Record<string, string> = {};
+      data?.forEach((item) => {
+        settings[item.key] = item.value;
+      });
+      
+      return {
+        prefix: settings.shipment_prefix || "EXP",
+        separator: settings.shipment_separator || "-",
+        digits: parseInt(settings.shipment_digits || "5", 10),
+        includeAgency: settings.shipment_include_agency !== "false",
+        includeDate: settings.shipment_include_date !== "false",
+      };
+    },
+  });
+
   // Création d'une expédition
   const createShipment = useMutation({
     mutationFn: async (data: {
@@ -234,7 +286,23 @@ export default function Expeditions() {
       const agency = agencies.find((a: any) => a.id === data.departure_agency_id);
       const agencyCode = (agency as any)?.code || "XXX";
 
-      const reference = generateReference(data.type, agencyCode);
+      // Récupérer le prochain numéro séquentiel
+      const { count, error: countError } = await supabase
+        .from("shipments")
+        .select("*", { count: "exact", head: true });
+      
+      if (countError) throw countError;
+      
+      const sequentialNumber = (count || 0) + 1;
+      const settings = numberingSettings || {
+        prefix: "EXP",
+        separator: "-",
+        digits: 5,
+        includeAgency: true,
+        includeDate: true,
+      };
+
+      const reference = generateReference(agencyCode, sequentialNumber, settings);
       const total_amount = data.weight_kg * data.price_per_kg + data.base_price;
 
       const { data: result, error } = await supabase
