@@ -48,6 +48,7 @@ import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { toast } from 'sonner';
 import { Plus, Receipt, Pencil, Trash2, Search, TrendingDown } from 'lucide-react';
 import { audit } from '@/lib/audit';
+import { setGlobalLoading } from '@/hooks/useLoadingProgress';
 
 interface Expense {
   id: number;
@@ -174,6 +175,7 @@ export default function Depenses() {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: async (data: typeof form) => {
+      setGlobalLoading(true);
       const { data: newExpense, error } = await supabase.from('expenses').insert({
         agency_id: data.agency_id ? Number(data.agency_id) : null,
         category_id: data.category_id ? Number(data.category_id) : null,
@@ -187,6 +189,7 @@ export default function Depenses() {
       return { expense: newExpense, formData: data };
     },
     onSuccess: ({ expense, formData }) => {
+      setGlobalLoading(false);
       const categoryName = categories?.find(c => c.id === Number(formData.category_id))?.name || 'Autre';
       audit.expenseCreate(expense.id, Number(formData.amount), categoryName, expense.agency_id);
       toast.success('Dépense enregistrée');
@@ -194,6 +197,7 @@ export default function Depenses() {
       resetForm();
     },
     onError: (error: Error) => {
+      setGlobalLoading(false);
       toast.error(`Erreur: ${error.message}`);
     },
   });
@@ -201,6 +205,7 @@ export default function Depenses() {
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: typeof form }) => {
+      setGlobalLoading(true);
       const { error } = await supabase
         .from('expenses')
         .update({
@@ -215,11 +220,13 @@ export default function Depenses() {
       if (error) throw error;
     },
     onSuccess: () => {
+      setGlobalLoading(false);
       toast.success('Dépense modifiée');
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       resetForm();
     },
     onError: (error: Error) => {
+      setGlobalLoading(false);
       toast.error(`Erreur: ${error.message}`);
     },
   });
@@ -411,6 +418,7 @@ export default function Depenses() {
                   <Button
                     type="submit"
                     disabled={createMutation.isPending || updateMutation.isPending}
+                    isLoading={createMutation.isPending || updateMutation.isPending}
                   >
                     {editingExpense ? 'Modifier' : 'Ajouter'}
                   </Button>

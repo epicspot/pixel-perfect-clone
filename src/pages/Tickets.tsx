@@ -49,6 +49,7 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { generateTicketPdf } from '@/lib/documentPdf';
 import { audit } from '@/lib/audit';
+import { setGlobalLoading } from '@/hooks/useLoadingProgress';
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   paid: { label: 'Payé', className: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-800' },
@@ -563,6 +564,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
     }
 
     setIsSubmitting(true);
+    setGlobalLoading(true);
     try {
       // Double-check capacity with fresh data
       const { count, error: countError } = await supabase
@@ -678,6 +680,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
+      setGlobalLoading(false);
     }
   };
 
@@ -1008,9 +1011,10 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
             <Button 
               type="submit" 
               disabled={isSubmitting || !tripId || !customerName.trim()}
+              isLoading={isSubmitting}
               className="w-full sm:flex-1 bg-primary text-primary-foreground"
             >
-              {isSubmitting ? 'Enregistrement...' : 'Vendre le ticket'}
+              Vendre le ticket
             </Button>
           </div>
         </form>

@@ -35,6 +35,7 @@ import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { AgencyFilter, useAgencyFilter } from '@/components/filters/AgencyFilter';
+import { setGlobalLoading } from '@/hooks/useLoadingProgress';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('fr-FR').format(value) + ' F';
@@ -217,6 +218,7 @@ export default function Guichets() {
   // Open session mutation
   const openSessionMutation = useMutation({
     mutationFn: async () => {
+      setGlobalLoading(true);
       if (!selectedCounterId || !user?.id) throw new Error('Données manquantes');
 
       const counter = counters.find(c => c.id === selectedCounterId);
@@ -233,6 +235,7 @@ export default function Guichets() {
       if (error) throw error;
     },
     onSuccess: () => {
+      setGlobalLoading(false);
       toast.success('Session ouverte avec succès');
       queryClient.invalidateQueries({ queryKey: ['active-session'] });
       queryClient.invalidateQueries({ queryKey: ['session-history'] });
@@ -241,6 +244,7 @@ export default function Guichets() {
       setSelectedCounterId(null);
     },
     onError: (error: Error) => {
+      setGlobalLoading(false);
       toast.error(`Erreur: ${error.message}`);
     },
   });
@@ -264,6 +268,7 @@ export default function Guichets() {
   // Close session mutation
   const closeSessionMutation = useMutation({
     mutationFn: async () => {
+      setGlobalLoading(true);
       if (!activeSession) throw new Error('Aucune session active');
 
       const closingCashNum = parseFloat(closingCash) || 0;
@@ -299,6 +304,7 @@ export default function Guichets() {
       }
     },
     onSuccess: () => {
+      setGlobalLoading(false);
       toast.success('Session fermée avec succès');
       queryClient.invalidateQueries({ queryKey: ['active-session'] });
       queryClient.invalidateQueries({ queryKey: ['session-history'] });
@@ -307,6 +313,7 @@ export default function Guichets() {
       setClosingNotes('');
     },
     onError: (error: Error) => {
+      setGlobalLoading(false);
       toast.error(`Erreur: ${error.message}`);
     },
   });
@@ -538,6 +545,7 @@ export default function Guichets() {
                       variant="destructive"
                       onClick={() => closeSessionMutation.mutate()}
                       disabled={!closingCash || closeSessionMutation.isPending}
+                      isLoading={closeSessionMutation.isPending}
                     >
                       Confirmer la fermeture
                     </Button>

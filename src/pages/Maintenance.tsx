@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { Pencil, Trash2, Plus, X, Wrench, CheckCircle, Clock, AlertCircle, AlertTriangle, TrendingUp, Car, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
+import { setGlobalLoading } from '@/hooks/useLoadingProgress';
 
 const Maintenance = () => {
   const { user, profile } = useAuth();
@@ -135,23 +136,37 @@ const Maintenance = () => {
   }, [allMaintenanceData]);
 
   const createMutation = useMutation({
-    mutationFn: (data: Partial<MaintenanceOrder>) => api.createMaintenanceOrder(data),
+    mutationFn: async (data: Partial<MaintenanceOrder>) => {
+      setGlobalLoading(true);
+      return api.createMaintenanceOrder(data);
+    },
     onSuccess: () => {
+      setGlobalLoading(false);
       queryClient.invalidateQueries({ queryKey: ['maintenance-orders'] });
       toast.success('Ordre de maintenance créé');
       resetForm();
     },
-    onError: () => toast.error('Erreur lors de la création'),
+    onError: () => {
+      setGlobalLoading(false);
+      toast.error('Erreur lors de la création');
+    },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<MaintenanceOrder> }) => api.updateMaintenanceOrder(id, data),
+    mutationFn: async ({ id, data }: { id: number; data: Partial<MaintenanceOrder> }) => {
+      setGlobalLoading(true);
+      return api.updateMaintenanceOrder(id, data);
+    },
     onSuccess: () => {
+      setGlobalLoading(false);
       queryClient.invalidateQueries({ queryKey: ['maintenance-orders'] });
       toast.success('Ordre de maintenance modifié');
       resetForm();
     },
-    onError: () => toast.error('Erreur lors de la modification'),
+    onError: () => {
+      setGlobalLoading(false);
+      toast.error('Erreur lors de la modification');
+    },
   });
 
   const resetForm = () => {
@@ -519,7 +534,7 @@ const Maintenance = () => {
                 <Button type="button" variant="outline" size="sm" onClick={resetForm}>
                   <X className="w-4 h-4 mr-1" /> Annuler
                 </Button>
-                <Button type="submit" size="sm" disabled={createMutation.isPending || updateMutation.isPending}>
+                <Button type="submit" size="sm" disabled={createMutation.isPending || updateMutation.isPending} isLoading={createMutation.isPending || updateMutation.isPending}>
                   <Plus className="w-4 h-4 mr-1" /> {editing ? 'Modifier' : 'Créer'}
                 </Button>
               </div>

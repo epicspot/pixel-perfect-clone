@@ -55,6 +55,7 @@ import { toast } from '@/hooks/use-toast';
 import { generateTripManifestPdf } from '@/lib/documentPdf';
 import { supabase } from '@/integrations/supabase/client';
 import { audit } from '@/lib/audit';
+import { setGlobalLoading } from '@/hooks/useLoadingProgress';
 
 // Trip lifecycle statuses
 const statusConfig: Record<string, { label: string; className: string; icon?: React.ReactNode }> = {
@@ -728,6 +729,7 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
     }
 
     setIsSubmitting(true);
+    setGlobalLoading(true);
     try {
       const departureDatetime = `${departureDate}T${departureTime}:00`;
       
@@ -752,6 +754,7 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
       toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
+      setGlobalLoading(false);
     }
   };
 
@@ -914,9 +917,10 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
             <Button 
               type="submit" 
               disabled={isSubmitting || !routeId || !vehicleId || !departureDate || !departureTime}
+              isLoading={isSubmitting}
               className="flex-1 bg-primary text-primary-foreground"
             >
-              {isSubmitting ? 'Création...' : 'Créer le voyage'}
+              Créer le voyage
             </Button>
           </div>
         </form>
