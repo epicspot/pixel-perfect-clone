@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, Download, TrendingUp, Users, Ticket, Bus, Loader2, Package, Monitor } from 'lucide-react';
+import { FileText, Download, TrendingUp, Users, Ticket, Bus, Loader2, Package, Monitor, Building2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -17,27 +17,30 @@ import { toast } from '@/hooks/use-toast';
 const reports = [
   {
     id: 1,
-    title: 'Rapport mensuel des ventes',
-    description: 'Résumé des ventes de tickets pour le mois en cours',
-    icon: TrendingUp,
-    type: 'Ventes',
-    date: 'Décembre 2024',
+    title: 'Rapport par Agence',
+    description: 'Performance des agences : voyages, tickets, recettes et carburant',
+    icon: Building2,
+    type: 'Agences',
+    route: '/rapports/agence',
+    badge: 'PDF & Excel',
   },
   {
     id: 2,
-    title: 'Analyse des passagers',
-    description: 'Statistiques détaillées sur les passagers',
-    icon: Users,
-    type: 'Passagers',
-    date: 'Décembre 2024',
+    title: 'Rapport par Ligne',
+    description: "Taux d'occupation et revenus par ligne de transport",
+    icon: TrendingUp,
+    type: 'Lignes',
+    route: '/rapports/lignes',
+    badge: 'PDF & Excel',
   },
   {
     id: 3,
-    title: 'Performance des lignes',
-    description: "Taux d'occupation et revenus par ligne",
-    icon: Ticket,
-    type: 'Lignes',
-    date: 'Décembre 2024',
+    title: 'Rapport des Caissiers',
+    description: 'Performance des caissiers : sessions, ventes et écarts',
+    icon: Users,
+    type: 'Caissiers',
+    route: '/rapports/caisse',
+    badge: 'PDF & Excel',
   },
 ];
 
@@ -263,14 +266,15 @@ const Rapports = () => {
             <Card 
               key={report.id}
               className="p-6 hover:border-primary/30 hover:shadow-lg transition-all duration-300 cursor-pointer animate-slide-up"
-              style={{ animationDelay: `${(index + 2) * 100}ms` }}
+              style={{ animationDelay: `${(index + 3) * 100}ms` }}
+              onClick={() => navigate(report.route)}
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="p-3 rounded-lg gradient-primary">
                   <report.icon className="w-6 h-6 text-primary-foreground" />
                 </div>
-                <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded">
-                  {report.type}
+                <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
+                  {report.badge}
                 </span>
               </div>
               
@@ -282,10 +286,9 @@ const Rapports = () => {
               </p>
               
               <div className="flex items-center justify-between pt-4 border-t border-border">
-                <span className="text-xs text-muted-foreground">{report.date}</span>
+                <span className="text-xs text-muted-foreground">{report.type}</span>
                 <Button variant="ghost" size="sm" className="gap-2 text-primary hover:text-primary">
-                  <Download className="w-4 h-4" />
-                  Exporter
+                  Consulter
                 </Button>
               </div>
             </Card>

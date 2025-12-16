@@ -47,6 +47,7 @@ const Parametres = () => {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [discrepancyThreshold, setDiscrepancyThreshold] = useState('5000');
+  const [payrollVariationThreshold, setPayrollVariationThreshold] = useState('10');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Numbering settings
@@ -166,6 +167,7 @@ const Parametres = () => {
       const findSetting = (key: string) => appSettings.find(s => s.key === key)?.value;
       
       setDiscrepancyThreshold(findSetting('cash_discrepancy_threshold') || '5000');
+      setPayrollVariationThreshold(findSetting('payroll_variation_threshold') || '10');
       setTicketPrefix(findSetting('ticket_prefix') || 'TKT');
       setTicketSeparator(findSetting('ticket_separator') || '-');
       setTicketDigits(findSetting('ticket_digits') || '6');
@@ -1066,6 +1068,65 @@ const Parametres = () => {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Les managers et administrateurs recevront une notification en temps réel lorsqu'un caissier fermera une session avec un écart dépassant ce seuil.
+                </p>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Payroll Variation Alert Settings - Admin only */}
+        {isAdmin && (
+          <Card className="p-6 animate-slide-up" style={{ animationDelay: '125ms' }}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 rounded-lg bg-orange-500/10">
+                <AlertTriangle className="w-5 h-5 text-orange-500" />
+              </div>
+              <div>
+                <h2 className="font-display font-semibold text-lg">Alertes Variation Paie</h2>
+                <p className="text-sm text-muted-foreground">Configurez le seuil pour déclencher une alerte sur la masse salariale</p>
+              </div>
+            </div>
+            
+            {settingsLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-end gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div className="flex-1">
+                    <Label htmlFor="payroll-threshold">Seuil d'alerte (%)</Label>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Une alerte sera affichée si la variation de la masse salariale dépasse ce pourcentage
+                    </p>
+                    <Input
+                      id="payroll-threshold"
+                      type="number"
+                      value={payrollVariationThreshold}
+                      onChange={(e) => setPayrollVariationThreshold(e.target.value)}
+                      placeholder="10"
+                      min="0"
+                      max="100"
+                      step="1"
+                    />
+                  </div>
+                  <Button 
+                    onClick={() => {
+                      const value = parseInt(payrollVariationThreshold);
+                      if (isNaN(value) || value < 0 || value > 100) {
+                        toast.error('Veuillez entrer un pourcentage valide (0-100)');
+                        return;
+                      }
+                      updateAppSetting.mutate({ key: 'payroll_variation_threshold', value: value.toString() });
+                    }}
+                    disabled={updateAppSetting.isPending}
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Enregistrer
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Dans le module Paie, une alerte sera affichée lors du comparatif N vs N-1 si la variation dépasse ce seuil.
                 </p>
               </div>
             )}

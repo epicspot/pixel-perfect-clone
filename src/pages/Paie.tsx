@@ -222,6 +222,20 @@ export default function Paie() {
     },
   });
 
+  // Fetch payroll variation threshold from app settings
+  const { data: payrollThresholdSetting } = useQuery({
+    queryKey: ['payroll-variation-threshold'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'payroll_variation_threshold')
+        .single();
+      if (error) return 10; // Default 10%
+      return parseInt(data.value) || 10;
+    },
+  });
+
   // Create period mutation
   const createPeriodMutation = useMutation({
     mutationFn: async (data: typeof periodForm) => {
@@ -1881,8 +1895,8 @@ export default function Paie() {
               const deductionVariation = calcVariation(currentDeductions, previousDeductions);
               const countVariation = calcVariation(currentEntries.length, previousEntries.length);
 
-              // Alert threshold (10% by default)
-              const ALERT_THRESHOLD = 10;
+              // Alert threshold from settings
+              const ALERT_THRESHOLD = payrollThresholdSetting || 10;
               const showAlert = Math.abs(totalVariation) > ALERT_THRESHOLD;
 
               const VariationBadge = ({ value }: { value: number }) => (

@@ -6,13 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Wallet, TrendingUp, Ticket, CreditCard, Loader2, Banknote, Smartphone, Users, Building2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { Wallet, TrendingUp, Ticket, CreditCard, Loader2, Banknote, Smartphone, Users, Building2, FileText, ChevronDown, ChevronUp, Download, FileSpreadsheet } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
+import { generateCashiersReportPdf } from '@/lib/reportsPdf';
+import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
@@ -241,18 +244,95 @@ const ReportCashiers = () => {
     enabled: !!fromDate && !!toDate,
   });
 
+  // Company settings for PDF
+  const { data: companySettings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('company_name, logo_url, address, phone, email, rccm, ifu')
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const getTicketsForCashier = (cashierId: string) => {
     return journalData?.tickets.filter((t: any) => t.cashier_id === cashierId) || [];
+  };
+
+  const handleExportPdf = () => {
+    if (!journalData) return;
+    const reportData = {
+      rows: journalData.summary.map((s) => ({
+        cashier_name: s.cashier_name,
+        agency_name: s.agency_name,
+        sessions_count: 0, // Not tracked in this view
+        tickets_sold: s.tickets_count,
+        total_sales: s.total_amount,
+        total_discrepancy: 0,
+      })),
+      totals: {
+        sessions: 0,
+        tickets: journalData.totals.tickets_count,
+        sales: journalData.totals.total_amount,
+        discrepancy: 0,
+      },
+    };
+    generateCashiersReportPdf(reportData, { start: new Date(fromDate), end: new Date(toDate) }, {
+      name: companySettings?.company_name || 'Transport Express',
+      logoUrl: companySettings?.logo_url,
+      address: companySettings?.address || '',
+      phone: companySettings?.phone || '',
+      email: companySettings?.email || '',
+      rccm: companySettings?.rccm || '',
+      ifu: companySettings?.ifu || '',
+    });
+    toast.success('PDF généré');
+  };
+
+  const handleExportExcel = () => {
+    if (!journalData) return;
+    const data = journalData.summary.map((s) => ({
+      'Caissier': s.cashier_name,
+      'Agence': s.agency_name,
+      'Tickets': s.tickets_count,
+      'Total': s.total_amount,
+      'Espèces': s.cash_amount,
+      'Mobile Money': s.mm_amount,
+      'Carte': s.card_amount,
+      'Autre': s.other_amount,
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Journal Caissiers');
+    XLSX.writeFile(wb, `journal_caissiers_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    toast.success('Excel généré');
   };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="animate-fade-in">
-          <h1 className="text-2xl font-display font-bold text-foreground">Journal de Caisse</h1>
-          <p className="text-muted-foreground mt-1">
-            Suivi des encaissements par guichetier
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
+          <div>
+            <h1 className="text-2xl font-display font-bold text-foreground">Journal de Caisse</h1>
+            <p className="text-muted-foreground mt-1">
+              Suivi des encaissements par guichetier
+            </p>
+          </div>
+          {journalData && journalData.summary.length > 0 && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExportPdf}>
+                <Download className="w-4 h-4 mr-2" />
+                PDF
+              </Button>
+              <Button variant="outline" onClick={handleExportExcel}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Excel
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Filters */}
