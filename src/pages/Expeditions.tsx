@@ -692,7 +692,7 @@ function NewShipmentDialog({ onSubmit, isLoading, agencies, trips }: NewShipment
   const [pricePerKg, setPricePerKg] = useState("500");
   const [basePrice, setBasePrice] = useState("1000");
 
-  // Tarifs
+  // Tarifs par défaut
   const { data: pricingData = [] } = useQuery({
     queryKey: ["shipment-pricing"],
     queryFn: async () => {
@@ -702,15 +702,58 @@ function NewShipmentDialog({ onSubmit, isLoading, agencies, trips }: NewShipment
     },
   });
 
+  // Tarifs par trajet
+  const { data: routePricingData = [] } = useQuery({
+    queryKey: ["shipment-route-pricing"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("shipment_route_pricing")
+        .select("*, routes(departure_agency_id, arrival_agency_id)")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Mettre à jour les prix selon le type et les agences sélectionnées
   useEffect(() => {
-    const pricing = (pricingData as any[]).find((p) => p.type === type);
-    if (pricing) {
-      setPricePerKg(String(pricing.price_per_kg));
-      setBasePrice(String(pricing.base_price));
+    // Chercher d'abord un tarif spécifique par trajet
+    const routePrice = (routePricingData as any[]).find((rp) => {
+      if (rp.shipment_type !== type) return false;
+      const route = rp.routes;
+      if (!route) return false;
+      return (
+        route.departure_agency_id === parseInt(departureAgencyId) &&
+        route.arrival_agency_id === parseInt(arrivalAgencyId)
+      );
+    });
+
+    if (routePrice) {
+      // Utiliser le tarif spécifique au trajet
+      setPricePerKg(String(routePrice.price_per_kg));
+      setBasePrice(String(routePrice.base_price));
+    } else {
+      // Sinon utiliser le tarif par défaut
+      const defaultPricing = (pricingData as any[]).find((p) => p.type === type);
+      if (defaultPricing) {
+        setPricePerKg(String(defaultPricing.price_per_kg));
+        setBasePrice(String(defaultPricing.base_price));
+      }
     }
-  }, [type, pricingData]);
+  }, [type, pricingData, routePricingData, departureAgencyId, arrivalAgencyId]);
 
   const totalAmount = (parseFloat(weightKg) || 0) * (parseFloat(pricePerKg) || 0) + (parseFloat(basePrice) || 0);
+
+  // Vérifier si un tarif spécifique au trajet est appliqué
+  const isRoutePricingApplied = (routePricingData as any[]).some((rp) => {
+    if (rp.shipment_type !== type) return false;
+    const route = rp.routes;
+    if (!route) return false;
+    return (
+      route.departure_agency_id === parseInt(departureAgencyId) &&
+      route.arrival_agency_id === parseInt(arrivalAgencyId)
+    );
+  });
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -867,7 +910,14 @@ function NewShipmentDialog({ onSubmit, isLoading, agencies, trips }: NewShipment
           {/* Total */}
           <div className="sm:col-span-2 p-4 bg-muted rounded-lg">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-              <span className="font-medium text-sm sm:text-base">Montant total</span>
+              <div>
+                <span className="font-medium text-sm sm:text-base">Montant total</span>
+                {isRoutePricingApplied && (
+                  <span className="ml-2 text-xs bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-2 py-0.5 rounded">
+                    Tarif trajet
+                  </span>
+                )}
+              </div>
               <span className="text-xl sm:text-2xl font-bold text-primary">{totalAmount.toLocaleString("fr-FR")} F CFA</span>
             </div>
           </div>

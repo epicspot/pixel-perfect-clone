@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Server, Bell, Shield, Package, Save, Building2, Upload, X, Image, AlertTriangle, Hash, FileText, Key, Smartphone, LogOut, Loader2, Eye, EyeOff, QrCode, Copy, Check, UserX, Users } from 'lucide-react';
+import { Server, Bell, Shield, Package, Save, Building2, Upload, X, Image, AlertTriangle, Hash, FileText, Key, Smartphone, LogOut, Loader2, Eye, EyeOff, QrCode, Copy, Check, UserX, Users, MapPin, Plus, Trash2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -262,6 +262,96 @@ const Parametres = () => {
       toast.error(error.message || 'Erreur lors de la mise à jour');
     },
   });
+
+  // Fetch routes for route pricing
+  const { data: routes } = useQuery({
+    queryKey: ['routes-for-pricing'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('routes')
+        .select('id, name, departure_agency_id, arrival_agency_id')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+    enabled: isAdmin,
+  });
+
+  // Fetch route-specific pricing
+  const { data: routePricing, isLoading: routePricingLoading } = useQuery({
+    queryKey: ['shipment-route-pricing'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('shipment_route_pricing')
+        .select('*, routes(name)')
+        .order('route_id');
+      if (error) throw error;
+      return data;
+    },
+    enabled: isAdmin,
+  });
+
+  // State for adding new route pricing
+  const [newRoutePricing, setNewRoutePricing] = useState({
+    route_id: '',
+    shipment_type: '',
+    base_price: '',
+    price_per_kg: '',
+  });
+
+  // Add route pricing mutation
+  const addRoutePricing = useMutation({
+    mutationFn: async (data: { route_id: number; shipment_type: string; base_price: number; price_per_kg: number }) => {
+      const { error } = await supabase
+        .from('shipment_route_pricing')
+        .insert(data);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shipment-route-pricing'] });
+      setNewRoutePricing({ route_id: '', shipment_type: '', base_price: '', price_per_kg: '' });
+      toast.success('Tarif par trajet ajouté');
+    },
+    onError: (error: any) => {
+      if (error.message?.includes('duplicate')) {
+        toast.error('Ce tarif existe déjà pour ce trajet et type');
+      } else {
+        toast.error(error.message || 'Erreur lors de l\'ajout');
+      }
+    },
+  });
+
+  // Delete route pricing mutation
+  const deleteRoutePricing = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase
+        .from('shipment_route_pricing')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shipment-route-pricing'] });
+      toast.success('Tarif supprimé');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Erreur lors de la suppression');
+    },
+  });
+
+  const handleAddRoutePricing = () => {
+    if (!newRoutePricing.route_id || !newRoutePricing.shipment_type || !newRoutePricing.base_price || !newRoutePricing.price_per_kg) {
+      toast.error('Veuillez remplir tous les champs');
+      return;
+    }
+    addRoutePricing.mutate({
+      route_id: parseInt(newRoutePricing.route_id),
+      shipment_type: newRoutePricing.shipment_type,
+      base_price: parseFloat(newRoutePricing.base_price),
+      price_per_kg: parseFloat(newRoutePricing.price_per_kg),
+    });
+  };
 
   // Update company settings mutation
   const updateCompanySettings = useMutation({
@@ -990,6 +1080,165 @@ const Parametres = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Route-Specific Pricing - Admin only */}
+        {isAdmin && (
+          <Card className="p-6 animate-slide-up" style={{ animationDelay: '60ms' }}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-2 rounded-lg bg-orange-500/10">
+                <MapPin className="w-5 h-5 text-orange-500" />
+              </div>
+              <div>
+                <h2 className="font-display font-semibold text-lg">Tarifs par Trajet</h2>
+                <p className="text-sm text-muted-foreground">Définissez des tarifs spéciaux selon les trajets</p>
+              </div>
+            </div>
+            
+            {routePricingLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Add new route pricing */}
+                <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Plus className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Ajouter un tarif spécial</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    <div>
+                      <Label className="text-xs">Trajet</Label>
+                      <Select 
+                        value={newRoutePricing.route_id} 
+                        onValueChange={(v) => setNewRoutePricing(p => ({ ...p, route_id: v }))}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Sélectionner..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {routes?.map((route) => (
+                            <SelectItem key={route.id} value={route.id.toString()}>
+                              {route.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Type d'expédition</Label>
+                      <Select 
+                        value={newRoutePricing.shipment_type} 
+                        onValueChange={(v) => setNewRoutePricing(p => ({ ...p, shipment_type: v }))}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Sélectionner..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(shipmentTypeLabels).map(([key, label]) => (
+                            <SelectItem key={key} value={key}>
+                              {shipmentTypeIcons[key]} {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Frais de base (F)</Label>
+                      <Input
+                        type="number"
+                        value={newRoutePricing.base_price}
+                        onChange={(e) => setNewRoutePricing(p => ({ ...p, base_price: e.target.value }))}
+                        placeholder="0"
+                        className="mt-1"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Prix/kg (F)</Label>
+                      <Input
+                        type="number"
+                        value={newRoutePricing.price_per_kg}
+                        onChange={(e) => setNewRoutePricing(p => ({ ...p, price_per_kg: e.target.value }))}
+                        placeholder="0"
+                        className="mt-1"
+                        min="0"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button 
+                        onClick={handleAddRoutePricing}
+                        disabled={addRoutePricing.isPending}
+                        className="w-full"
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Ajouter
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* List of route pricing */}
+                {routePricing && routePricing.length > 0 ? (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium text-muted-foreground">Tarifs configurés</h3>
+                    <div className="grid gap-2">
+                      {routePricing.map((rp: any) => (
+                        <div 
+                          key={rp.id} 
+                          className="flex items-center justify-between p-3 bg-background rounded-lg border border-border"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg">{shipmentTypeIcons[rp.shipment_type]}</span>
+                            <div>
+                              <div className="font-medium text-sm">
+                                {rp.routes?.name || 'Trajet inconnu'}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {shipmentTypeLabels[rp.shipment_type] || rp.shipment_type}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <div className="text-sm font-medium">
+                                {rp.base_price.toLocaleString()} F + {rp.price_per_kg.toLocaleString()} F/kg
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Ex: 5kg = {(rp.base_price + rp.price_per_kg * 5).toLocaleString()} F
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteRoutePricing.mutate(rp.id)}
+                              disabled={deleteRoutePricing.isPending}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <MapPin className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Aucun tarif spécial configuré</p>
+                    <p className="text-xs mt-1">Les tarifs par défaut seront appliqués pour tous les trajets</p>
+                  </div>
+                )}
+
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    💡 Les tarifs par trajet sont prioritaires sur les tarifs par défaut. Si aucun tarif spécifique n'est défini pour un trajet, le tarif par défaut du type d'expédition sera utilisé.
+                  </p>
                 </div>
               </div>
             )}
