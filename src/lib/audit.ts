@@ -31,7 +31,9 @@ export type AuditAction =
   | "EXCEL_EXPORT"
   // 🚚 Expéditions
   | "SHIPMENT_CREATE"
-  | "SHIPMENT_STATUS_CHANGE";
+  | "SHIPMENT_STATUS_CHANGE"
+  // 🔐 Permissions
+  | "PERMISSION_CHANGE";
 
 export type EntityType =
   | "ticket"
@@ -44,7 +46,9 @@ export type EntityType =
   | "user"
   | "report"
   // 🚚 Expéditions
-  | "shipment";
+  | "shipment"
+  // 🔐 Permissions
+  | "permission";
 
 interface AuditLogParams {
   action: AuditAction;
@@ -305,5 +309,14 @@ export const audit = {
       entityId: shipmentId,
       description: `Expédition ${reference} statut: ${oldStatus} → ${newStatus}`,
       agencyId,
+    }),
+
+  // 🔐 Permissions
+  permissionChange: (permissionId: number, description: string) =>
+    logAudit({
+      action: "PERMISSION_CHANGE",
+      entityType: "permission",
+      entityId: permissionId,
+      description,
     }),
 };

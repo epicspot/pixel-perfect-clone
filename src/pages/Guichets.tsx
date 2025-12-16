@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Monitor, 
   Plus, 
@@ -24,10 +25,12 @@ import {
   Building2,
   User,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Lock
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -39,6 +42,7 @@ const formatCurrency = (value: number) => {
 
 export default function Guichets() {
   const { user, profile } = useAuth();
+  const { canView, canCreate, canEdit, canDelete } = usePermissions();
   const queryClient = useQueryClient();
   const [selectedAgencyId, setSelectedAgencyId] = useState<string>('all');
   const [isCreateCounterOpen, setIsCreateCounterOpen] = useState(false);
@@ -53,6 +57,9 @@ export default function Guichets() {
 
   const isAdmin = profile?.role === 'admin';
   const isManager = profile?.role === 'manager';
+  const canViewGuichets = canView('guichets');
+  const canCreateGuichets = canCreate('guichets');
+  const canEditGuichets = canEdit('guichets');
   const filterAgencyId = isAdmin 
     ? (selectedAgencyId !== 'all' ? parseInt(selectedAgencyId) : null)
     : profile?.agency_id;
@@ -315,6 +322,16 @@ export default function Guichets() {
           <p className="text-muted-foreground">Gérez les guichets et leurs sessions d'ouverture/fermeture</p>
         </div>
 
+        {/* Read-only Alert */}
+        {!canCreateGuichets && !canEditGuichets && (
+          <Alert variant="default" className="border-amber-200 bg-amber-50 dark:bg-amber-900/20">
+            <Lock className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-700 dark:text-amber-400">
+              Accès en lecture seule. Vous pouvez consulter les guichets mais pas les modifier.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Header with filters */}
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           {isAdmin && (
@@ -324,7 +341,7 @@ export default function Guichets() {
             />
           )}
           <div className="flex gap-2">
-            {isAdmin && (
+            {isAdmin && canCreateGuichets && (
               <Dialog open={isCreateCounterOpen} onOpenChange={setIsCreateCounterOpen}>
                 <DialogTrigger asChild>
                   <Button>

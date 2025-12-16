@@ -6,13 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, Download, TrendingUp, Users, Ticket, Bus, Loader2, Package, Monitor, Building2, BarChart3 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { FileText, Download, TrendingUp, Users, Ticket, Bus, Loader2, Package, Monitor, Building2, BarChart3, Lock } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { generateTripManifestPdf } from '@/lib/documentPdf';
 import { toast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const reports = [
   {
@@ -66,8 +68,11 @@ const getPaymentLabel = (method: string | null) => {
 
 const Rapports = () => {
   const navigate = useNavigate();
+  const { canView } = usePermissions();
   const [manifestOpen, setManifestOpen] = useState(false);
   const [selectedTripId, setSelectedTripId] = useState<string>('');
+  
+  const canViewRapports = canView('rapports');
 
   // Fetch company settings
   const { data: companySettings } = useQuery({
@@ -170,6 +175,16 @@ const Rapports = () => {
           <h1 className="text-3xl font-display font-bold text-foreground">Rapports</h1>
           <p className="text-muted-foreground mt-1">Consultez et exportez vos rapports d'activité</p>
         </div>
+
+        {/* Read-only Alert */}
+        {!canViewRapports && (
+          <Alert variant="default" className="border-amber-200 bg-amber-50 dark:bg-amber-900/20">
+            <Lock className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-700 dark:text-amber-400">
+              Vous n'avez pas les permissions pour accéder aux rapports.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Reports Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
