@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Server, Bell, Shield, Package, Save, Building2, Upload, X, Image, AlertTriangle, Hash, FileText, Key, Smartphone, LogOut, Loader2, Eye, EyeOff, QrCode, Copy, Check } from 'lucide-react';
+import { Server, Bell, Shield, Package, Save, Building2, Upload, X, Image, AlertTriangle, Hash, FileText, Key, Smartphone, LogOut, Loader2, Eye, EyeOff, QrCode, Copy, Check, UserX, Users } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -82,6 +82,26 @@ const Parametres = () => {
 
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // Admin logout user state
+  const [adminLogoutDialogOpen, setAdminLogoutDialogOpen] = useState(false);
+  const [selectedUserToLogout, setSelectedUserToLogout] = useState<string | null>(null);
+  const [adminLoggingOut, setAdminLoggingOut] = useState(false);
+
+  // Fetch users for admin
+  const { data: users } = useQuery({
+    queryKey: ['users-for-logout'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, email, role')
+        .neq('id', profile?.id || '')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+    enabled: isAdmin,
+  });
 
   // Check MFA status on mount
   useEffect(() => {
@@ -429,6 +449,28 @@ const Parametres = () => {
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors de la déconnexion');
       setLoggingOut(false);
+    }
+  };
+
+  const handleAdminLogoutUser = async () => {
+    if (!selectedUserToLogout) return;
+    
+    setAdminLoggingOut(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-logout-user', {
+        body: { userId: selectedUserToLogout }
+      });
+      
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      toast.success('L\'utilisateur a été déconnecté de toutes ses sessions');
+      setAdminLogoutDialogOpen(false);
+      setSelectedUserToLogout(null);
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de la déconnexion de l\'utilisateur');
+    } finally {
+      setAdminLoggingOut(false);
     }
   };
 
@@ -1110,8 +1152,19 @@ const Parametres = () => {
               onClick={() => setLogoutDialogOpen(true)}
             >
               <LogOut className="w-4 h-4" />
-              Déconnecter toutes les sessions
+              Déconnecter toutes mes sessions
             </Button>
+
+            {isAdmin && (
+              <Button 
+                variant="outline" 
+                className="w-full justify-start gap-3"
+                onClick={() => setAdminLogoutDialogOpen(true)}
+              >
+                <UserX className="w-4 h-4" />
+                Déconnecter un utilisateur
+              </Button>
+            )}
           </div>
         </Card>
       </div>
@@ -1311,6 +1364,61 @@ const Parametres = () => {
             >
               {loggingOut && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Déconnecter toutes les sessions
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin Logout User Dialog */}
+      <Dialog open={adminLogoutDialogOpen} onOpenChange={(open) => {
+        setAdminLogoutDialogOpen(open);
+        if (!open) setSelectedUserToLogout(null);
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Déconnecter un utilisateur</DialogTitle>
+            <DialogDescription>
+              Sélectionnez l'utilisateur dont vous souhaitez fermer toutes les sessions.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="user-select">Utilisateur</Label>
+            <Select value={selectedUserToLogout || ''} onValueChange={setSelectedUserToLogout}>
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="Sélectionner un utilisateur" />
+              </SelectTrigger>
+              <SelectContent>
+                {users?.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-muted-foreground" />
+                      <span>{user.name}</span>
+                      <span className="text-muted-foreground text-xs">({user.email})</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedUserToLogout && (
+              <Alert className="mt-4">
+                <AlertTriangle className="w-4 h-4" />
+                <AlertDescription>
+                  Cette action déconnectera immédiatement l'utilisateur de toutes ses sessions actives.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setAdminLogoutDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleAdminLogoutUser}
+              disabled={adminLoggingOut || !selectedUserToLogout}
+            >
+              {adminLoggingOut && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Déconnecter l'utilisateur
             </Button>
           </DialogFooter>
         </DialogContent>
