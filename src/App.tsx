@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { hasRouteAccess, UserRole, roleRoutePermissions } from "@/lib/permissions";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { LoadingProgress, LoadingSpinner } from "@/components/ui/loading-progress";
+import { useGlobalLoading } from "@/hooks/useLoadingProgress";
 
 // Lazy load all pages for code-splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -49,11 +51,13 @@ const queryClient = new QueryClient({
   },
 });
 
-// Loading fallback component
+// Loading fallback component with progress bar
 function PageLoader() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+      <LoadingProgress isLoading={true} />
+      <LoadingSpinner size="lg" />
+      <p className="mt-4 text-muted-foreground animate-pulse">Chargement...</p>
     </div>
   );
 }
@@ -304,11 +308,17 @@ function AppRoutes() {
   );
 }
 
+function GlobalLoadingBar() {
+  const { isLoading } = useGlobalLoading();
+  return <LoadingProgress isLoading={isLoading} />;
+}
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
+          <GlobalLoadingBar />
           <Toaster />
           <Sonner />
           <BrowserRouter>
