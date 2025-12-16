@@ -203,6 +203,55 @@ const Voyages = () => {
     },
   });
 
+  // Realtime subscription for trip arrivals - notify when vehicle is freed
+  React.useEffect(() => {
+    const channel = supabase
+      .channel('trip-arrivals')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'trips',
+        },
+        async (payload) => {
+          const newTrip = payload.new as any;
+          const oldTrip = payload.old as any;
+          
+          // Check if status changed to 'arrived'
+          if (newTrip.status === 'arrived' && oldTrip.status !== 'arrived') {
+            // Fetch vehicle and route info
+            const { data: tripData } = await supabase
+              .from('trips')
+              .select('vehicle:vehicles(registration_number), route:routes(name, arrival_agency:agencies(name))')
+              .eq('id', newTrip.id)
+              .single();
+            
+            if (tripData) {
+              const vehicleReg = (tripData.vehicle as any)?.registration_number || 'Véhicule';
+              const routeName = (tripData.route as any)?.name || '';
+              const arrivalAgency = (tripData.route as any)?.arrival_agency?.name || '';
+              
+              toast({
+                title: '🚌 Véhicule libéré',
+                description: `${vehicleReg} est arrivé à ${arrivalAgency} (${routeName}). Le véhicule est maintenant disponible.`,
+              });
+              
+              // Invalidate queries to refresh vehicle availability
+              queryClient.invalidateQueries({ queryKey: ['vehicles-on-active-trips'] });
+              queryClient.invalidateQueries({ queryKey: ['vehicle-current-locations'] });
+              queryClient.invalidateQueries({ queryKey: ['trips'] });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   const handlePrintManifest = async (trip: Trip) => {
     try {
       // Fetch tickets
@@ -664,25 +713,28 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
     },
   });
 
-  // Fetch vehicles currently on active trips (boarding or departed)
+  // Fetch vehicles currently on active trips (boarding or departed) with trip info
   const { data: vehiclesOnActiveTrips } = useQuery({
     queryKey: ['vehicles-on-active-trips'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('trips')
-        .select('vehicle_id')
+        .select('vehicle_id, status, route:routes(name)')
         .in('status', ['boarding', 'departed', 'in_progress']);
       
       if (error) throw error;
       
-      // Return a Set of vehicle IDs that are currently on active trips
-      const activeVehicleIds = new Set<number>();
+      // Return a Map of vehicle IDs -> trip status info
+      const activeVehicles = new Map<number, { status: string; routeName: string }>();
       data?.forEach(trip => {
         if (trip.vehicle_id) {
-          activeVehicleIds.add(trip.vehicle_id);
+          activeVehicles.set(trip.vehicle_id, {
+            status: trip.status,
+            routeName: (trip.route as any)?.name || 'Voyage en cours'
+          });
         }
       });
-      return activeVehicleIds;
+      return activeVehicles;
     },
   });
 
@@ -690,30 +742,70 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
   const routeForVehicleFilter = routes?.find(r => r.id.toString() === routeId);
   const departureAgencyId = routeForVehicleFilter?.departure_agency_id;
 
-  // Filter vehicles based on their current location and exclude vehicles on active trips
-  const vehicles = React.useMemo(() => {
+  // Type for vehicle with availability status
+  type VehicleWithStatus = {
+    vehicle: typeof allVehicles extends (infer T)[] | undefined ? T : never;
+    available: boolean;
+    unavailableReason?: string;
+  };
+
+  // Get all vehicles with availability status
+  const vehiclesWithStatus = React.useMemo((): VehicleWithStatus[] => {
     if (!allVehicles) return [];
     
-    return allVehicles.filter(v => {
-      // Exclude vehicles currently on active trips (boarding, departed, in_progress)
-      if (vehiclesOnActiveTrips?.has(v.id)) return false;
-      
-      // Vehicles from Siège are always available (if not on active trip)
-      if (v.agency_id === Number(SIEGE_AGENCY_ID)) return true;
-      
-      // If no route selected, show all vehicles (for admin) or user's agency vehicles
-      if (!departureAgencyId) {
-        if (isAdmin) return true;
-        return v.agency_id === userAgencyId || v.agency_id === Number(SIEGE_AGENCY_ID);
+    return allVehicles.map(v => {
+      // Check if vehicle is on an active trip
+      const activeTrip = vehiclesOnActiveTrips?.get(v.id);
+      if (activeTrip) {
+        const statusLabel = activeTrip.status === 'boarding' ? 'Embarquement' : 'En route';
+        return {
+          vehicle: v,
+          available: false,
+          unavailableReason: `${statusLabel} - ${activeTrip.routeName}`
+        };
+      }
+
+      // Check if vehicle is in maintenance
+      if (v.status === 'maintenance') {
+        return {
+          vehicle: v,
+          available: false,
+          unavailableReason: 'En maintenance'
+        };
+      }
+
+      // Check if vehicle is inactive
+      if (v.status === 'inactive') {
+        return {
+          vehicle: v,
+          available: false,
+          unavailableReason: 'Inactif'
+        };
       }
       
-      // Determine vehicle's current location
-      const currentLocation = vehicleLocations?.[v.id] || v.agency_id;
+      // Check location availability
+      if (departureAgencyId) {
+        const currentLocation = vehicleLocations?.[v.id] || v.agency_id;
+        if (currentLocation !== departureAgencyId && v.agency_id !== Number(SIEGE_AGENCY_ID)) {
+          return {
+            vehicle: v,
+            available: false,
+            unavailableReason: 'Pas à cette agence'
+          };
+        }
+      }
       
-      // Show vehicle if it's currently at the departure agency
-      return currentLocation === departureAgencyId;
+      // Vehicle is available
+      return { vehicle: v, available: true };
+    }).sort((a, b) => {
+      // Sort: available first, then by registration number
+      if (a.available !== b.available) return a.available ? -1 : 1;
+      return a.vehicle.registration_number.localeCompare(b.vehicle.registration_number);
     });
-  }, [allVehicles, vehicleLocations, vehiclesOnActiveTrips, departureAgencyId, isAdmin, userAgencyId]);
+  }, [allVehicles, vehicleLocations, vehiclesOnActiveTrips, departureAgencyId]);
+
+  // Filter to only available vehicles for selection
+  const availableVehicles = vehiclesWithStatus.filter(v => v.available);
 
   // Fetch drivers and assistants from staff table
   const { data: allStaff } = useQuery({
@@ -835,9 +927,23 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
                   <SelectValue placeholder="Sélectionner un véhicule" />
                 </SelectTrigger>
                 <SelectContent>
-                  {vehicles?.map((v) => (
-                    <SelectItem key={v.id} value={v.id.toString()}>
-                      {v.registration_number} ({v.seats} places)
+                  {vehiclesWithStatus?.map(({ vehicle: v, available, unavailableReason }) => (
+                    <SelectItem 
+                      key={v.id} 
+                      value={v.id.toString()}
+                      disabled={!available}
+                      className={cn(!available && "opacity-50")}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className={cn(!available && "line-through")}>
+                          {v.registration_number} ({v.seats} places)
+                        </span>
+                        {!available && (
+                          <span className="text-[10px] text-destructive font-medium">
+                            • {unavailableReason}
+                          </span>
+                        )}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
