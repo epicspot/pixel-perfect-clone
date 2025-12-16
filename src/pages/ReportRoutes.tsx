@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Route, TrendingUp, Ticket, Bus, Loader2 } from 'lucide-react';
+import { Route, TrendingUp, Ticket, Bus, Loader2, Download, FileSpreadsheet } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { generateRoutesReportPdf } from '@/lib/reportsPdf';
+import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
@@ -75,14 +79,75 @@ const ReportRoutes = () => {
     },
   });
 
+  // Company settings for PDF
+  const { data: companySettings } = useQuery({
+    queryKey: ['company-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('company_name, logo_url, address, phone, email, rccm, ifu')
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const handleExportPdf = () => {
+    if (!reportData) return;
+    generateRoutesReportPdf(reportData, period, {
+      name: companySettings?.company_name || 'Transport Express',
+      logoUrl: companySettings?.logo_url,
+      address: companySettings?.address || '',
+      phone: companySettings?.phone || '',
+      email: companySettings?.email || '',
+      rccm: companySettings?.rccm || '',
+      ifu: companySettings?.ifu || '',
+    });
+    toast.success('PDF généré');
+  };
+
+  const handleExportExcel = () => {
+    if (!reportData) return;
+    const data = reportData.rows.map((row) => ({
+      'Ligne': row.route_name,
+      'Départ': row.departure,
+      'Arrivée': row.arrival,
+      'Prix base': row.base_price,
+      'Voyages': row.trips_count,
+      'Tickets': row.tickets_sold,
+      'Taux occupation': `${row.occupancy}%`,
+      'Recettes': row.revenue,
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Rapport Lignes');
+    XLSX.writeFile(wb, `rapport_lignes_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    toast.success('Excel généré');
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="animate-fade-in">
-          <h1 className="text-3xl font-display font-bold text-foreground">Rapport par Ligne</h1>
-          <p className="text-muted-foreground mt-1">
-            Performance des lignes pour {format(period.start, 'MMMM yyyy', { locale: fr })}
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-foreground">Rapport par Ligne</h1>
+            <p className="text-muted-foreground mt-1">
+              Performance des lignes pour {format(period.start, 'MMMM yyyy', { locale: fr })}
+            </p>
+          </div>
+          {reportData && reportData.rows.length > 0 && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExportPdf}>
+                <Download className="w-4 h-4 mr-2" />
+                PDF
+              </Button>
+              <Button variant="outline" onClick={handleExportExcel}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Excel
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Stats Cards */}
