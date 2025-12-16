@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +9,7 @@ import { hasRouteAccess, UserRole, roleRoutePermissions } from "@/lib/permission
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LoadingProgress, LoadingSpinner } from "@/components/ui/loading-progress";
 import { useGlobalLoading } from "@/hooks/useLoadingProgress";
+import { useInterfaceTheme } from "@/hooks/useInterfaceTheme";
 
 // Lazy load all pages for code-splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -313,11 +314,18 @@ function GlobalLoadingBar() {
   return <LoadingProgress isLoading={isLoading} />;
 }
 
+// Initialize interface theme on app load
+function InterfaceThemeInitializer() {
+  useInterfaceTheme();
+  return null;
+}
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
+          <InterfaceThemeInitializer />
           <GlobalLoadingBar />
           <Toaster />
           <Sonner />
