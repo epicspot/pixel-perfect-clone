@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { VehicleHistoryTimeline } from './VehicleHistoryTimeline';
 import { 
   Bus, 
   MapPin, 
@@ -11,7 +14,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   Clock,
-  XCircle
+  XCircle,
+  History
 } from 'lucide-react';
 
 interface VehicleAvailabilityWidgetProps {
@@ -36,6 +40,7 @@ interface VehicleWithStatus {
 export const VehicleAvailabilityWidget: React.FC<VehicleAvailabilityWidgetProps> = ({ agencyId }) => {
   const { profile } = useAuth();
   const role = profile?.role;
+  const [selectedVehicle, setSelectedVehicle] = useState<VehicleWithStatus | null>(null);
 
   const { data: vehiclesWithStatus, isLoading } = useQuery({
     queryKey: ['vehicles-availability-status', agencyId],
@@ -250,15 +255,17 @@ export const VehicleAvailabilityWidget: React.FC<VehicleAvailabilityWidgetProps>
           return (
             <div 
               key={vehicle.id}
-              className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+              className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer group"
+              onClick={() => setSelectedVehicle(vehicle)}
             >
               <div className="flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${statusInfo.color}`}>
                   <StatusIcon className={`w-4 h-4 ${statusInfo.iconColor}`} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">
+                  <p className="text-sm font-medium text-foreground flex items-center gap-1">
                     {vehicle.registration_number}
+                    <History className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {vehicle.brand} {vehicle.model} • {vehicle.seats} places
@@ -287,6 +294,24 @@ export const VehicleAvailabilityWidget: React.FC<VehicleAvailabilityWidgetProps>
           </div>
         )}
       </div>
+
+      {/* Vehicle History Dialog */}
+      <Dialog open={!!selectedVehicle} onOpenChange={(open) => !open && setSelectedVehicle(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="w-5 h-5 text-primary" />
+              Historique des déplacements
+            </DialogTitle>
+          </DialogHeader>
+          {selectedVehicle && (
+            <VehicleHistoryTimeline 
+              vehicleId={selectedVehicle.id} 
+              vehicleRegistration={selectedVehicle.registration_number}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
