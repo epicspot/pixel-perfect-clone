@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Server, Bell, Shield, Package, Save, Building2, Upload, X, Image, AlertTriangle, Hash, FileText, Key, Smartphone, LogOut, Loader2, Eye, EyeOff, QrCode, Copy, Check, UserX, Users, MapPin, Plus, Trash2 } from 'lucide-react';
+import { Server, Bell, Shield, Package, Save, Building2, Upload, X, Image, AlertTriangle, Hash, FileText, Key, Smartphone, LogOut, Loader2, Eye, EyeOff, QrCode, Copy, Check, UserX, Users, MapPin, Plus, Trash2, Palette } from 'lucide-react';
+import { useInterfaceTheme, interfaceThemes } from '@/hooks/useInterfaceTheme';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -50,6 +51,7 @@ const Parametres = () => {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = profile?.role === 'admin';
+  const { currentThemeId, themes, setTheme, isSaving: themeSaving } = useInterfaceTheme();
   const [editedPricing, setEditedPricing] = useState<Record<string, { base_price: string; price_per_kg: string; description: string; is_active: boolean }>>({});
   const [previewWeight, setPreviewWeight] = useState('5');
   const [companyName, setCompanyName] = useState('');
@@ -1777,6 +1779,55 @@ const Parametres = () => {
             </div>
           </Card>
         )}
+
+        {/* Interface Theme Selection */}
+        <Card className="p-6 animate-slide-up" style={{ animationDelay: '135ms' }}>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Palette className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="font-display font-semibold text-lg">Couleur de l'interface</h2>
+              <p className="text-sm text-muted-foreground">Personnalisez la couleur principale de l'application</p>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {themes.map((theme) => {
+                const isSelected = currentThemeId === theme.id;
+                return (
+                  <button
+                    key={theme.id}
+                    onClick={() => setTheme(theme.id)}
+                    disabled={themeSaving}
+                    className={`relative p-4 rounded-xl border-2 transition-all duration-200 hover:scale-105 ${
+                      isSelected 
+                        ? 'border-primary ring-2 ring-primary/20' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <div 
+                        className="w-10 h-10 rounded-full shadow-md"
+                        style={{ background: `hsl(${theme.primary})` }}
+                      />
+                      <span className="text-xs font-medium text-center">{theme.name}</span>
+                    </div>
+                    {isSelected && (
+                      <div className="absolute top-2 right-2">
+                        <Check className="w-4 h-4 text-primary" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Le changement de couleur s'applique immédiatement à toute l'interface. Cette préférence est sauvegardée automatiquement.
+            </p>
+          </div>
+        </Card>
 
         {/* Notifications */}
         <Card className="p-6 animate-slide-up" style={{ animationDelay: '100ms' }}>
