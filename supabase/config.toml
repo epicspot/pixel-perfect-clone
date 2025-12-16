@@ -1,1 +1,10 @@
 project_id = "ohgpgjxwwvomtgwrknzt"
+
+[functions.admin-logout-user]
+verify_jwt = true
+
+[functions.seed-admin]
+verify_jwt = false
+
+[functions.notify-idle-vehicles]
+verify_jwt = false
