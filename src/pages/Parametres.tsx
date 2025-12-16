@@ -65,6 +65,7 @@ const Parametres = () => {
   const [marqueeSpeed, setMarqueeSpeed] = useState('30');
   const [marqueeColorFrom, setMarqueeColorFrom] = useState('#059669');
   const [marqueeColorTo, setMarqueeColorTo] = useState('#14b8a6');
+  const [marqueeCustomText, setMarqueeCustomText] = useState('');
 
   // Security state
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -186,6 +187,7 @@ const Parametres = () => {
       setMarqueeSpeed(findSetting('marquee_speed') || '30');
       setMarqueeColorFrom(findSetting('marquee_color_from') || '#059669');
       setMarqueeColorTo(findSetting('marquee_color_to') || '#14b8a6');
+      setMarqueeCustomText(findSetting('marquee_custom_text') || '');
     }
   }, [appSettings]);
 
@@ -1275,6 +1277,31 @@ const Parametres = () => {
                             updateAppSetting.mutate({ key: 'marquee_color_from', value: marqueeColorFrom });
                             updateAppSetting.mutate({ key: 'marquee_color_to', value: marqueeColorTo });
                           }}
+                          disabled={updateAppSetting.isPending}
+                        >
+                          <Save className="w-3 h-3 mr-1" />
+                          Enregistrer
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                    <div>
+                      <Label>Texte personnalisé</Label>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Remplacer le slogan par un texte personnalisé (laissez vide pour utiliser le slogan)
+                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          value={marqueeCustomText}
+                          onChange={(e) => setMarqueeCustomText(e.target.value)}
+                          placeholder="Ex: Promotion spéciale - 20% de réduction sur tous les voyages !"
+                          className="flex-1"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => updateAppSetting.mutate({ key: 'marquee_custom_text', value: marqueeCustomText })}
                           disabled={updateAppSetting.isPending}
                         >
                           <Save className="w-3 h-3 mr-1" />

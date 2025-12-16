@@ -95,6 +95,7 @@ const Index = () => {
   const marqueeSpeed = parseInt(getMarqueeSetting('marquee_speed', '30'));
   const marqueeColorFrom = getMarqueeSetting('marquee_color_from', '#059669');
   const marqueeColorTo = getMarqueeSetting('marquee_color_to', '#14b8a6');
+  const marqueeCustomText = getMarqueeSetting('marquee_custom_text', '');
 
   const isAdmin = profile?.role === 'admin';
   const isAdminView = ['admin', 'manager', 'accountant'].includes(profile?.role ?? '');
@@ -160,7 +161,8 @@ const Index = () => {
           <MarqueeBanner 
             speed={marqueeSpeed} 
             colorFrom={marqueeColorFrom} 
-            colorTo={marqueeColorTo} 
+            colorTo={marqueeColorTo}
+            customText={marqueeCustomText}
           />
         )}
         

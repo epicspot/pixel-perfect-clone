@@ -7,12 +7,14 @@ interface MarqueeBannerProps {
   speed?: number;
   colorFrom?: string;
   colorTo?: string;
+  customText?: string;
 }
 
 const MarqueeBanner: React.FC<MarqueeBannerProps> = ({ 
   speed = 30, 
   colorFrom = '#059669', 
-  colorTo = '#14b8a6' 
+  colorTo = '#14b8a6',
+  customText = ''
 }) => {
   const { data: settings } = useQuery({
     queryKey: ['company-settings'],
@@ -30,6 +32,7 @@ const MarqueeBanner: React.FC<MarqueeBannerProps> = ({
   const companyName = settings?.company_name || 'TRANSPORT BURKINA EXPRESS';
   const slogan = settings?.slogan || 'Votre partenaire de confiance pour tous vos voyages • Sécurité • Confort • Ponctualité';
   const logoUrl = settings?.logo_url;
+  const displayText = customText || slogan;
 
   const gradientStyle = {
     background: `linear-gradient(to right, ${colorFrom}, ${colorTo})`,
@@ -75,9 +78,9 @@ const MarqueeBanner: React.FC<MarqueeBannerProps> = ({
               {/* Separator */}
               <span className="text-white/70 mx-4">✦</span>
               
-              {/* Slogan */}
+              {/* Slogan / Custom Text */}
               <span className="text-sm md:text-base text-white/95 font-medium drop-shadow-sm">
-                {slogan}
+                {displayText}
               </span>
               
               {/* Separator */}
@@ -107,9 +110,9 @@ const MarqueeBanner: React.FC<MarqueeBannerProps> = ({
               {/* Separator */}
               <span className="text-white/70 mx-4">✦</span>
               
-              {/* Slogan */}
+              {/* Slogan / Custom Text */}
               <span className="text-sm md:text-base text-white/95 font-medium drop-shadow-sm">
-                {slogan}
+                {displayText}
               </span>
               
               {/* Separator */}
