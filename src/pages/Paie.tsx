@@ -676,6 +676,66 @@ export default function Paie() {
     toast.success('Fichier Excel généré');
   };
 
+  // Excel export for statistics
+  const exportStatsToExcel = () => {
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Récapitulatif par période
+    const periodData = (periods || []).map((period) => {
+      const periodEntries = allEntries?.filter((e) => e.payroll_period_id === period.id) || [];
+      return {
+        'Période': period.label,
+        'Date début': format(new Date(period.start_date), 'dd/MM/yyyy'),
+        'Date fin': format(new Date(period.end_date), 'dd/MM/yyyy'),
+        'Nombre fiches': periodEntries.length,
+        'Salaire base total': periodEntries.reduce((sum, e) => sum + Number(e.base_salary), 0),
+        'Primes total': periodEntries.reduce((sum, e) => sum + Number(e.bonuses), 0),
+        'Indemnités total': periodEntries.reduce((sum, e) => sum + Number(e.allowances), 0),
+        'Retenues total': periodEntries.reduce((sum, e) => sum + Number(e.deductions), 0),
+        'Net total': periodEntries.reduce((sum, e) => sum + Number(e.net_salary), 0),
+        'Statut': period.status === 'open' ? 'Ouverte' : 'Clôturée',
+      };
+    });
+    const wsPeriods = XLSX.utils.json_to_sheet(periodData);
+    wsPeriods['!cols'] = Object.keys(periodData[0] || {}).map(() => ({ wch: 18 }));
+    XLSX.utils.book_append_sheet(wb, wsPeriods, 'Par période');
+
+    // Sheet 2: Récapitulatif par agence
+    const agencyData = (agencies || []).map((agency) => {
+      const agencyEntries = allEntries?.filter((e: any) => e.staff?.agency_id === agency.id) || [];
+      const uniqueStaff = new Set(agencyEntries.map((e) => e.staff_id)).size;
+      const totalNet = agencyEntries.reduce((sum, e) => sum + Number(e.net_salary), 0);
+      return {
+        'Agence': agency.name,
+        'Nombre employés': uniqueStaff,
+        'Nombre fiches': agencyEntries.length,
+        'Masse salariale': totalNet,
+        'Moyenne par employé': uniqueStaff > 0 ? Math.round(totalNet / uniqueStaff) : 0,
+      };
+    }).filter(d => d['Nombre fiches'] > 0);
+
+    // Add "Sans agence" row if applicable
+    const noAgencyEntries = allEntries?.filter((e: any) => !e.staff?.agency_id) || [];
+    if (noAgencyEntries.length > 0) {
+      const uniqueStaff = new Set(noAgencyEntries.map((e) => e.staff_id)).size;
+      const totalNet = noAgencyEntries.reduce((sum, e) => sum + Number(e.net_salary), 0);
+      agencyData.push({
+        'Agence': 'Sans agence',
+        'Nombre employés': uniqueStaff,
+        'Nombre fiches': noAgencyEntries.length,
+        'Masse salariale': totalNet,
+        'Moyenne par employé': uniqueStaff > 0 ? Math.round(totalNet / uniqueStaff) : 0,
+      });
+    }
+
+    const wsAgencies = XLSX.utils.json_to_sheet(agencyData);
+    wsAgencies['!cols'] = Object.keys(agencyData[0] || {}).map(() => ({ wch: 20 }));
+    XLSX.utils.book_append_sheet(wb, wsAgencies, 'Par agence');
+
+    XLSX.writeFile(wb, `statistiques_paie_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    toast.success('Fichier Excel généré');
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -1563,15 +1623,23 @@ export default function Paie() {
 
           {/* Stats Tab */}
           <TabsContent value="stats" className="space-y-6">
-            {/* Export button */}
-            <div className="flex justify-end">
+            {/* Export buttons */}
+            <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
                 disabled={!periods || periods.length === 0}
                 onClick={() => generateAllPeriodsStatsPdf(periods || [], allEntries || [], agencies || [], staffList || [], { name: companySettings?.company_name || 'Transport Express', logoUrl: companySettings?.logo_url, address: companySettings?.address, phone: companySettings?.phone, email: companySettings?.email, rccm: companySettings?.rccm, ifu: companySettings?.ifu })}
               >
                 <Download className="w-4 h-4 mr-2" />
-                Export rapport PDF
+                PDF
+              </Button>
+              <Button
+                variant="outline"
+                disabled={!periods || periods.length === 0}
+                onClick={exportStatsToExcel}
+              >
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Excel
               </Button>
             </div>
 
