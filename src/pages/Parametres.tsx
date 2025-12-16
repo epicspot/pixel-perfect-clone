@@ -32,11 +32,26 @@ const shipmentTypeLabels: Record<string, string> = {
   express: 'Courrier express',
 };
 
+const shipmentTypeIcons: Record<string, string> = {
+  excess_baggage: '🧳',
+  unaccompanied_baggage: '📦',
+  parcel: '📬',
+  express: '⚡',
+};
+
+const shipmentTypeDescriptions: Record<string, string> = {
+  excess_baggage: 'Bagages supplémentaires voyageant avec un passager',
+  unaccompanied_baggage: 'Bagages envoyés sans passager associé',
+  parcel: 'Colis et paquets standards',
+  express: 'Envoi prioritaire avec livraison rapide',
+};
+
 const Parametres = () => {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = profile?.role === 'admin';
-  const [editedPricing, setEditedPricing] = useState<Record<string, { base_price: string; price_per_kg: string }>>({});
+  const [editedPricing, setEditedPricing] = useState<Record<string, { base_price: string; price_per_kg: string; description: string; is_active: boolean }>>({});
+  const [previewWeight, setPreviewWeight] = useState('5');
   const [companyName, setCompanyName] = useState('');
   const [companySlogan, setCompanySlogan] = useState('');
   const [companyAddress, setCompanyAddress] = useState('');
@@ -207,11 +222,13 @@ const Parametres = () => {
   // Initialize edited pricing when data loads
   useEffect(() => {
     if (pricing) {
-      const initial: Record<string, { base_price: string; price_per_kg: string }> = {};
+      const initial: Record<string, { base_price: string; price_per_kg: string; description: string; is_active: boolean }> = {};
       pricing.forEach(p => {
         initial[p.type] = {
           base_price: p.base_price.toString(),
           price_per_kg: p.price_per_kg.toString(),
+          description: p.description || '',
+          is_active: p.is_active,
         };
       });
       setEditedPricing(initial);
@@ -220,10 +237,10 @@ const Parametres = () => {
 
   // Update pricing mutation
   const updatePricing = useMutation({
-    mutationFn: async ({ type, base_price, price_per_kg }: { type: string; base_price: number; price_per_kg: number }) => {
+    mutationFn: async ({ type, base_price, price_per_kg, description, is_active }: { type: string; base_price: number; price_per_kg: number; description: string; is_active: boolean }) => {
       const { error } = await supabase
         .from('shipment_pricing')
-        .update({ base_price, price_per_kg })
+        .update({ base_price, price_per_kg, description, is_active })
         .eq('type', type);
       if (error) throw error;
     },
@@ -591,10 +608,12 @@ const Parametres = () => {
       type,
       base_price: parseFloat(edited.base_price) || 0,
       price_per_kg: parseFloat(edited.price_per_kg) || 0,
+      description: edited.description,
+      is_active: edited.is_active,
     });
   };
 
-  const handlePricingChange = (type: string, field: 'base_price' | 'price_per_kg', value: string) => {
+  const handlePricingChange = (type: string, field: 'base_price' | 'price_per_kg' | 'description' | 'is_active', value: string | boolean) => {
     setEditedPricing(prev => ({
       ...prev,
       [type]: {
@@ -602,6 +621,12 @@ const Parametres = () => {
         [field]: value,
       },
     }));
+  };
+
+  const calculatePrice = (type: string, weight: number) => {
+    const edited = editedPricing[type];
+    if (!edited) return 0;
+    return (parseFloat(edited.base_price) || 0) + (parseFloat(edited.price_per_kg) || 0) * weight;
   };
 
   return (
@@ -814,43 +839,133 @@ const Parametres = () => {
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
               </div>
             ) : (
-              <div className="space-y-4">
-                {pricing?.map((item) => (
-                  <div key={item.id} className="flex items-end gap-4 p-4 bg-muted/50 rounded-lg">
-                    <div className="flex-1 min-w-[150px]">
-                      <Label className="text-xs text-muted-foreground">Type</Label>
-                      <p className="font-medium">{shipmentTypeLabels[item.type] || item.type}</p>
-                      {item.description && (
-                        <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
-                      )}
-                    </div>
-                    <div className="w-32">
-                      <Label className="text-xs">Frais de base (F)</Label>
-                      <Input
-                        type="number"
-                        value={editedPricing[item.type]?.base_price || ''}
-                        onChange={(e) => handlePricingChange(item.type, 'base_price', e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div className="w-32">
-                      <Label className="text-xs">Prix/kg (F)</Label>
-                      <Input
-                        type="number"
-                        value={editedPricing[item.type]?.price_per_kg || ''}
-                        onChange={(e) => handlePricingChange(item.type, 'price_per_kg', e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <Button 
-                      size="sm"
-                      onClick={() => handleSavePricing(item.type)}
-                      disabled={updatePricing.isPending}
-                    >
-                      <Save className="w-4 h-4" />
-                    </Button>
+              <div className="space-y-6">
+                {/* Preview Calculator */}
+                <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm font-medium">🧮 Simulateur de prix</span>
                   </div>
-                ))}
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground">Poids test:</Label>
+                      <Input
+                        type="number"
+                        value={previewWeight}
+                        onChange={(e) => setPreviewWeight(e.target.value)}
+                        className="w-20 h-8"
+                        min="0"
+                        step="0.5"
+                      />
+                      <span className="text-xs text-muted-foreground">kg</span>
+                    </div>
+                    <div className="flex gap-3 flex-wrap">
+                      {pricing?.filter(p => editedPricing[p.type]?.is_active !== false).map((item) => (
+                        <div key={item.type} className="text-xs bg-background px-2 py-1 rounded border">
+                          <span className="text-muted-foreground">{shipmentTypeIcons[item.type]}</span>
+                          <span className="ml-1 font-medium">
+                            {calculatePrice(item.type, parseFloat(previewWeight) || 0).toLocaleString()} F
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pricing Cards */}
+                <div className="grid gap-4 md:grid-cols-2">
+                  {pricing?.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className={`p-4 rounded-lg border transition-all ${
+                        editedPricing[item.type]?.is_active !== false
+                          ? 'bg-background border-border shadow-sm'
+                          : 'bg-muted/30 border-border/50 opacity-60'
+                      }`}
+                    >
+                      {/* Header */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">{shipmentTypeIcons[item.type]}</span>
+                          <div>
+                            <h3 className="font-medium">{shipmentTypeLabels[item.type] || item.type}</h3>
+                            <p className="text-xs text-muted-foreground">
+                              {shipmentTypeDescriptions[item.type]}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor={`active-${item.type}`} className="text-xs text-muted-foreground">
+                            {editedPricing[item.type]?.is_active !== false ? 'Actif' : 'Inactif'}
+                          </Label>
+                          <Switch
+                            id={`active-${item.type}`}
+                            checked={editedPricing[item.type]?.is_active !== false}
+                            onCheckedChange={(checked) => handlePricingChange(item.type, 'is_active', checked)}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Pricing Inputs */}
+                      <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Frais de base</Label>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              value={editedPricing[item.type]?.base_price || ''}
+                              onChange={(e) => handlePricingChange(item.type, 'base_price', e.target.value)}
+                              className="mt-1 pr-8"
+                              min="0"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 mt-0.5 text-xs text-muted-foreground">F</span>
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Prix par kg</Label>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              value={editedPricing[item.type]?.price_per_kg || ''}
+                              onChange={(e) => handlePricingChange(item.type, 'price_per_kg', e.target.value)}
+                              className="mt-1 pr-12"
+                              min="0"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 mt-0.5 text-xs text-muted-foreground">F/kg</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      <div className="mb-3">
+                        <Label className="text-xs text-muted-foreground">Description personnalisée</Label>
+                        <Input
+                          value={editedPricing[item.type]?.description || ''}
+                          onChange={(e) => handlePricingChange(item.type, 'description', e.target.value)}
+                          placeholder="Description optionnelle..."
+                          className="mt-1 text-sm"
+                        />
+                      </div>
+
+                      {/* Price Preview & Save */}
+                      <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                        <div className="text-xs">
+                          <span className="text-muted-foreground">Formule: </span>
+                          <span className="font-mono bg-muted px-1.5 py-0.5 rounded">
+                            {editedPricing[item.type]?.base_price || '0'} + ({editedPricing[item.type]?.price_per_kg || '0'} × poids)
+                          </span>
+                        </div>
+                        <Button 
+                          size="sm"
+                          onClick={() => handleSavePricing(item.type)}
+                          disabled={updatePricing.isPending}
+                        >
+                          <Save className="w-3 h-3 mr-1" />
+                          Enregistrer
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </Card>
