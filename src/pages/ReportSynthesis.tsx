@@ -16,14 +16,7 @@ import { PeriodFilter, PeriodRange, getPeriodFromPreset } from '@/components/rep
 import { generateSynthesisReportPdf } from '@/lib/reportsPdf';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
-};
-
-const formatPercent = (value: number) => {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
-};
+import { formatCurrency, formatSignedPercent } from '@/lib/formatters';
 
 const ReportSynthesis = () => {
   const [period, setPeriod] = useState<PeriodRange>(() => getPeriodFromPreset('this_month'));

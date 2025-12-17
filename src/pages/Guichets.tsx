@@ -36,10 +36,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { AgencyFilter, useAgencyFilter } from '@/components/filters/AgencyFilter';
 import { setGlobalLoading } from '@/hooks/useLoadingProgress';
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
-};
+import { formatCurrency } from '@/lib/formatters';
 
 export default function Guichets() {
   const { user, profile } = useAuth();

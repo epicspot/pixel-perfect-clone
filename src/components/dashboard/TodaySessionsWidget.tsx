@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Monitor, Clock, CheckCircle, AlertCircle, Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { formatCurrency } from '@/lib/formatters';
 
 interface SessionSummary {
   id: number;
@@ -22,10 +23,6 @@ interface SessionSummary {
 interface TodaySessionsWidgetProps {
   agencyId?: number;
 }
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
-};
 
 const formatTime = (dateStr: string) => {
   return new Date(dateStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });

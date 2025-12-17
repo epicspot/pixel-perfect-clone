@@ -38,9 +38,7 @@ import {
   LineChart,
   Line,
 } from 'recharts';
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
+import { formatCurrency } from '@/lib/formatters';
 
 type PeriodType = 'this_month' | 'last_month' | 'this_year' | 'custom';
 

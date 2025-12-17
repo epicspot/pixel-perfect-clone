@@ -13,10 +13,7 @@ import { generateAgencyReportPdf } from '@/lib/reportsPdf';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { PeriodFilter, PeriodRange, getPeriodFromPreset } from '@/components/reports/PeriodFilter';
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
-};
+import { formatCurrency } from '@/lib/formatters';
 
 const ReportAgency = () => {
   const [selectedAgencyId, setSelectedAgencyId] = useState<string>('all');

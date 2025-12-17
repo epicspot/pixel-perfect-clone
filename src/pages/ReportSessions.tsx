@@ -34,10 +34,7 @@ import { fr } from 'date-fns/locale';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
-};
+import { formatCurrency } from '@/lib/formatters';
 
 const getPaymentIcon = (method: string) => {
   switch (method) {

@@ -44,6 +44,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Plus, Users, Pencil, Trash2, Search } from 'lucide-react';
+import { formatCurrencyOrDash } from '@/lib/formatters';
 
 type StaffType = 'driver' | 'assistant' | 'cashier' | 'admin' | 'mechanic' | 'other';
 
@@ -76,8 +77,7 @@ const staffTypeLabels: Record<StaffType, string> = {
   other: 'Autre',
 };
 
-const formatCurrency = (value: number | null) =>
-  value ? new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA' : '-';
+const formatCurrency = (value: number | null) => formatCurrencyOrDash(value);
 
 export default function Staff() {
   const queryClient = useQueryClient();

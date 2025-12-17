@@ -25,6 +25,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Fuel, Wrench, Car, TrendingUp } from 'lucide-react';
+import { formatCurrency } from '@/lib/formatters';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -60,9 +61,6 @@ interface VehicleCostItem {
   total_maintenance_amount: number;
   grand_total_amount: number;
 }
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
 export default function VehicleCostDashboard() {
   const { profile } = useAuth();

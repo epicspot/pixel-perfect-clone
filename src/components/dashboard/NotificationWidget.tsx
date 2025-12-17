@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatCurrency } from "@/lib/formatters";
 
 interface Notification {
   id: string;
@@ -17,10 +18,6 @@ interface Notification {
   read: boolean;
   alertId?: number;
 }
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.abs(value)) + ' F CFA';
-};
 
 export function NotificationWidget() {
   const { profile } = useAuth();
