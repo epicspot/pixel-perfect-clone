@@ -88,7 +88,7 @@ const Carburant = () => {
   };
 
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   const formatNumber = (value: number) =>
     new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value);

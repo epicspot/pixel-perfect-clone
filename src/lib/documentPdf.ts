@@ -860,8 +860,8 @@ export const generateShipmentPdf = async (shipment: ShipmentData, company: Compa
   doc.text('Qte: ' + shipment.quantity, pageWidth - 5, y, { align: 'right' });
   y += 4;
   
-  doc.text('Prix/kg: ' + shipment.price_per_kg.toLocaleString('fr-FR') + ' F', 5, y);
-  doc.text('Frais: ' + shipment.base_price.toLocaleString('fr-FR') + ' F', pageWidth - 5, y, { align: 'right' });
+  doc.text('Prix/kg: ' + shipment.price_per_kg.toLocaleString('fr-FR') + ' F CFA', 5, y);
+  doc.text('Frais: ' + shipment.base_price.toLocaleString('fr-FR') + ' F CFA', pageWidth - 5, y, { align: 'right' });
   y += 6;
 
   // Total

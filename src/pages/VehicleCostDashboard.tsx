@@ -62,7 +62,7 @@ interface VehicleCostItem {
 }
 
 const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
 export default function VehicleCostDashboard() {
   const { profile } = useAuth();

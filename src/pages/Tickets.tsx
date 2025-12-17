@@ -149,7 +149,7 @@ const Tickets = () => {
   };
 
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   return (
     <DashboardLayout>
@@ -700,7 +700,7 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
   };
 
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1117,7 +1117,7 @@ const RefundTicketMenuItem: React.FC<{ ticket: any; onSuccess: () => void }> = (
   const { user } = useAuth();
 
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   const handleRefund = async () => {
     if (!reason.trim()) {
@@ -1234,7 +1234,7 @@ const TicketDetailsMenuItem: React.FC<{ ticket: any }> = ({ ticket }) => {
   };
 
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   const status = statusConfig[ticket.status] || statusConfig.pending;
   const payment = paymentConfig[ticket.payment_method || 'cash'] || paymentConfig.cash;

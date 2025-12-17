@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 };
 
 const getPaymentIcon = (method: string) => {

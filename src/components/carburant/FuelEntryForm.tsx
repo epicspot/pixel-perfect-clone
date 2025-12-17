@@ -141,7 +141,7 @@ export const FuelEntryForm: React.FC<FuelEntryFormProps> = ({ entry, trigger }) 
   };
 
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 

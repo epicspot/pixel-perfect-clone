@@ -240,7 +240,7 @@ const Maintenance = () => {
   };
 
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   const formatDate = (dateStr: string) => {
     try {
