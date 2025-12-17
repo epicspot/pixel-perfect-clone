@@ -50,6 +50,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { generateTicketPdf } from '@/lib/documentPdf';
 import { audit } from '@/lib/audit';
 import { setGlobalLoading } from '@/hooks/useLoadingProgress';
+import { formatCurrency } from '@/lib/formatters';
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   paid: { label: 'Payé', className: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-800' },
@@ -148,8 +149,6 @@ const Tickets = () => {
     });
   };
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   return (
     <DashboardLayout>
@@ -699,8 +698,6 @@ const NewTicketDialog: React.FC<NewTicketDialogProps> = ({ open, onOpenChange, o
     setBaggageBasePrice('1000');
   };
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1116,8 +1113,6 @@ const RefundTicketMenuItem: React.FC<{ ticket: any; onSuccess: () => void }> = (
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const { user } = useAuth();
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   const handleRefund = async () => {
     if (!reason.trim()) {
@@ -1233,8 +1228,6 @@ const TicketDetailsMenuItem: React.FC<{ ticket: any }> = ({ ticket }) => {
     });
   };
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   const status = statusConfig[ticket.status] || statusConfig.pending;
   const payment = paymentConfig[ticket.payment_method || 'cash'] || paymentConfig.cash;

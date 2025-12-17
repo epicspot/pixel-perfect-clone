@@ -18,6 +18,7 @@ import { FuelEntryForm } from './FuelEntryForm';
 import { Pencil, Trash2, Fuel } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { formatCurrency } from '@/lib/formatters';
 import { fr } from 'date-fns/locale';
 
 interface FuelEntriesListProps {
@@ -48,8 +49,6 @@ export const FuelEntriesList: React.FC<FuelEntriesListProps> = ({ from, to, canE
     },
   });
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   const formatNumber = (value: number) =>
     new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value);

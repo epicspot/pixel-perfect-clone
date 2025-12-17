@@ -25,6 +25,7 @@ import { Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { FormGrid, FormFieldWrapper, FormActions } from '@/components/ui/responsive-form';
 import { setGlobalLoading } from '@/hooks/useLoadingProgress';
+import { formatCurrency } from '@/lib/formatters';
 
 const fuelEntrySchema = z.object({
   vehicle_id: z.number({ required_error: 'Sélectionnez un véhicule' }),
@@ -139,9 +140,6 @@ export const FuelEntryForm: React.FC<FuelEntryFormProps> = ({ entry, trigger }) 
       createMutation.mutate(data);
     }
   };
-
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 

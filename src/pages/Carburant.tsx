@@ -23,6 +23,7 @@ import {
   Filler,
 } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
+import { formatCurrency, formatNumber } from '@/lib/formatters';
 
 ChartJS.register(
   CategoryScale,
@@ -86,12 +87,6 @@ const Carburant = () => {
     setAppliedAgency(agencyId ? Number(agencyId) : undefined);
     setAppliedYear(year);
   };
-
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
-
-  const formatNumber = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value);
 
   const isLoading = loadingSummary || loadingVehicle;
 

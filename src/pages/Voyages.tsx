@@ -56,6 +56,7 @@ import { generateTripManifestPdf } from '@/lib/documentPdf';
 import { supabase } from '@/integrations/supabase/client';
 import { audit } from '@/lib/audit';
 import { setGlobalLoading } from '@/hooks/useLoadingProgress';
+import { formatCurrency } from '@/lib/formatters';
 
 // Trip lifecycle statuses
 const statusConfig: Record<string, { label: string; className: string; icon?: React.ReactNode }> = {
@@ -885,8 +886,6 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
     setNotes('');
   };
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   const getStaffName = (s: any) => s.full_name || `${s.first_name} ${s.last_name}`;
 
@@ -1224,8 +1223,6 @@ const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChang
     }
   };
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   if (!trip) return null;
 

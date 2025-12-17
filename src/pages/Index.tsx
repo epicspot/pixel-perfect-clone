@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatCurrency } from '@/lib/formatters';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
@@ -632,9 +633,6 @@ const PaymentIcon: React.FC<{ method: string }> = ({ method }) => {
 };
 
 // Helpers
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
-}
 
 function formatTime(dateStr: string) {
   try {

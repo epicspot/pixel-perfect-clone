@@ -16,14 +16,11 @@ import {
   Clock,
   Bus
 } from 'lucide-react';
+import { formatCurrency } from '@/lib/formatters';
 
 interface RoleSpecificStatsProps {
   agencyId?: number;
 }
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
-};
 
 export const RoleSpecificStats: React.FC<RoleSpecificStatsProps> = ({ agencyId }) => {
   const { profile, user } = useAuth();

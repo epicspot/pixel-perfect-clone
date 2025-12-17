@@ -16,6 +16,7 @@ import { Pencil, Trash2, Plus, X, Wrench, CheckCircle, Clock, AlertCircle, Alert
 import { supabase } from '@/integrations/supabase/client';
 import { Progress } from '@/components/ui/progress';
 import { setGlobalLoading } from '@/hooks/useLoadingProgress';
+import { formatCurrency } from '@/lib/formatters';
 
 const Maintenance = () => {
   const { user, profile } = useAuth();
@@ -238,9 +239,6 @@ const Maintenance = () => {
     corrective: 'Corrective',
     other: 'Autre',
   };
-
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   const formatDate = (dateStr: string) => {
     try {
