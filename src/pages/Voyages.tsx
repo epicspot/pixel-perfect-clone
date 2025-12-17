@@ -886,7 +886,7 @@ const NewTripDialog: React.FC<NewTripDialogProps> = ({ open, onOpenChange, onSuc
   };
 
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   const getStaffName = (s: any) => s.full_name || `${s.first_name} ${s.last_name}`;
 
@@ -1225,7 +1225,7 @@ const EditTripDialog: React.FC<EditTripDialogProps> = ({ trip, open, onOpenChang
   };
 
   const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+    new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
   if (!trip) return null;
 

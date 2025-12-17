@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/table';
 
 const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
 const statusConfig = {
   open: { label: 'Ouverte', variant: 'secondary' as const, icon: Clock },

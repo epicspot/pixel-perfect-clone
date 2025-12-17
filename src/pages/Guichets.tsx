@@ -38,7 +38,7 @@ import { AgencyFilter, useAgencyFilter } from '@/components/filters/AgencyFilter
 import { setGlobalLoading } from '@/hooks/useLoadingProgress';
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('fr-FR').format(value) + ' F';
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 };
 
 export default function Guichets() {

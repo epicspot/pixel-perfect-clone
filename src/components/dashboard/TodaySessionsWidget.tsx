@@ -24,7 +24,7 @@ interface TodaySessionsWidgetProps {
 }
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('fr-FR', { style: 'decimal' }).format(value) + ' F';
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 };
 
 const formatTime = (dateStr: string) => {

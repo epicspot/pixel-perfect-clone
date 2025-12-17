@@ -77,7 +77,7 @@ const staffTypeLabels: Record<StaffType, string> = {
 };
 
 const formatCurrency = (value: number | null) =>
-  value ? new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F' : '-';
+  value ? new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA' : '-';
 
 export default function Staff() {
   const queryClient = useQueryClient();

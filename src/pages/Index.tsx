@@ -633,7 +633,7 @@ const PaymentIcon: React.FC<{ method: string }> = ({ method }) => {
 
 // Helpers
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F';
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 }
 
 function formatTime(dateStr: string) {

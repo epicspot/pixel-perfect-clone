@@ -19,7 +19,7 @@ interface Notification {
 }
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('fr-FR').format(Math.abs(value)) + ' F';
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.abs(value)) + ' F CFA';
 };
 
 export function NotificationWidget() {
