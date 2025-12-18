@@ -31,6 +31,7 @@ import { generateShipmentPdf } from "@/lib/documentPdf";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { setGlobalLoading } from "@/hooks/useLoadingProgress";
+import { formatCurrency } from "@/lib/formatters";
 
 type ShipmentType = "excess_baggage" | "unaccompanied_baggage" | "parcel" | "express";
 type ShipmentStatus = "pending" | "in_transit" | "delivered" | "cancelled";
@@ -471,7 +472,7 @@ export default function Expeditions() {
                   <Package className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{totalRevenue.toLocaleString("fr-FR")} F</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totalRevenue)}</p>
                   <p className="text-xs text-muted-foreground">Recettes totales</p>
                 </div>
               </div>
