@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Bus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getRoleLabel, UserRole } from '@/lib/permissions';
+import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -18,6 +20,22 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [justLoggedIn, setJustLoggedIn] = useState(false);
+
+  // Fetch company settings for branding
+  const { data: companySettings } = useQuery({
+    queryKey: ['company-settings-auth'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_settings')
+        .select('company_name')
+        .limit(1)
+        .single();
+      if (error) return { company_name: 'TRANSPORT EXPRESS' };
+      return data;
+    },
+  });
+
+  const companyName = companySettings?.company_name || 'TRANSPORT EXPRESS';
 
   // Show welcome toast and redirect when profile is loaded after login
   useEffect(() => {
@@ -92,7 +110,7 @@ const Auth = () => {
           <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center shadow-glow mb-4">
             <Bus className="w-8 h-8 text-primary-foreground" />
           </div>
-          <h1 className="font-display text-2xl font-bold text-card-foreground">EPICSPOT TRANS</h1>
+          <h1 className="font-display text-2xl font-bold text-card-foreground">{companyName}</h1>
           <p className="text-muted-foreground text-sm">
             {isSignUp ? 'Créez votre compte' : 'Connectez-vous à votre compte'}
           </p>
