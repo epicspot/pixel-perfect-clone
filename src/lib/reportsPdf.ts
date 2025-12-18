@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { formatCurrencyForPdf as formatCurrency } from './formatters';
 
 interface CompanyInfo {
   name: string;
@@ -12,9 +13,6 @@ interface CompanyInfo {
   rccm?: string;
   ifu?: string;
 }
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
 // Agency Report PDF
 export const generateAgencyReportPdf = (

@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { formatCurrencyForPdf as formatCurrency } from './formatters';
 
 interface PayrollEntry {
   id: number;
@@ -25,9 +26,6 @@ interface Staff {
   id: number;
   full_name: string;
 }
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(value) + ' F CFA';
 
 // Company info interface for payroll documents
 interface PayrollCompanyInfo {

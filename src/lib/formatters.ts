@@ -13,6 +13,18 @@ export const formatCurrency = (value: number): string => {
 };
 
 /**
+ * Format a number as currency for PDF documents (avoids jsPDF encoding issues)
+ * Uses manual regex formatting instead of Intl.NumberFormat
+ * @param value - The numeric value to format
+ * @returns Formatted currency string safe for jsPDF (e.g., "1 250 000 F CFA")
+ */
+export const formatCurrencyForPdf = (value: number): string => {
+  const rounded = Math.round(value);
+  const formatted = rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return formatted + ' F CFA';
+};
+
+/**
  * Format a number as currency, returning '-' for null/undefined values
  * @param value - The numeric value to format (can be null)
  * @returns Formatted currency string or '-' if null
