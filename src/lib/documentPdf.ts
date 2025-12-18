@@ -3,13 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import QRCode from 'qrcode';
-
-const formatCurrency = (value: number) => {
-  // Use manual formatting to avoid encoding issues with jsPDF
-  const rounded = Math.round(value);
-  const formatted = rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-  return formatted + ' F CFA';
-};
+import { formatCurrencyForPdf as formatCurrency } from './formatters';
 
 interface TicketData {
   id: number;
