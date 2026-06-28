@@ -79,9 +79,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // Check role-based access - redirect to first accessible route if no access
   const userRole = profile?.role as UserRole;
   const isSiege = profile?.agency_code === 'SIE';
-  // Siège users have admin-like access including the /admin area
-  const hasAccess = hasRouteAccess(userRole, location.pathname) || (isSiege && location.pathname.startsWith('/admin'));
+
+  // Siège users are restricted to dashboard + consolidated reports only
+  let hasAccess: boolean;
+  if (isSiege) {
+    hasAccess = location.pathname === '/' || location.pathname.startsWith('/rapports');
+  } else {
+    hasAccess = hasRouteAccess(userRole, location.pathname);
+  }
+
   if (!hasAccess) {
+    if (isSiege) {
+      return <Navigate to="/rapports" replace />;
+    }
     const accessibleRoutes = roleRoutePermissions[userRole] || [];
     const firstRoute = accessibleRoutes[0] || '/';
     return <Navigate to={firstRoute} replace />;
