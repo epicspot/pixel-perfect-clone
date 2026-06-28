@@ -24,6 +24,41 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value) + " F";
 };
 
+/** Convert Supabase / PostgREST errors into actionable French messages. */
+const parseAgencyError = (error: any): { title: string; detail: string } => {
+  const code = error?.code || error?.details?.code;
+  const msg = (error?.message || "").toLowerCase();
+  if (code === "23505" || msg.includes("duplicate") || msg.includes("unique")) {
+    return {
+      title: "Code agence déjà utilisé",
+      detail: "Une autre agence possède déjà ce code. Choisissez un code unique (ex: OUA, BOB, SIE).",
+    };
+  }
+  if (code === "23503" || msg.includes("foreign key") || msg.includes("violates foreign")) {
+    return {
+      title: "Suppression bloquée",
+      detail:
+        "Cette agence est rattachée à des lignes, voyages, utilisateurs ou tickets existants. Réaffectez ou supprimez ces données d'abord.",
+    };
+  }
+  if (code === "42501" || msg.includes("permission denied") || msg.includes("rls") || msg.includes("policy")) {
+    return {
+      title: "Accès refusé",
+      detail: "Seuls les administrateurs et le personnel du Siège peuvent gérer les agences.",
+    };
+  }
+  if (msg.includes("network") || msg.includes("failed to fetch")) {
+    return {
+      title: "Erreur réseau",
+      detail: "Vérifiez votre connexion internet et réessayez.",
+    };
+  }
+  return {
+    title: "Erreur",
+    detail: error?.message || "Une erreur inattendue est survenue.",
+  };
+};
+
 const Admin = () => {
   const [activeTab, setActiveTab] = useState<Tab>("agencies");
   const { profile } = useAuth();
