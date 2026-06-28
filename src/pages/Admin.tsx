@@ -26,13 +26,13 @@ const formatCurrency = (value: number) => {
 const Admin = () => {
   const [activeTab, setActiveTab] = useState<Tab>("agencies");
   const { profile } = useAuth();
-  const { isAdmin, hasSiegeAccess } = useIsSiegeUser();
+  const { isAdmin } = useIsSiegeUser();
 
-  if (!hasSiegeAccess) {
+  if (!isAdmin) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Accès réservé aux administrateurs et au personnel du Siège.</p>
+          <p className="text-muted-foreground">Accès réservé aux administrateurs.</p>
         </div>
       </DashboardLayout>
     );
