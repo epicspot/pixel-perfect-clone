@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Building2, Route, Bus, Users, Plus, Pencil, Trash2, Loader2, Shield } from "lucide-react";
+import { Building2, Route, Bus, Users, Plus, Pencil, Trash2, Loader2, Shield, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -122,6 +122,12 @@ const AgenciesTab = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [confirmDelete, setConfirmDelete] = useState<any>(null);
+  const [sort, setSort] = useState<{ key: "name" | "code" | "status"; direction: "asc" | "desc" }>({
+    key: "name",
+    direction: "asc",
+  });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [form, setForm] = useState({
     name: "",
     code: "",
@@ -262,6 +268,33 @@ const AgenciesTab = () => {
     );
   });
 
+  const sorted = [...filtered].sort((a: any, b: any) => {
+    let cmp = 0;
+    if (sort.key === "name") {
+      cmp = (a.name || "").localeCompare(b.name || "", "fr", { sensitivity: "base" });
+    } else if (sort.key === "code") {
+      cmp = (a.code || "").localeCompare(b.code || "", "fr", { sensitivity: "base" });
+    } else if (sort.key === "status") {
+      cmp = a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1;
+    }
+    return sort.direction === "asc" ? cmp : -cmp;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const paginated = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const start = sorted.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const end = Math.min(safePage * pageSize, sorted.length);
+
+  const toggleSort = (key: "name" | "code" | "status") => {
+    setSort((prev) => (prev.key === key ? { key, direction: prev.direction === "asc" ? "desc" : "asc" } : { key, direction: "asc" }));
+  };
+
+  const SortIcon = ({ column }: { column: "name" | "code" | "status" }) => {
+    if (sort.key !== column) return <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground opacity-50" />;
+    return sort.direction === "asc" ? <ArrowUp className="w-3.5 h-3.5 text-primary" /> : <ArrowDown className="w-3.5 h-3.5 text-primary" />;
+  };
+
   const activeCount = agencies.filter((a: any) => a.is_active).length;
 
   return (
@@ -277,10 +310,19 @@ const AgenciesTab = () => {
           <Input
             placeholder="Rechercher (nom, code, ville)..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             className="w-64"
           />
-          <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+          <Select
+            value={statusFilter}
+            onValueChange={(v: any) => {
+              setStatusFilter(v);
+              setPage(1);
+            }}
+          >
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
@@ -308,82 +350,140 @@ const AgenciesTab = () => {
             <Loader2 className="w-6 h-6 animate-spin" />
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Nom</TableHead>
-                <TableHead>Ville</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead className="text-center">Lignes</TableHead>
-                <TableHead className="text-center">Utilisateurs</TableHead>
-                <TableHead className="text-center">Statut</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((a: any) => {
-                const stats = agencyStats?.[a.id] || { routes: 0, users: 0 };
-                const hasDeps = stats.routes > 0 || stats.users > 0;
-                return (
-                  <TableRow key={a.id}>
-                    <TableCell>
-                      <span className="font-mono text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                        {a.code || "—"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-medium">{a.name}</TableCell>
-                    <TableCell>{a.city || "—"}</TableCell>
-                    <TableCell className="text-xs">
-                      <div>{a.phone || "—"}</div>
-                      {a.email && <div className="text-muted-foreground">{a.email}</div>}
-                    </TableCell>
-                    <TableCell className="text-center">{stats.routes}</TableCell>
-                    <TableCell className="text-center">{stats.users}</TableCell>
-                    <TableCell className="text-center">
-                      <button
-                        onClick={() => toggleActiveMutation.mutate(a)}
-                        className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          a.is_active
-                            ? "bg-green-100 text-green-700 hover:bg-green-200"
-                            : "bg-muted text-muted-foreground hover:bg-muted/80"
-                        }`}
-                        title="Cliquer pour basculer"
-                      >
-                        {a.is_active ? "Active" : "Inactive"}
-                      </button>
-                    </TableCell>
-                    <TableCell className="text-right space-x-1">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(a)}>
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive"
-                        disabled={hasDeps}
-                        title={
-                          hasDeps
-                            ? "Impossible : agence rattachée à des lignes ou utilisateurs"
-                            : "Supprimer"
-                        }
-                        onClick={() => setConfirmDelete(a)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("code")}>
+                    <div className="flex items-center gap-1">Code <SortIcon column="code" /></div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("name")}>
+                    <div className="flex items-center gap-1">Nom <SortIcon column="name" /></div>
+                  </TableHead>
+                  <TableHead>Ville</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead className="text-center">Lignes</TableHead>
+                  <TableHead className="text-center">Utilisateurs</TableHead>
+                  <TableHead className="text-center cursor-pointer select-none" onClick={() => toggleSort("status")}>
+                    <div className="flex items-center justify-center gap-1">Statut <SortIcon column="status" /></div>
+                  </TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginated.map((a: any) => {
+                  const stats = agencyStats?.[a.id] || { routes: 0, users: 0 };
+                  const hasDeps = stats.routes > 0 || stats.users > 0;
+                  return (
+                    <TableRow key={a.id}>
+                      <TableCell>
+                        <span className="font-mono text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                          {a.code || "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-medium">{a.name}</TableCell>
+                      <TableCell>{a.city || "—"}</TableCell>
+                      <TableCell className="text-xs">
+                        <div>{a.phone || "—"}</div>
+                        {a.email && <div className="text-muted-foreground">{a.email}</div>}
+                      </TableCell>
+                      <TableCell className="text-center">{stats.routes}</TableCell>
+                      <TableCell className="text-center">{stats.users}</TableCell>
+                      <TableCell className="text-center">
+                        <button
+                          onClick={() => toggleActiveMutation.mutate(a)}
+                          className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            a.is_active
+                              ? "bg-green-100 text-green-700 hover:bg-green-200"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                          title="Cliquer pour basculer"
+                        >
+                          {a.is_active ? "Active" : "Inactive"}
+                        </button>
+                      </TableCell>
+                      <TableCell className="text-right space-x-1">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(a)}>
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive"
+                          disabled={hasDeps}
+                          title={
+                            hasDeps
+                              ? "Impossible : agence rattachée à des lignes ou utilisateurs"
+                              : "Supprimer"
+                          }
+                          onClick={() => setConfirmDelete(a)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {paginated.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      Aucune agence
                     </TableCell>
                   </TableRow>
-                );
-              })}
-              {filtered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                    Aucune agence
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t">
+              <div className="text-xs text-muted-foreground">
+                Affichage {start}–{end} sur {sorted.length} résultat{sorted.length > 1 ? "s" : ""}
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Par page</span>
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={(v) => {
+                      setPageSize(Number(v));
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-16 h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    disabled={safePage <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-xs px-2">
+                    Page {safePage} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </Card>
 
