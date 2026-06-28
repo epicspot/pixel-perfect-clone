@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { canAccessAudit } from '@/lib/access';
 import { AgencyFilter } from '@/components/filters/AgencyFilter';
 import { ScrollText, Search, Filter, User, Calendar, Activity } from 'lucide-react';
 
