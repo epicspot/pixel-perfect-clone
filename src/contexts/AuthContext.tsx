@@ -10,6 +10,7 @@ interface Profile {
   role: 'admin' | 'manager' | 'cashier' | 'accountant' | 'mechanic';
   agency_id: number | null;
   agency_name?: string | null;
+  agency_code?: string | null;
 }
 
 interface AuthContextType {
