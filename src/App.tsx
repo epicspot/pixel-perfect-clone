@@ -79,7 +79,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   // Check role-based access - redirect to first accessible route if no access
   const userRole = profile?.role as UserRole;
-  const isSiegeAgency = profile?.agency_code === 'SIE';
+  const isSiegeAgency = canAccessAudit(profile);
   const isSiege = isSiegeAgency && userRole !== 'admin';
 
   // Journal d'audit : strictement réservé aux utilisateurs du Siège (toutes rôles confondus).
