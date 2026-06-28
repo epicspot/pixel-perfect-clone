@@ -309,9 +309,10 @@ export const api = {
   },
 
   async updateVehicle(id: number, updates: Partial<Vehicle>): Promise<Vehicle> {
+    const { agency, ...cleanUpdates } = updates as any;
     const { data, error } = await supabase
       .from('vehicles')
-      .update(updates)
+      .update(cleanUpdates)
       .eq('id', id)
       .select()
       .single();
