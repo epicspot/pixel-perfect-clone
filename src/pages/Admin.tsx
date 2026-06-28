@@ -186,7 +186,7 @@ const AgenciesTab = () => {
         const { error } = await supabase.from("agencies").update(payload).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from("agencies").insert(payload).select().single();
+        const { error } = await supabase.from("agencies").insert(payload);
         if (error) throw error;
       }
     },
