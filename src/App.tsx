@@ -78,7 +78,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   // Check role-based access - redirect to first accessible route if no access
   const userRole = profile?.role as UserRole;
-  const hasAccess = hasRouteAccess(userRole, location.pathname);
+  const isSiege = profile?.agency_code === 'SIE';
+  // Siège users have admin-like access including the /admin area
+  const hasAccess = hasRouteAccess(userRole, location.pathname) || (isSiege && location.pathname.startsWith('/admin'));
   if (!hasAccess) {
     const accessibleRoutes = roleRoutePermissions[userRole] || [];
     const firstRoute = accessibleRoutes[0] || '/';

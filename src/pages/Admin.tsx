@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getRoleLabel, getRoleColorClasses, UserRole } from "@/lib/permissions";
 import { audit } from "@/lib/audit";
 import { PermissionsManager } from "@/components/admin/PermissionsManager";
+import { useIsSiegeUser } from "@/hooks/useIsSiegeUser";
 
 type Tab = "agencies" | "routes" | "vehicles" | "users" | "permissions";
 
@@ -25,12 +26,13 @@ const formatCurrency = (value: number) => {
 const Admin = () => {
   const [activeTab, setActiveTab] = useState<Tab>("agencies");
   const { profile } = useAuth();
+  const { isAdmin, hasSiegeAccess } = useIsSiegeUser();
 
-  if (profile?.role !== "admin") {
+  if (!hasSiegeAccess) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Accès réservé aux administrateurs.</p>
+          <p className="text-muted-foreground">Accès réservé aux administrateurs et au personnel du Siège.</p>
         </div>
       </DashboardLayout>
     );
@@ -63,25 +65,29 @@ const Admin = () => {
             active={activeTab === "vehicles"}
             onClick={() => setActiveTab("vehicles")}
           />
-          <TabButton
-            icon={Users}
-            label="Utilisateurs"
-            active={activeTab === "users"}
-            onClick={() => setActiveTab("users")}
-          />
-          <TabButton
-            icon={Shield}
-            label="Permissions"
-            active={activeTab === "permissions"}
-            onClick={() => setActiveTab("permissions")}
-          />
+          {isAdmin && (
+            <>
+              <TabButton
+                icon={Users}
+                label="Utilisateurs"
+                active={activeTab === "users"}
+                onClick={() => setActiveTab("users")}
+              />
+              <TabButton
+                icon={Shield}
+                label="Permissions"
+                active={activeTab === "permissions"}
+                onClick={() => setActiveTab("permissions")}
+              />
+            </>
+          )}
         </div>
 
         {activeTab === "agencies" && <AgenciesTab />}
         {activeTab === "routes" && <RoutesTab />}
         {activeTab === "vehicles" && <VehiclesTab />}
-        {activeTab === "users" && <UsersTab />}
-        {activeTab === "permissions" && (
+        {activeTab === "users" && isAdmin && <UsersTab />}
+        {activeTab === "permissions" && isAdmin && (
           <Card className="p-6">
             <PermissionsManager />
           </Card>

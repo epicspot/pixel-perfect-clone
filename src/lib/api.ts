@@ -266,9 +266,10 @@ export const api = {
   },
 
   async updateRoute(id: number, updates: Partial<RouteRow>): Promise<RouteRow> {
+    const { departure_agency, arrival_agency, ...cleanUpdates } = updates as any;
     const { data, error } = await supabase
       .from('routes')
-      .update(updates)
+      .update(cleanUpdates)
       .eq('id', id)
       .select()
       .single();
@@ -308,9 +309,10 @@ export const api = {
   },
 
   async updateVehicle(id: number, updates: Partial<Vehicle>): Promise<Vehicle> {
+    const { agency, ...cleanUpdates } = updates as any;
     const { data, error } = await supabase
       .from('vehicles')
-      .update(updates)
+      .update(cleanUpdates)
       .eq('id', id)
       .select()
       .single();
@@ -433,9 +435,10 @@ export const api = {
   },
 
   async updateTrip(id: number, updates: Partial<Trip>): Promise<Trip> {
+    const { vehicle, route, driver, assistant, available_seats, ...cleanUpdates } = updates as any;
     const { data, error } = await supabase
       .from('trips')
-      .update(updates)
+      .update(cleanUpdates)
       .eq('id', id)
       .select()
       .single();
