@@ -101,7 +101,7 @@ export default function AuditLogs() {
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [adminAgencyFilter, setAdminAgencyFilter] = useState('');
 
-  const isSiegeUser = profile?.agency_code === 'SIE';
+  const isSiegeUser = canAccessAudit(profile);
 
   // Fetch audit logs
   const { data: logs, isLoading } = useQuery({
