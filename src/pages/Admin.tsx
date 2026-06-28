@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getRoleLabel, getRoleColorClasses, UserRole } from "@/lib/permissions";
 import { audit } from "@/lib/audit";
 import { PermissionsManager } from "@/components/admin/PermissionsManager";
+import { useIsSiegeUser } from "@/hooks/useIsSiegeUser";
 
 type Tab = "agencies" | "routes" | "vehicles" | "users" | "permissions";
 
