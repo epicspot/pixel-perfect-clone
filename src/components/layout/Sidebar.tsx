@@ -145,8 +145,13 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     return permission.can_view && !permission.can_create && !permission.can_edit;
   };
 
+  // Siège users get admin-like access to the /admin area
+  const isSiege = profile?.agency_code === 'SIE';
+
   // Filter nav items based on both route access AND module permissions
   const filteredNavItems = navItems.filter(item => {
+    // Allow /admin for Siège users even if their role normally lacks access
+    if (item.to === '/admin' && isSiege) return true;
     // First check role-based route access
     if (!hasRouteAccess(profile?.role as UserRole, item.to)) return false;
     // Then check module-level can_view permission
