@@ -65,25 +65,29 @@ const Admin = () => {
             active={activeTab === "vehicles"}
             onClick={() => setActiveTab("vehicles")}
           />
-          <TabButton
-            icon={Users}
-            label="Utilisateurs"
-            active={activeTab === "users"}
-            onClick={() => setActiveTab("users")}
-          />
-          <TabButton
-            icon={Shield}
-            label="Permissions"
-            active={activeTab === "permissions"}
-            onClick={() => setActiveTab("permissions")}
-          />
+          {isAdmin && (
+            <>
+              <TabButton
+                icon={Users}
+                label="Utilisateurs"
+                active={activeTab === "users"}
+                onClick={() => setActiveTab("users")}
+              />
+              <TabButton
+                icon={Shield}
+                label="Permissions"
+                active={activeTab === "permissions"}
+                onClick={() => setActiveTab("permissions")}
+              />
+            </>
+          )}
         </div>
 
         {activeTab === "agencies" && <AgenciesTab />}
         {activeTab === "routes" && <RoutesTab />}
         {activeTab === "vehicles" && <VehiclesTab />}
-        {activeTab === "users" && <UsersTab />}
-        {activeTab === "permissions" && (
+        {activeTab === "users" && isAdmin && <UsersTab />}
+        {activeTab === "permissions" && isAdmin && (
           <Card className="p-6">
             <PermissionsManager />
           </Card>
