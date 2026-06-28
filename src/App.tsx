@@ -78,7 +78,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   // Check role-based access - redirect to first accessible route if no access
   const userRole = profile?.role as UserRole;
-  const isSiege = profile?.agency_code === 'SIE' && userRole !== 'admin';
+  const isSiegeAgency = profile?.agency_code === 'SIE';
+  const isSiege = isSiegeAgency && userRole !== 'admin';
+
+  // Journal d'audit : strictement réservé aux utilisateurs du Siège (toutes rôles confondus).
+  if (location.pathname.startsWith('/audit')) {
+    if (!isSiegeAgency) {
+      return <Navigate to="/" replace />;
+    }
+    return <>{children}</>;
+  }
 
   // Siège users (non-admin): consolidated reports + administrative configuration
   // (agences, lignes, véhicules via /admin, personnel via /staff). Pas d'opérationnel.
