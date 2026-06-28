@@ -33,7 +33,11 @@ export type AuditAction =
   | "SHIPMENT_CREATE"
   | "SHIPMENT_STATUS_CHANGE"
   // 🔐 Permissions
-  | "PERMISSION_CHANGE";
+  | "PERMISSION_CHANGE"
+  // 🏢 Agences
+  | "AGENCY_CREATE"
+  | "AGENCY_UPDATE"
+  | "AGENCY_DELETE";
 
 export type EntityType =
   | "ticket"
@@ -48,7 +52,9 @@ export type EntityType =
   // 🚚 Expéditions
   | "shipment"
   // 🔐 Permissions
-  | "permission";
+  | "permission"
+  // 🏢 Agences
+  | "agency";
 
 interface AuditLogParams {
   action: AuditAction;
@@ -318,5 +324,33 @@ export const audit = {
       entityType: "permission",
       entityId: permissionId,
       description,
+    }),
+
+  // 🏢 Agences
+  agencyCreate: (agencyId: number, name: string, code: string) =>
+    logAudit({
+      action: "AGENCY_CREATE",
+      entityType: "agency",
+      entityId: agencyId,
+      description: `Création agence ${name} (${code})`,
+      agencyId,
+    }),
+
+  agencyUpdate: (agencyId: number, name: string, code: string, changes?: string) =>
+    logAudit({
+      action: "AGENCY_UPDATE",
+      entityType: "agency",
+      entityId: agencyId,
+      description: `Modification agence ${name} (${code})${changes ? ` - ${changes}` : ""}`,
+      agencyId,
+    }),
+
+  agencyDelete: (agencyId: number, name: string, code: string) =>
+    logAudit({
+      action: "AGENCY_DELETE",
+      entityType: "agency",
+      entityId: agencyId,
+      description: `Suppression agence ${name} (${code})`,
+      agencyId,
     }),
 };
