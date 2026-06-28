@@ -146,7 +146,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   };
 
   // Siège (non-admin) : Dashboard, Rapports, Admin (agences/lignes/véhicules), Personnel
-  const isSiegeAgency = profile?.agency_code === 'SIE';
+  const isSiegeAgency = canAccessAudit(profile);
   const isSiege = isSiegeAgency && userRole !== 'admin';
 
   const filteredNavItems = navItems.filter(item => {
