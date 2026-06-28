@@ -1,5 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 /**
@@ -10,28 +8,12 @@ import { useAuth } from '@/contexts/AuthContext';
 export function useIsSiegeUser() {
   const { profile } = useAuth();
 
-  const { data: agencyCode } = useQuery({
-    queryKey: ['user-agency-code', profile?.agency_id],
-    queryFn: async () => {
-      if (!profile?.agency_id) return null;
-      const { data } = await supabase
-        .from('agencies')
-        .select('code')
-        .eq('id', profile.agency_id)
-        .single();
-      return data?.code ?? null;
-    },
-    enabled: !!profile?.agency_id,
-    staleTime: 1000 * 60 * 10,
-  });
-
   const isAdmin = profile?.role === 'admin';
-  const isSiege = agencyCode === 'SIE';
+  const isSiege = profile?.agency_code === 'SIE';
 
   return {
     isAdmin,
     isSiege,
     hasSiegeAccess: isAdmin || isSiege,
-    isLoading: !!profile?.agency_id && agencyCode === undefined,
   };
 }
