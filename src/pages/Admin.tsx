@@ -211,20 +211,46 @@ const AgenciesTab = () => {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!form.name.trim()) throw new Error("Le nom est requis");
-      if (!form.code.trim()) throw new Error("Le code est requis");
-      if (form.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) {
-        throw new Error("Email invalide");
-      }
+      // ---- Client-side validation ----
+      if (!form.name.trim()) throw { __validation: true, title: "Nom requis", detail: "Le nom de l'agence est obligatoire." };
+      if (form.name.trim().length < 2)
+        throw { __validation: true, title: "Nom trop court", detail: "Le nom doit contenir au moins 2 caractères." };
+      if (!form.code.trim())
+        throw { __validation: true, title: "Code requis", detail: "Le code de l'agence est obligatoire." };
+      if (!/^[A-Z0-9]{2,5}$/.test(form.code.trim().toUpperCase()))
+        throw {
+          __validation: true,
+          title: "Code invalide",
+          detail: "Le code doit comporter 2 à 5 caractères alphanumériques (ex: OUA, BOB2).",
+        };
+      if (form.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email))
+        throw { __validation: true, title: "Email invalide", detail: "Format attendu : nom@domaine.ext" };
+      if (form.phone && form.phone.replace(/\D/g, "").length < 6)
+        throw { __validation: true, title: "Téléphone invalide", detail: "Le numéro semble trop court." };
+
+      const code = form.code.trim().toUpperCase();
+
+      // Pre-flight duplicate code check (avoids confusing DB error)
+      const dup = agencies.find(
+        (a: any) => (a.code || "").toUpperCase() === code && (!editing || a.id !== editing.id),
+      );
+      if (dup)
+        throw {
+          __validation: true,
+          title: "Code agence déjà utilisé",
+          detail: `Le code "${code}" est déjà attribué à l'agence "${dup.name}".`,
+        };
+
       const payload = {
         name: form.name.trim(),
-        code: form.code.trim().toUpperCase(),
+        code,
         city: form.city.trim() || null,
         address: form.address.trim() || null,
         phone: form.phone.trim() || null,
         email: form.email.trim() || null,
         is_active: form.is_active,
       };
+
       if (editing) {
         const { data, error } = await supabase
           .from("agencies")
@@ -233,7 +259,6 @@ const AgenciesTab = () => {
           .select()
           .single();
         if (error) throw error;
-        // Compute readable diff for audit
         const fields: Array<{ k: keyof typeof payload; label: string }> = [
           { k: "name", label: "nom" },
           { k: "code", label: "code" },
@@ -248,22 +273,43 @@ const AgenciesTab = () => {
           .map((f) => f.label)
           .join(", ");
         await audit.agencyUpdate(data.id, data.name, data.code, changes || undefined);
-        return { mode: "update" as const };
+        return { mode: "update" as const, data, changes };
       } else {
         const { data, error } = await supabase.from("agencies").insert(payload).select().single();
         if (error) throw error;
         await audit.agencyCreate(data.id, data.name, data.code);
-        return { mode: "create" as const };
+        return { mode: "create" as const, data };
       }
     },
-    onSuccess: () => {
+    onMutate: () => {
+      setFormError(null);
+      const toastId = toast.loading(editing ? "Mise à jour de l'agence..." : "Création de l'agence...");
+      return { toastId };
+    },
+    onSuccess: (result, _vars, ctx) => {
       queryClient.invalidateQueries({ queryKey: ["agencies-admin"] });
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
       setDialogOpen(false);
       resetForm();
-      toast.success(editing ? "Agence modifiée" : "Agence créée");
+      if (result.mode === "update") {
+        toast.success(`Agence "${result.data.name}" mise à jour`, {
+          id: ctx?.toastId,
+          description: result.changes ? `Champs modifiés : ${result.changes}` : "Aucun champ modifié.",
+        });
+      } else {
+        toast.success(`Agence "${result.data.name}" créée`, {
+          id: ctx?.toastId,
+          description: `Code : ${result.data.code}${result.data.city ? ` · ${result.data.city}` : ""}`,
+        });
+      }
     },
-    onError: (error: any) => toast.error(error.message),
+    onError: (error: any, _vars, ctx) => {
+      const parsed = error?.__validation
+        ? { title: error.title, detail: error.detail }
+        : parseAgencyError(error);
+      setFormError(parsed);
+      toast.error(parsed.title, { id: ctx?.toastId, description: parsed.detail });
+    },
   });
 
   const toggleActiveMutation = useMutation({
@@ -280,13 +326,26 @@ const AgenciesTab = () => {
         agency.code,
         `statut → ${newStatus ? "actif" : "inactif"}`,
       );
+      return { agency, newStatus };
     },
-    onSuccess: () => {
+    onMutate: (agency) => {
+      const toastId = toast.loading(`Mise à jour du statut de "${agency.name}"...`);
+      return { toastId };
+    },
+    onSuccess: ({ agency, newStatus }, _vars, ctx) => {
       queryClient.invalidateQueries({ queryKey: ["agencies-admin"] });
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
-      toast.success("Statut mis à jour");
+      toast.success(`"${agency.name}" est maintenant ${newStatus ? "active" : "inactive"}`, {
+        id: ctx?.toastId,
+        description: newStatus
+          ? "L'agence apparaîtra dans les sélecteurs opérationnels."
+          : "L'agence est masquée des nouvelles opérations.",
+      });
     },
-    onError: (error: any) => toast.error(error.message),
+    onError: (error: any, _vars, ctx) => {
+      const parsed = parseAgencyError(error);
+      toast.error(parsed.title, { id: ctx?.toastId, description: parsed.detail });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -294,15 +353,26 @@ const AgenciesTab = () => {
       const { error } = await supabase.from("agencies").delete().eq("id", agency.id);
       if (error) throw error;
       await audit.agencyDelete(agency.id, agency.name, agency.code);
+      return agency;
     },
-    onSuccess: () => {
+    onMutate: (agency) => {
+      const toastId = toast.loading(`Suppression de "${agency.name}"...`);
+      return { toastId };
+    },
+    onSuccess: (agency, _vars, ctx) => {
       queryClient.invalidateQueries({ queryKey: ["agencies-admin"] });
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
       queryClient.invalidateQueries({ queryKey: ["agencies-admin-stats"] });
       setConfirmDelete(null);
-      toast.success("Agence supprimée");
+      toast.success(`Agence "${agency.name}" supprimée`, {
+        id: ctx?.toastId,
+        description: `Code ${agency.code} libéré et réutilisable.`,
+      });
     },
-    onError: (error: any) => toast.error(error.message ?? "Suppression impossible"),
+    onError: (error: any, _vars, ctx) => {
+      const parsed = parseAgencyError(error);
+      toast.error(parsed.title, { id: ctx?.toastId, description: parsed.detail });
+    },
   });
 
   const resetForm = () => {
