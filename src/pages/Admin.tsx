@@ -185,11 +185,9 @@ const AgenciesTab = () => {
       if (editing) {
         const { error } = await supabase.from("agencies").update(payload).eq("id", editing.id);
         if (error) throw error;
-        await audit("UPDATE", "agencies", editing.id, { before: editing, after: payload });
       } else {
         const { data, error } = await supabase.from("agencies").insert(payload).select().single();
         if (error) throw error;
-        await audit("CREATE", "agencies", data?.id, payload);
       }
     },
     onSuccess: () => {
@@ -209,7 +207,6 @@ const AgenciesTab = () => {
         .update({ is_active: !agency.is_active })
         .eq("id", agency.id);
       if (error) throw error;
-      await audit("UPDATE", "agencies", agency.id, { is_active: !agency.is_active });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agencies-admin"] });
@@ -223,7 +220,6 @@ const AgenciesTab = () => {
     mutationFn: async (agency: any) => {
       const { error } = await supabase.from("agencies").delete().eq("id", agency.id);
       if (error) throw error;
-      await audit("DELETE", "agencies", agency.id, agency);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agencies-admin"] });
