@@ -435,9 +435,10 @@ export const api = {
   },
 
   async updateTrip(id: number, updates: Partial<Trip>): Promise<Trip> {
+    const { vehicle, route, driver, assistant, available_seats, ...cleanUpdates } = updates as any;
     const { data, error } = await supabase
       .from('trips')
-      .update(updates)
+      .update(cleanUpdates)
       .eq('id', id)
       .select()
       .single();
