@@ -100,7 +100,7 @@ export default function AuditLogs() {
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [adminAgencyFilter, setAdminAgencyFilter] = useState('');
 
-  const isAdmin = profile?.role === 'admin';
+  const isSiegeUser = profile?.agency_code === 'SIE';
 
   // Fetch audit logs
   const { data: logs, isLoading } = useQuery({
@@ -142,7 +142,7 @@ export default function AuditLogs() {
         profile: log.user_id ? profilesMap[log.user_id] : null,
       })) as AuditLog[];
     },
-    enabled: isAdmin,
+    enabled: isSiegeUser,
   });
 
   // Filter logs
@@ -165,11 +165,13 @@ export default function AuditLogs() {
 
   const uniqueUsers = new Set(logs?.map((log) => log.user_id)).size;
 
-  if (!isAdmin) {
+  if (!isSiegeUser) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Accès réservé aux administrateurs.</p>
+        <div className="flex items-center justify-center h-64" role="alert">
+          <p className="text-muted-foreground">
+            Accès réservé aux utilisateurs du Siège.
+          </p>
         </div>
       </DashboardLayout>
     );
