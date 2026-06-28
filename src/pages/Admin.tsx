@@ -627,11 +627,31 @@ const AgenciesTab = () => {
         )}
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setFormError(null);
+        }}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editing ? "Modifier l'agence" : "Nouvelle agence"}</DialogTitle>
+            <DialogDescription>
+              {editing
+                ? "Mettez à jour les informations de l'agence. Les changements sont audités."
+                : "Renseignez les informations de la nouvelle agence. Le code doit être unique."}
+            </DialogDescription>
           </DialogHeader>
+
+          {formError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>{formError.title}</AlertTitle>
+              <AlertDescription>{formError.detail}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
@@ -644,7 +664,7 @@ const AgenciesTab = () => {
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Code (3-5 lettres) *</Label>
+                <Label>Code (2-5 caractères) *</Label>
                 <Input
                   value={form.code}
                   onChange={(e) =>
@@ -655,7 +675,7 @@ const AgenciesTab = () => {
                   className="font-mono uppercase"
                 />
                 <p className="text-[10px] text-muted-foreground">
-                  Utilisé pour la numérotation des tickets
+                  Utilisé pour la numérotation des tickets · doit être unique
                 </p>
               </div>
             </div>
@@ -709,7 +729,7 @@ const AgenciesTab = () => {
             </label>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saveMutation.isPending}>
               Annuler
             </Button>
             <Button
@@ -717,7 +737,7 @@ const AgenciesTab = () => {
               disabled={!form.name || !form.code || saveMutation.isPending}
               isLoading={saveMutation.isPending}
             >
-              Enregistrer
+              {editing ? "Enregistrer les modifications" : "Créer l'agence"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -727,21 +747,62 @@ const AgenciesTab = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Supprimer l'agence ?</DialogTitle>
+            <DialogDescription>
+              Cette action est irréversible et sera enregistrée dans le journal d'audit.
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Cette action est irréversible. L'agence <strong>{confirmDelete?.name}</strong> sera
-            définitivement supprimée.
-          </p>
+
+          <div className="space-y-3">
+            <p className="text-sm">
+              L'agence <strong>{confirmDelete?.name}</strong>
+              {confirmDelete?.code && (
+                <span className="font-mono text-xs ml-2 bg-muted px-1.5 py-0.5 rounded">
+                  {confirmDelete.code}
+                </span>
+              )}{" "}
+              sera définitivement supprimée.
+            </p>
+
+            {confirmDelete &&
+              (() => {
+                const stats = agencyStats?.[confirmDelete.id] || { routes: 0, users: 0 };
+                if (stats.routes === 0 && stats.users === 0) return null;
+                return (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Suppression bloquée</AlertTitle>
+                    <AlertDescription>
+                      Cette agence est rattachée à{" "}
+                      {stats.routes > 0 && <strong>{stats.routes} ligne(s)</strong>}
+                      {stats.routes > 0 && stats.users > 0 && " et "}
+                      {stats.users > 0 && <strong>{stats.users} utilisateur(s)</strong>}. Réaffectez
+                      ou supprimez ces données d'abord.
+                    </AlertDescription>
+                  </Alert>
+                );
+              })()}
+          </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDelete(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDelete(null)}
+              disabled={deleteMutation.isPending}
+            >
               Annuler
             </Button>
             <Button
               variant="destructive"
               onClick={() => deleteMutation.mutate(confirmDelete)}
               isLoading={deleteMutation.isPending}
+              disabled={
+                deleteMutation.isPending ||
+                (confirmDelete &&
+                  ((agencyStats?.[confirmDelete.id]?.routes ?? 0) > 0 ||
+                    (agencyStats?.[confirmDelete.id]?.users ?? 0) > 0))
+              }
             >
-              Supprimer
+              Supprimer définitivement
             </Button>
           </DialogFooter>
         </DialogContent>
