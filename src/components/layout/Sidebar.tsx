@@ -146,9 +146,12 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   };
 
   // Siège (non-admin) : Dashboard, Rapports, Admin (agences/lignes/véhicules), Personnel
-  const isSiege = profile?.agency_code === 'SIE' && userRole !== 'admin';
+  const isSiegeAgency = profile?.agency_code === 'SIE';
+  const isSiege = isSiegeAgency && userRole !== 'admin';
 
   const filteredNavItems = navItems.filter(item => {
+    // Journal d'audit : visible uniquement pour les utilisateurs du Siège.
+    if (item.to === '/audit') return isSiegeAgency;
     if (isSiege) {
       return (
         item.to === '/' ||
