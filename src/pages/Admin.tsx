@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Building2, Route, Bus, Users, Plus, Pencil, Trash2, Loader2, Shield, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Building2, Route, Bus, Users, Plus, Pencil, Trash2, Loader2, Shield, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle, AlertCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -21,6 +22,41 @@ type Tab = "agencies" | "routes" | "vehicles" | "users" | "permissions";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value) + " F";
+};
+
+/** Convert Supabase / PostgREST errors into actionable French messages. */
+const parseAgencyError = (error: any): { title: string; detail: string } => {
+  const code = error?.code || error?.details?.code;
+  const msg = (error?.message || "").toLowerCase();
+  if (code === "23505" || msg.includes("duplicate") || msg.includes("unique")) {
+    return {
+      title: "Code agence déjà utilisé",
+      detail: "Une autre agence possède déjà ce code. Choisissez un code unique (ex: OUA, BOB, SIE).",
+    };
+  }
+  if (code === "23503" || msg.includes("foreign key") || msg.includes("violates foreign")) {
+    return {
+      title: "Suppression bloquée",
+      detail:
+        "Cette agence est rattachée à des lignes, voyages, utilisateurs ou tickets existants. Réaffectez ou supprimez ces données d'abord.",
+    };
+  }
+  if (code === "42501" || msg.includes("permission denied") || msg.includes("rls") || msg.includes("policy")) {
+    return {
+      title: "Accès refusé",
+      detail: "Seuls les administrateurs et le personnel du Siège peuvent gérer les agences.",
+    };
+  }
+  if (msg.includes("network") || msg.includes("failed to fetch")) {
+    return {
+      title: "Erreur réseau",
+      detail: "Vérifiez votre connexion internet et réessayez.",
+    };
+  }
+  return {
+    title: "Erreur",
+    detail: error?.message || "Une erreur inattendue est survenue.",
+  };
 };
 
 const Admin = () => {
@@ -128,6 +164,7 @@ const AgenciesTab = () => {
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [formError, setFormError] = useState<{ title: string; detail: string } | null>(null);
   const [form, setForm] = useState({
     name: "",
     code: "",
@@ -174,20 +211,46 @@ const AgenciesTab = () => {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!form.name.trim()) throw new Error("Le nom est requis");
-      if (!form.code.trim()) throw new Error("Le code est requis");
-      if (form.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) {
-        throw new Error("Email invalide");
-      }
+      // ---- Client-side validation ----
+      if (!form.name.trim()) throw { __validation: true, title: "Nom requis", detail: "Le nom de l'agence est obligatoire." };
+      if (form.name.trim().length < 2)
+        throw { __validation: true, title: "Nom trop court", detail: "Le nom doit contenir au moins 2 caractères." };
+      if (!form.code.trim())
+        throw { __validation: true, title: "Code requis", detail: "Le code de l'agence est obligatoire." };
+      if (!/^[A-Z0-9]{2,5}$/.test(form.code.trim().toUpperCase()))
+        throw {
+          __validation: true,
+          title: "Code invalide",
+          detail: "Le code doit comporter 2 à 5 caractères alphanumériques (ex: OUA, BOB2).",
+        };
+      if (form.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email))
+        throw { __validation: true, title: "Email invalide", detail: "Format attendu : nom@domaine.ext" };
+      if (form.phone && form.phone.replace(/\D/g, "").length < 6)
+        throw { __validation: true, title: "Téléphone invalide", detail: "Le numéro semble trop court." };
+
+      const code = form.code.trim().toUpperCase();
+
+      // Pre-flight duplicate code check (avoids confusing DB error)
+      const dup = agencies.find(
+        (a: any) => (a.code || "").toUpperCase() === code && (!editing || a.id !== editing.id),
+      );
+      if (dup)
+        throw {
+          __validation: true,
+          title: "Code agence déjà utilisé",
+          detail: `Le code "${code}" est déjà attribué à l'agence "${dup.name}".`,
+        };
+
       const payload = {
         name: form.name.trim(),
-        code: form.code.trim().toUpperCase(),
+        code,
         city: form.city.trim() || null,
         address: form.address.trim() || null,
         phone: form.phone.trim() || null,
         email: form.email.trim() || null,
         is_active: form.is_active,
       };
+
       if (editing) {
         const { data, error } = await supabase
           .from("agencies")
@@ -196,7 +259,6 @@ const AgenciesTab = () => {
           .select()
           .single();
         if (error) throw error;
-        // Compute readable diff for audit
         const fields: Array<{ k: keyof typeof payload; label: string }> = [
           { k: "name", label: "nom" },
           { k: "code", label: "code" },
@@ -211,22 +273,43 @@ const AgenciesTab = () => {
           .map((f) => f.label)
           .join(", ");
         await audit.agencyUpdate(data.id, data.name, data.code, changes || undefined);
-        return { mode: "update" as const };
+        return { mode: "update" as const, data, changes };
       } else {
         const { data, error } = await supabase.from("agencies").insert(payload).select().single();
         if (error) throw error;
         await audit.agencyCreate(data.id, data.name, data.code);
-        return { mode: "create" as const };
+        return { mode: "create" as const, data };
       }
     },
-    onSuccess: () => {
+    onMutate: () => {
+      setFormError(null);
+      const toastId = toast.loading(editing ? "Mise à jour de l'agence..." : "Création de l'agence...");
+      return { toastId };
+    },
+    onSuccess: (result, _vars, ctx) => {
       queryClient.invalidateQueries({ queryKey: ["agencies-admin"] });
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
       setDialogOpen(false);
       resetForm();
-      toast.success(editing ? "Agence modifiée" : "Agence créée");
+      if (result.mode === "update") {
+        toast.success(`Agence "${result.data.name}" mise à jour`, {
+          id: ctx?.toastId,
+          description: result.changes ? `Champs modifiés : ${result.changes}` : "Aucun champ modifié.",
+        });
+      } else {
+        toast.success(`Agence "${result.data.name}" créée`, {
+          id: ctx?.toastId,
+          description: `Code : ${result.data.code}${result.data.city ? ` · ${result.data.city}` : ""}`,
+        });
+      }
     },
-    onError: (error: any) => toast.error(error.message),
+    onError: (error: any, _vars, ctx) => {
+      const parsed = error?.__validation
+        ? { title: error.title, detail: error.detail }
+        : parseAgencyError(error);
+      setFormError(parsed);
+      toast.error(parsed.title, { id: ctx?.toastId, description: parsed.detail });
+    },
   });
 
   const toggleActiveMutation = useMutation({
@@ -243,13 +326,26 @@ const AgenciesTab = () => {
         agency.code,
         `statut → ${newStatus ? "actif" : "inactif"}`,
       );
+      return { agency, newStatus };
     },
-    onSuccess: () => {
+    onMutate: (agency) => {
+      const toastId = toast.loading(`Mise à jour du statut de "${agency.name}"...`);
+      return { toastId };
+    },
+    onSuccess: ({ agency, newStatus }, _vars, ctx) => {
       queryClient.invalidateQueries({ queryKey: ["agencies-admin"] });
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
-      toast.success("Statut mis à jour");
+      toast.success(`"${agency.name}" est maintenant ${newStatus ? "active" : "inactive"}`, {
+        id: ctx?.toastId,
+        description: newStatus
+          ? "L'agence apparaîtra dans les sélecteurs opérationnels."
+          : "L'agence est masquée des nouvelles opérations.",
+      });
     },
-    onError: (error: any) => toast.error(error.message),
+    onError: (error: any, _vars, ctx) => {
+      const parsed = parseAgencyError(error);
+      toast.error(parsed.title, { id: ctx?.toastId, description: parsed.detail });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -257,24 +353,37 @@ const AgenciesTab = () => {
       const { error } = await supabase.from("agencies").delete().eq("id", agency.id);
       if (error) throw error;
       await audit.agencyDelete(agency.id, agency.name, agency.code);
+      return agency;
     },
-    onSuccess: () => {
+    onMutate: (agency) => {
+      const toastId = toast.loading(`Suppression de "${agency.name}"...`);
+      return { toastId };
+    },
+    onSuccess: (agency, _vars, ctx) => {
       queryClient.invalidateQueries({ queryKey: ["agencies-admin"] });
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
       queryClient.invalidateQueries({ queryKey: ["agencies-admin-stats"] });
       setConfirmDelete(null);
-      toast.success("Agence supprimée");
+      toast.success(`Agence "${agency.name}" supprimée`, {
+        id: ctx?.toastId,
+        description: `Code ${agency.code} libéré et réutilisable.`,
+      });
     },
-    onError: (error: any) => toast.error(error.message ?? "Suppression impossible"),
+    onError: (error: any, _vars, ctx) => {
+      const parsed = parseAgencyError(error);
+      toast.error(parsed.title, { id: ctx?.toastId, description: parsed.detail });
+    },
   });
 
   const resetForm = () => {
     setEditing(null);
+    setFormError(null);
     setForm({ name: "", code: "", city: "", address: "", phone: "", email: "", is_active: true });
   };
 
   const openEdit = (agency: any) => {
     setEditing(agency);
+    setFormError(null);
     setForm({
       name: agency.name ?? "",
       code: agency.code ?? "",
@@ -518,11 +627,31 @@ const AgenciesTab = () => {
         )}
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setFormError(null);
+        }}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editing ? "Modifier l'agence" : "Nouvelle agence"}</DialogTitle>
+            <DialogDescription>
+              {editing
+                ? "Mettez à jour les informations de l'agence. Les changements sont audités."
+                : "Renseignez les informations de la nouvelle agence. Le code doit être unique."}
+            </DialogDescription>
           </DialogHeader>
+
+          {formError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>{formError.title}</AlertTitle>
+              <AlertDescription>{formError.detail}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
@@ -535,7 +664,7 @@ const AgenciesTab = () => {
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Code (3-5 lettres) *</Label>
+                <Label>Code (2-5 caractères) *</Label>
                 <Input
                   value={form.code}
                   onChange={(e) =>
@@ -546,7 +675,7 @@ const AgenciesTab = () => {
                   className="font-mono uppercase"
                 />
                 <p className="text-[10px] text-muted-foreground">
-                  Utilisé pour la numérotation des tickets
+                  Utilisé pour la numérotation des tickets · doit être unique
                 </p>
               </div>
             </div>
@@ -600,7 +729,7 @@ const AgenciesTab = () => {
             </label>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saveMutation.isPending}>
               Annuler
             </Button>
             <Button
@@ -608,7 +737,7 @@ const AgenciesTab = () => {
               disabled={!form.name || !form.code || saveMutation.isPending}
               isLoading={saveMutation.isPending}
             >
-              Enregistrer
+              {editing ? "Enregistrer les modifications" : "Créer l'agence"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -618,21 +747,62 @@ const AgenciesTab = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Supprimer l'agence ?</DialogTitle>
+            <DialogDescription>
+              Cette action est irréversible et sera enregistrée dans le journal d'audit.
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Cette action est irréversible. L'agence <strong>{confirmDelete?.name}</strong> sera
-            définitivement supprimée.
-          </p>
+
+          <div className="space-y-3">
+            <p className="text-sm">
+              L'agence <strong>{confirmDelete?.name}</strong>
+              {confirmDelete?.code && (
+                <span className="font-mono text-xs ml-2 bg-muted px-1.5 py-0.5 rounded">
+                  {confirmDelete.code}
+                </span>
+              )}{" "}
+              sera définitivement supprimée.
+            </p>
+
+            {confirmDelete &&
+              (() => {
+                const stats = agencyStats?.[confirmDelete.id] || { routes: 0, users: 0 };
+                if (stats.routes === 0 && stats.users === 0) return null;
+                return (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Suppression bloquée</AlertTitle>
+                    <AlertDescription>
+                      Cette agence est rattachée à{" "}
+                      {stats.routes > 0 && <strong>{stats.routes} ligne(s)</strong>}
+                      {stats.routes > 0 && stats.users > 0 && " et "}
+                      {stats.users > 0 && <strong>{stats.users} utilisateur(s)</strong>}. Réaffectez
+                      ou supprimez ces données d'abord.
+                    </AlertDescription>
+                  </Alert>
+                );
+              })()}
+          </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDelete(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDelete(null)}
+              disabled={deleteMutation.isPending}
+            >
               Annuler
             </Button>
             <Button
               variant="destructive"
               onClick={() => deleteMutation.mutate(confirmDelete)}
               isLoading={deleteMutation.isPending}
+              disabled={
+                deleteMutation.isPending ||
+                (confirmDelete &&
+                  ((agencyStats?.[confirmDelete.id]?.routes ?? 0) > 0 ||
+                    (agencyStats?.[confirmDelete.id]?.users ?? 0) > 0))
+              }
             >
-              Supprimer
+              Supprimer définitivement
             </Button>
           </DialogFooter>
         </DialogContent>
