@@ -74,6 +74,9 @@ const actionConfig: Record<string, { label: string; color: string }> = {
   SHIPMENT_CREATE: { label: 'Création expédition', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
   SHIPMENT_STATUS_CHANGE: { label: 'Statut expédition', color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400' },
   PERMISSION_CHANGE: { label: 'Modification permission', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' },
+  AGENCY_CREATE: { label: 'Création agence', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  AGENCY_UPDATE: { label: 'Modification agence', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
+  AGENCY_DELETE: { label: 'Suppression agence', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
 };
 
 const entityLabels: Record<string, string> = {
@@ -88,6 +91,7 @@ const entityLabels: Record<string, string> = {
   report: 'Rapport',
   shipment: 'Expédition',
   permission: 'Permission',
+  agency: 'Agence',
 };
 
 export default function AuditLogs() {
