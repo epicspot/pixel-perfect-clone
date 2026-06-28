@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*, agency:agencies(name)')
+      .select('*, agency:agencies(name, code)')
       .eq('id', userId)
       .maybeSingle();
 
@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return {
         ...data,
         agency_name: (data.agency as any)?.name || null,
+        agency_code: (data.agency as any)?.code || null,
       } as Profile;
     }
     return null;
