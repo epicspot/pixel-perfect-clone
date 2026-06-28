@@ -189,11 +189,34 @@ const AgenciesTab = () => {
         is_active: form.is_active,
       };
       if (editing) {
-        const { error } = await supabase.from("agencies").update(payload).eq("id", editing.id);
+        const { data, error } = await supabase
+          .from("agencies")
+          .update(payload)
+          .eq("id", editing.id)
+          .select()
+          .single();
         if (error) throw error;
+        // Compute readable diff for audit
+        const fields: Array<{ k: keyof typeof payload; label: string }> = [
+          { k: "name", label: "nom" },
+          { k: "code", label: "code" },
+          { k: "city", label: "ville" },
+          { k: "address", label: "adresse" },
+          { k: "phone", label: "téléphone" },
+          { k: "email", label: "email" },
+          { k: "is_active", label: "statut" },
+        ];
+        const changes = fields
+          .filter((f) => (editing as any)[f.k] !== (payload as any)[f.k])
+          .map((f) => f.label)
+          .join(", ");
+        await audit.agencyUpdate(data.id, data.name, data.code, changes || undefined);
+        return { mode: "update" as const };
       } else {
-        const { error } = await supabase.from("agencies").insert(payload);
+        const { data, error } = await supabase.from("agencies").insert(payload).select().single();
         if (error) throw error;
+        await audit.agencyCreate(data.id, data.name, data.code);
+        return { mode: "create" as const };
       }
     },
     onSuccess: () => {
@@ -208,11 +231,18 @@ const AgenciesTab = () => {
 
   const toggleActiveMutation = useMutation({
     mutationFn: async (agency: any) => {
+      const newStatus = !agency.is_active;
       const { error } = await supabase
         .from("agencies")
-        .update({ is_active: !agency.is_active })
+        .update({ is_active: newStatus })
         .eq("id", agency.id);
       if (error) throw error;
+      await audit.agencyUpdate(
+        agency.id,
+        agency.name,
+        agency.code,
+        `statut → ${newStatus ? "actif" : "inactif"}`,
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agencies-admin"] });
@@ -226,6 +256,7 @@ const AgenciesTab = () => {
     mutationFn: async (agency: any) => {
       const { error } = await supabase.from("agencies").delete().eq("id", agency.id);
       if (error) throw error;
+      await audit.agencyDelete(agency.id, agency.name, agency.code);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agencies-admin"] });
