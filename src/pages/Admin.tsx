@@ -377,11 +377,13 @@ const AgenciesTab = () => {
 
   const resetForm = () => {
     setEditing(null);
+    setFormError(null);
     setForm({ name: "", code: "", city: "", address: "", phone: "", email: "", is_active: true });
   };
 
   const openEdit = (agency: any) => {
     setEditing(agency);
+    setFormError(null);
     setForm({
       name: agency.name ?? "",
       code: agency.code ?? "",
