@@ -119,10 +119,21 @@ const AgenciesTab = () => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
-  const [form, setForm] = useState({ name: "", code: "", city: "", address: "", phone: "" });
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [confirmDelete, setConfirmDelete] = useState<any>(null);
+  const [form, setForm] = useState({
+    name: "",
+    code: "",
+    city: "",
+    address: "",
+    phone: "",
+    email: "",
+    is_active: true,
+  });
 
   const { data: agencies = [], isLoading } = useQuery({
-    queryKey: ["agencies"],
+    queryKey: ["agencies-admin"],
     queryFn: async () => {
       const { data, error } = await supabase.from("agencies").select("*").order("name");
       if (error) throw error;
@@ -130,14 +141,46 @@ const AgenciesTab = () => {
     },
   });
 
+  // Counts of dependencies per agency (routes + users) to inform deletion
+  const { data: agencyStats } = useQuery({
+    queryKey: ["agencies-admin-stats"],
+    queryFn: async () => {
+      const [routesRes, profilesRes] = await Promise.all([
+        supabase.from("routes").select("id, departure_agency_id, arrival_agency_id"),
+        supabase.from("profiles").select("id, agency_id"),
+      ]);
+      const stats: Record<number, { routes: number; users: number }> = {};
+      (routesRes.data || []).forEach((r: any) => {
+        [r.departure_agency_id, r.arrival_agency_id].forEach((aid) => {
+          if (!aid) return;
+          stats[aid] = stats[aid] || { routes: 0, users: 0 };
+          stats[aid].routes += 1;
+        });
+      });
+      (profilesRes.data || []).forEach((p: any) => {
+        if (!p.agency_id) return;
+        stats[p.agency_id] = stats[p.agency_id] || { routes: 0, users: 0 };
+        stats[p.agency_id].users += 1;
+      });
+      return stats;
+    },
+  });
+
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!form.name.trim()) throw new Error("Le nom est requis");
+      if (!form.code.trim()) throw new Error("Le code est requis");
+      if (form.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) {
+        throw new Error("Email invalide");
+      }
       const payload = {
-        name: form.name,
-        code: form.code.toUpperCase() || null,
-        city: form.city || null,
-        address: form.address || null,
-        phone: form.phone || null,
+        name: form.name.trim(),
+        code: form.code.trim().toUpperCase(),
+        city: form.city.trim() || null,
+        address: form.address.trim() || null,
+        phone: form.phone.trim() || null,
+        email: form.email.trim() || null,
+        is_active: form.is_active,
       };
       if (editing) {
         const { error } = await supabase.from("agencies").update(payload).eq("id", editing.id);
@@ -148,6 +191,7 @@ const AgenciesTab = () => {
       }
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agencies-admin"] });
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
       setDialogOpen(false);
       resetForm();
@@ -156,48 +200,106 @@ const AgenciesTab = () => {
     onError: (error: any) => toast.error(error.message),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const { error } = await supabase.from("agencies").delete().eq("id", id);
+  const toggleActiveMutation = useMutation({
+    mutationFn: async (agency: any) => {
+      const { error } = await supabase
+        .from("agencies")
+        .update({ is_active: !agency.is_active })
+        .eq("id", agency.id);
       if (error) throw error;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agencies-admin"] });
       queryClient.invalidateQueries({ queryKey: ["agencies"] });
-      toast.success("Agence supprimée");
+      toast.success("Statut mis à jour");
     },
     onError: (error: any) => toast.error(error.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (agency: any) => {
+      const { error } = await supabase.from("agencies").delete().eq("id", agency.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agencies-admin"] });
+      queryClient.invalidateQueries({ queryKey: ["agencies"] });
+      queryClient.invalidateQueries({ queryKey: ["agencies-admin-stats"] });
+      setConfirmDelete(null);
+      toast.success("Agence supprimée");
+    },
+    onError: (error: any) => toast.error(error.message ?? "Suppression impossible"),
+  });
+
   const resetForm = () => {
     setEditing(null);
-    setForm({ name: "", code: "", city: "", address: "", phone: "" });
+    setForm({ name: "", code: "", city: "", address: "", phone: "", email: "", is_active: true });
   };
 
   const openEdit = (agency: any) => {
     setEditing(agency);
     setForm({
-      name: agency.name,
-      code: agency.code || "",
-      city: agency.city || "",
-      address: agency.address || "",
-      phone: agency.phone || "",
+      name: agency.name ?? "",
+      code: agency.code ?? "",
+      city: agency.city ?? "",
+      address: agency.address ?? "",
+      phone: agency.phone ?? "",
+      email: agency.email ?? "",
+      is_active: agency.is_active ?? true,
     });
     setDialogOpen(true);
   };
 
+  const filtered = agencies.filter((a: any) => {
+    if (statusFilter === "active" && !a.is_active) return false;
+    if (statusFilter === "inactive" && a.is_active) return false;
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      (a.name || "").toLowerCase().includes(q) ||
+      (a.code || "").toLowerCase().includes(q) ||
+      (a.city || "").toLowerCase().includes(q)
+    );
+  });
+
+  const activeCount = agencies.filter((a: any) => a.is_active).length;
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold">Agences ({agencies.length})</h2>
-        <Button
-          onClick={() => {
-            resetForm();
-            setDialogOpen(true);
-          }}
-          className="gap-2"
-        >
-          <Plus className="w-4 h-4" /> Ajouter
-        </Button>
+      <div className="flex flex-wrap gap-3 justify-between items-end">
+        <div>
+          <h2 className="text-lg font-semibold">Agences</h2>
+          <p className="text-xs text-muted-foreground">
+            {agencies.length} agence(s) · {activeCount} active(s)
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 items-center">
+          <Input
+            placeholder="Rechercher (nom, code, ville)..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-64"
+          />
+          <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes</SelectItem>
+              <SelectItem value="active">Actives</SelectItem>
+              <SelectItem value="inactive">Inactives</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={() => {
+              resetForm();
+              setDialogOpen(true);
+            }}
+            className="gap-2"
+          >
+            <Plus className="w-4 h-4" /> Ajouter
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -212,41 +314,70 @@ const AgenciesTab = () => {
                 <TableHead>Code</TableHead>
                 <TableHead>Nom</TableHead>
                 <TableHead>Ville</TableHead>
-                <TableHead>Téléphone</TableHead>
+                <TableHead>Contact</TableHead>
+                <TableHead className="text-center">Lignes</TableHead>
+                <TableHead className="text-center">Utilisateurs</TableHead>
+                <TableHead className="text-center">Statut</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {agencies.map((a: any) => (
-                <TableRow key={a.id}>
-                  <TableCell>
-                    <span className="font-mono text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                      {a.code || "—"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="font-medium">{a.name}</TableCell>
-                  <TableCell>{a.city || "—"}</TableCell>
-                  <TableCell>{a.phone || "—"}</TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(a)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => {
-                        if (window.confirm(`Supprimer "${a.name}" ?`)) deleteMutation.mutate(a.id);
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {agencies.length === 0 && (
+              {filtered.map((a: any) => {
+                const stats = agencyStats?.[a.id] || { routes: 0, users: 0 };
+                const hasDeps = stats.routes > 0 || stats.users > 0;
+                return (
+                  <TableRow key={a.id}>
+                    <TableCell>
+                      <span className="font-mono text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                        {a.code || "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="font-medium">{a.name}</TableCell>
+                    <TableCell>{a.city || "—"}</TableCell>
+                    <TableCell className="text-xs">
+                      <div>{a.phone || "—"}</div>
+                      {a.email && <div className="text-muted-foreground">{a.email}</div>}
+                    </TableCell>
+                    <TableCell className="text-center">{stats.routes}</TableCell>
+                    <TableCell className="text-center">{stats.users}</TableCell>
+                    <TableCell className="text-center">
+                      <button
+                        onClick={() => toggleActiveMutation.mutate(a)}
+                        className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          a.is_active
+                            ? "bg-green-100 text-green-700 hover:bg-green-200"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
+                        }`}
+                        title="Cliquer pour basculer"
+                      >
+                        {a.is_active ? "Active" : "Inactive"}
+                      </button>
+                    </TableCell>
+                    <TableCell className="text-right space-x-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(a)}>
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        disabled={hasDeps}
+                        title={
+                          hasDeps
+                            ? "Impossible : agence rattachée à des lignes ou utilisateurs"
+                            : "Supprimer"
+                        }
+                        onClick={() => setConfirmDelete(a)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                     Aucune agence
                   </TableCell>
                 </TableRow>
@@ -257,7 +388,7 @@ const AgenciesTab = () => {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editing ? "Modifier l'agence" : "Nouvelle agence"}</DialogTitle>
           </DialogHeader>
@@ -269,27 +400,44 @@ const AgenciesTab = () => {
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="Ex: Ouagadougou Centre"
+                  maxLength={100}
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Code (3 lettres) *</Label>
+                <Label>Code (3-5 lettres) *</Label>
                 <Input
                   value={form.code}
-                  onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().slice(0, 5) })}
+                  onChange={(e) =>
+                    setForm({ ...form, code: e.target.value.toUpperCase().slice(0, 5) })
+                  }
                   placeholder="Ex: OUA"
                   maxLength={5}
                   className="font-mono uppercase"
                 />
-                <p className="text-[10px] text-muted-foreground">Utilisé pour la numérotation des tickets</p>
+                <p className="text-[10px] text-muted-foreground">
+                  Utilisé pour la numérotation des tickets
+                </p>
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label>Ville</Label>
-              <Input
-                value={form.city}
-                onChange={(e) => setForm({ ...form, city: e.target.value })}
-                placeholder="Ex: Ouagadougou"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Ville</Label>
+                <Input
+                  value={form.city}
+                  onChange={(e) => setForm({ ...form, city: e.target.value })}
+                  placeholder="Ex: Ouagadougou"
+                  maxLength={80}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Téléphone</Label>
+                <Input
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="Ex: +226 70 00 00 00"
+                  maxLength={30}
+                />
+              </div>
             </div>
             <div className="grid gap-2">
               <Label>Adresse</Label>
@@ -297,23 +445,63 @@ const AgenciesTab = () => {
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
                 placeholder="Ex: Avenue Kwame Nkrumah"
+                maxLength={200}
               />
             </div>
             <div className="grid gap-2">
-              <Label>Téléphone</Label>
+              <Label>Email</Label>
               <Input
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="Ex: +226 70 00 00 00"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="Ex: ouaga@compagnie.bf"
+                maxLength={120}
               />
             </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={form.is_active}
+                onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+                className="w-4 h-4 accent-primary"
+              />
+              <span className="text-sm">Agence active</span>
+            </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Annuler
             </Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={!form.name || saveMutation.isPending}>
-              {saveMutation.isPending ? "Enregistrement..." : "Enregistrer"}
+            <Button
+              onClick={() => saveMutation.mutate()}
+              disabled={!form.name || !form.code || saveMutation.isPending}
+              isLoading={saveMutation.isPending}
+            >
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmDelete} onOpenChange={(open) => !open && setConfirmDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Supprimer l'agence ?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Cette action est irréversible. L'agence <strong>{confirmDelete?.name}</strong> sera
+            définitivement supprimée.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(null)}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteMutation.mutate(confirmDelete)}
+              isLoading={deleteMutation.isPending}
+            >
+              Supprimer
             </Button>
           </DialogFooter>
         </DialogContent>
