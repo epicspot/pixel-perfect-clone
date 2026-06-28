@@ -30,6 +30,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { hasRouteAccess, getRoleLabel, UserRole } from '@/lib/permissions';
+import { canAccessAudit } from '@/lib/access';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ModuleType } from '@/hooks/usePermissions';
