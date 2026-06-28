@@ -181,10 +181,23 @@ async function getUserAgencyRestriction(): Promise<{ agencyId: number | null; ro
     .eq('id', session.user.id)
     .single();
   
-  return {
-    agencyId: profile?.agency_id || null,
-    role: profile?.role || null
-  };
+  let agencyId = profile?.agency_id || null;
+  const role = profile?.role || null;
+
+  // Users assigned to the Siège (head office, code 'SIE') have cross-agency access
+  // like admins — no agency restriction is applied to their queries.
+  if (agencyId) {
+    const { data: agency } = await supabase
+      .from('agencies')
+      .select('code')
+      .eq('id', agencyId)
+      .single();
+    if (agency?.code === 'SIE') {
+      agencyId = null;
+    }
+  }
+
+  return { agencyId, role };
 }
 
 // API Functions
