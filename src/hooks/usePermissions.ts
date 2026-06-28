@@ -73,6 +73,8 @@ const defaultPermission: Permission = {
 export function usePermissions() {
   const { profile } = useAuth();
   const userRole = profile?.role;
+  const isAdmin = userRole === 'admin';
+  const isSiege = profile?.agency_code === 'SIE';
 
   const { data: permissions, isLoading, refetch } = useQuery({
     queryKey: ['role-permissions', userRole],
@@ -95,7 +97,17 @@ export function usePermissions() {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
+  // Siège users get full create/edit/delete rights on administrative modules
+  // (staff, etc.). Admins always have everything.
+  const siegeAdministrativeModules: ModuleType[] = ['staff', 'rapports'];
+
   const getPermission = (module: ModuleType): Permission => {
+    if (isAdmin) {
+      return { can_view: true, can_create: true, can_edit: true, can_delete: true };
+    }
+    if (isSiege && siegeAdministrativeModules.includes(module)) {
+      return { can_view: true, can_create: true, can_edit: true, can_delete: true };
+    }
     if (!permissions) return defaultPermission;
     
     const modulePermission = permissions.find(p => p.module === module);

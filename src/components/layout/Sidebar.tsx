@@ -145,13 +145,17 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     return permission.can_view && !permission.can_create && !permission.can_edit;
   };
 
-  // Siège users (non-admin) are restricted to dashboard + consolidated reports
+  // Siège (non-admin) : Dashboard, Rapports, Admin (agences/lignes/véhicules), Personnel
   const isSiege = profile?.agency_code === 'SIE' && userRole !== 'admin';
 
-  // Filter nav items based on both route access AND module permissions
   const filteredNavItems = navItems.filter(item => {
     if (isSiege) {
-      return item.to === '/' || item.to.startsWith('/rapports');
+      return (
+        item.to === '/' ||
+        item.to.startsWith('/rapports') ||
+        item.to.startsWith('/admin') ||
+        item.to.startsWith('/staff')
+      );
     }
     if (!hasRouteAccess(profile?.role as UserRole, item.to)) return false;
     return canViewModule(item.to);
