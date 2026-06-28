@@ -164,6 +164,7 @@ const AgenciesTab = () => {
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [formError, setFormError] = useState<{ title: string; detail: string } | null>(null);
   const [form, setForm] = useState({
     name: "",
     code: "",
