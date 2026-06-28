@@ -266,9 +266,10 @@ export const api = {
   },
 
   async updateRoute(id: number, updates: Partial<RouteRow>): Promise<RouteRow> {
+    const { departure_agency, arrival_agency, ...cleanUpdates } = updates as any;
     const { data, error } = await supabase
       .from('routes')
-      .update(updates)
+      .update(cleanUpdates)
       .eq('id', id)
       .select()
       .single();
