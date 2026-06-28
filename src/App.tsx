@@ -80,10 +80,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const userRole = profile?.role as UserRole;
   const isSiege = profile?.agency_code === 'SIE' && userRole !== 'admin';
 
-  // Siège users (non-admin) are restricted to dashboard + consolidated reports only
+  // Siège users (non-admin): consolidated reports + administrative configuration
+  // (agences, lignes, véhicules via /admin, personnel via /staff). Pas d'opérationnel.
+  const siegeAllowed = (path: string) =>
+    path === '/' ||
+    path.startsWith('/rapports') ||
+    path.startsWith('/admin') ||
+    path.startsWith('/staff');
+
   let hasAccess: boolean;
   if (isSiege) {
-    hasAccess = location.pathname === '/' || location.pathname.startsWith('/rapports');
+    hasAccess = siegeAllowed(location.pathname);
   } else {
     hasAccess = hasRouteAccess(userRole, location.pathname);
   }
