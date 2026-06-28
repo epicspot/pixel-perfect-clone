@@ -30,6 +30,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { hasRouteAccess, getRoleLabel, UserRole } from '@/lib/permissions';
+import { canAccessAudit } from '@/lib/access';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ModuleType } from '@/hooks/usePermissions';
@@ -146,7 +147,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   };
 
   // Siège (non-admin) : Dashboard, Rapports, Admin (agences/lignes/véhicules), Personnel
-  const isSiegeAgency = profile?.agency_code === 'SIE';
+  const isSiegeAgency = canAccessAudit(profile);
   const isSiege = isSiegeAgency && userRole !== 'admin';
 
   const filteredNavItems = navItems.filter(item => {

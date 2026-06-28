@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { hasRouteAccess, UserRole, roleRoutePermissions } from "@/lib/permissions";
+import { canAccessAudit } from "@/lib/access";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LoadingProgress, LoadingSpinner } from "@/components/ui/loading-progress";
 import { useGlobalLoading } from "@/hooks/useLoadingProgress";
@@ -78,7 +79,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   // Check role-based access - redirect to first accessible route if no access
   const userRole = profile?.role as UserRole;
-  const isSiegeAgency = profile?.agency_code === 'SIE';
+  const isSiegeAgency = canAccessAudit(profile);
   const isSiege = isSiegeAgency && userRole !== 'admin';
 
   // Journal d'audit : strictement réservé aux utilisateurs du Siège (toutes rôles confondus).
