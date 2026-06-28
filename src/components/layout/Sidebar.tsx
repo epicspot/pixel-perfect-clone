@@ -145,16 +145,15 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     return permission.can_view && !permission.can_create && !permission.can_edit;
   };
 
-  // Siège users get admin-like access to the /admin area
-  const isSiege = profile?.agency_code === 'SIE';
+  // Siège users (non-admin) are restricted to dashboard + consolidated reports
+  const isSiege = profile?.agency_code === 'SIE' && userRole !== 'admin';
 
   // Filter nav items based on both route access AND module permissions
   const filteredNavItems = navItems.filter(item => {
-    // Allow /admin for Siège users even if their role normally lacks access
-    if (item.to === '/admin' && isSiege) return true;
-    // First check role-based route access
+    if (isSiege) {
+      return item.to === '/' || item.to.startsWith('/rapports');
+    }
     if (!hasRouteAccess(profile?.role as UserRole, item.to)) return false;
-    // Then check module-level can_view permission
     return canViewModule(item.to);
   });
 
