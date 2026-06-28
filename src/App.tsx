@@ -78,9 +78,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   // Check role-based access - redirect to first accessible route if no access
   const userRole = profile?.role as UserRole;
-  const isSiege = profile?.agency_code === 'SIE';
+  const isSiege = profile?.agency_code === 'SIE' && userRole !== 'admin';
 
-  // Siège users are restricted to dashboard + consolidated reports only
+  // Siège users (non-admin) are restricted to dashboard + consolidated reports only
   let hasAccess: boolean;
   if (isSiege) {
     hasAccess = location.pathname === '/' || location.pathname.startsWith('/rapports');
