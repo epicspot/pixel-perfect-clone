@@ -17,6 +17,7 @@ import { getRoleLabel, getRoleColorClasses, UserRole } from "@/lib/permissions";
 import { audit } from "@/lib/audit";
 import { PermissionsManager } from "@/components/admin/PermissionsManager";
 import { useIsSiegeUser } from "@/hooks/useIsSiegeUser";
+import { notifyError } from '@/lib/errors';
 
 type Tab = "agencies" | "routes" | "vehicles" | "users" | "permissions";
 
@@ -864,7 +865,7 @@ const RoutesTab = () => {
       setForm({ name: "", base_price: "", departure_agency_id: "", arrival_agency_id: "" });
       toast.success(editing ? "Ligne modifiée" : "Ligne créée");
     },
-    onError: (error: any) => toast.error(error.message),
+    onError: (error: any) => notifyError(error),
   });
 
   const deleteMutation = useMutation({
@@ -876,7 +877,7 @@ const RoutesTab = () => {
       queryClient.invalidateQueries({ queryKey: ["routes"] });
       toast.success("Ligne supprimée");
     },
-    onError: (error: any) => toast.error(error.message),
+    onError: (error: any) => notifyError(error),
   });
 
   const openEdit = (route: any) => {
@@ -1088,7 +1089,7 @@ const VehiclesTab = () => {
       setForm({ registration_number: "", agency_id: "", brand: "", model: "", seats: "50", status: "active" });
       toast.success(editing ? "Véhicule modifié" : "Véhicule créé");
     },
-    onError: (error: any) => toast.error(error.message),
+    onError: (error: any) => notifyError(error),
   });
 
   const deleteMutation = useMutation({
@@ -1100,7 +1101,7 @@ const VehiclesTab = () => {
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
       toast.success("Véhicule supprimé");
     },
-    onError: (error: any) => toast.error(error.message),
+    onError: (error: any) => notifyError(error),
   });
 
   const openEdit = (vehicle: any) => {
@@ -1352,7 +1353,7 @@ const UsersTab = () => {
       if (error.message?.includes("already registered")) {
         toast.error("Cet email est déjà utilisé");
       } else {
-        toast.error(error.message);
+        notifyError(error);
       }
     },
   });
@@ -1374,7 +1375,7 @@ const UsersTab = () => {
       resetForm();
       toast.success("Profil modifié");
     },
-    onError: (error: any) => toast.error(error.message),
+    onError: (error: any) => notifyError(error),
   });
 
   const deleteMutation = useMutation({
@@ -1387,7 +1388,7 @@ const UsersTab = () => {
       queryClient.invalidateQueries({ queryKey: ["profiles"] });
       toast.success("Utilisateur supprimé");
     },
-    onError: (error: any) => toast.error(error.message),
+    onError: (error: any) => notifyError(error),
   });
 
   const resetForm = () => {
