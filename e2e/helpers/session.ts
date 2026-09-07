@@ -22,7 +22,10 @@ function readEnv(name: string, fallback: string): string {
   return fallback;
 }
 
-const SUPABASE_URL = readEnv("VITE_SUPABASE_URL");
+const SUPABASE_URL = readEnv(
+  "VITE_SUPABASE_URL",
+  "https://e2e-local.supabase.co",
+);
 const PROJECT_REF = new URL(SUPABASE_URL).hostname.split(".")[0];
 export const STORAGE_KEY = `sb-${PROJECT_REF}-auth-token`;
 
