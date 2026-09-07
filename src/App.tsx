@@ -372,6 +372,27 @@ function InterfaceThemeInitializer() {
   return null;
 }
 
+// Capture les erreurs jamais interceptées (promesses rejetées, scripts)
+// afin d'afficher un message compréhensible au lieu d'un échec silencieux.
+function GlobalErrorListener() {
+  useEffect(() => {
+    const onRejection = (event: PromiseRejectionEvent) => {
+      notifyError(event.reason, { fallbackTitle: "Une action n'a pas abouti" });
+    };
+    const onError = (event: ErrorEvent) => {
+      if (!event.error) return;
+      notifyError(event.error, { fallbackTitle: "Une erreur inattendue est survenue" });
+    };
+    window.addEventListener("unhandledrejection", onRejection);
+    window.addEventListener("error", onError);
+    return () => {
+      window.removeEventListener("unhandledrejection", onRejection);
+      window.removeEventListener("error", onError);
+    };
+  }, []);
+  return null;
+}
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
