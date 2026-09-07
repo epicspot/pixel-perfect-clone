@@ -48,16 +48,10 @@ const parseAgencyError = (error: any): { title: string; detail: string } => {
       detail: "Seuls les administrateurs et le personnel du Siège peuvent gérer les agences.",
     };
   }
-  if (msg.includes("network") || msg.includes("failed to fetch")) {
-    return {
-      title: "Erreur réseau",
-      detail: "Vérifiez votre connexion internet et réessayez.",
-    };
-  }
-  return {
-    title: "Erreur",
-    detail: error?.message || "Une erreur inattendue est survenue.",
-  };
+  // Tous les autres cas (réseau, session, contraintes…) passent par le
+  // traducteur d'erreurs central afin d'obtenir un message clair.
+  const { title, detail } = describeError(error, { context: "la gestion des agences" });
+  return { title, detail };
 };
 
 const Admin = () => {
