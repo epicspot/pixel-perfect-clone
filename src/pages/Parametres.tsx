@@ -14,6 +14,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { notifyError } from '@/lib/errors';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -261,7 +262,7 @@ const Parametres = () => {
       toast.success('Tarif mis à jour');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Erreur lors de la mise à jour');
+      notifyError(error, 'Erreur lors de la mise à jour');
     },
   });
 
@@ -319,7 +320,7 @@ const Parametres = () => {
       if (error.message?.includes('duplicate')) {
         toast.error('Ce tarif existe déjà pour ce trajet et type');
       } else {
-        toast.error(error.message || 'Erreur lors de l\'ajout');
+        notifyError(error, 'Erreur lors de l\'ajout');
       }
     },
   });
@@ -338,7 +339,7 @@ const Parametres = () => {
       toast.success('Tarif supprimé');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Erreur lors de la suppression');
+      notifyError(error, 'Erreur lors de la suppression');
     },
   });
 
@@ -369,7 +370,7 @@ const Parametres = () => {
       toast.success('Paramètres de la compagnie mis à jour');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Erreur lors de la mise à jour');
+      notifyError(error, 'Erreur lors de la mise à jour');
     },
   });
 
@@ -400,7 +401,7 @@ const Parametres = () => {
       queryClient.invalidateQueries({ queryKey: ['app-settings'] });
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Erreur lors de la mise à jour');
+      notifyError(error, 'Erreur lors de la mise à jour');
     },
   });
 
@@ -495,7 +496,7 @@ const Parametres = () => {
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
-      toast.error(error.message || 'Erreur lors du changement de mot de passe');
+      notifyError(error, 'Erreur lors du changement de mot de passe');
     } finally {
       setChangingPassword(false);
     }
@@ -512,7 +513,7 @@ const Parametres = () => {
       setMfaSecret(data.totp.secret);
       setMfaSetupStep('qr');
     } catch (error: any) {
-      toast.error(error.message || 'Erreur lors de la configuration 2FA');
+      notifyError(error, 'Erreur lors de la configuration 2FA');
     } finally {
       setMfaLoading(false);
     }
@@ -541,7 +542,7 @@ const Parametres = () => {
       setMfaDialogOpen(false);
       resetMfaState();
     } catch (error: any) {
-      toast.error(error.message || 'Code invalide');
+      notifyError(error, 'Code invalide');
     } finally {
       setMfaLoading(false);
     }
@@ -563,7 +564,7 @@ const Parametres = () => {
       setMfaEnabled(false);
       setMfaDialogOpen(false);
     } catch (error: any) {
-      toast.error(error.message || 'Erreur lors de la désactivation');
+      notifyError(error, 'Erreur lors de la désactivation');
     } finally {
       setMfaLoading(false);
     }
@@ -593,7 +594,7 @@ const Parametres = () => {
       toast.success('Toutes les sessions ont été déconnectées');
       // Redirect will happen automatically due to auth state change
     } catch (error: any) {
-      toast.error(error.message || 'Erreur lors de la déconnexion');
+      notifyError(error, 'Erreur lors de la déconnexion');
       setLoggingOut(false);
     }
   };
@@ -614,7 +615,7 @@ const Parametres = () => {
       setAdminLogoutDialogOpen(false);
       setSelectedUserToLogout(null);
     } catch (error: any) {
-      toast.error(error.message || 'Erreur lors de la déconnexion de l\'utilisateur');
+      notifyError(error, 'Erreur lors de la déconnexion de l\'utilisateur');
     } finally {
       setAdminLoggingOut(false);
     }
@@ -683,7 +684,7 @@ const Parametres = () => {
       toast.success('Logo mis à jour');
     } catch (error: any) {
       console.error('Upload error:', error);
-      toast.error(error.message || 'Erreur lors du téléchargement');
+      notifyError(error, 'Erreur lors du téléchargement');
     } finally {
       setUploading(false);
     }
@@ -711,7 +712,7 @@ const Parametres = () => {
       queryClient.invalidateQueries({ queryKey: ['company-settings'] });
       toast.success('Logo supprimé');
     } catch (error: any) {
-      toast.error(error.message || 'Erreur lors de la suppression');
+      notifyError(error, 'Erreur lors de la suppression');
     } finally {
       setUploading(false);
     }
