@@ -50,6 +50,7 @@ import { toast } from 'sonner';
 import { Plus, Receipt, Pencil, Trash2, Search, TrendingDown } from 'lucide-react';
 import { audit } from '@/lib/audit';
 import { setGlobalLoading } from '@/hooks/useLoadingProgress';
+import { notifyError } from '@/lib/errors';
 
 interface Expense {
   id: number;
@@ -196,7 +197,7 @@ export default function Depenses() {
     },
     onError: (error: Error) => {
       setGlobalLoading(false);
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -225,7 +226,7 @@ export default function Depenses() {
     },
     onError: (error: Error) => {
       setGlobalLoading(false);
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -242,7 +243,7 @@ export default function Depenses() {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 

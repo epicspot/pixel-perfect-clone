@@ -23,6 +23,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatCurrency } from '@/lib/formatters';
+import { notifyError } from '@/lib/errors';
 
 const statusConfig = {
   open: { label: 'Ouverte', variant: 'secondary' as const, icon: Clock },
@@ -146,7 +147,7 @@ export default function ClotureCaisse() {
       queryClient.invalidateQueries({ queryKey: ['cash-closures'] });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 

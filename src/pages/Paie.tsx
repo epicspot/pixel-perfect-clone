@@ -52,6 +52,7 @@ import { Plus, Calendar, Users, Wallet, FileText, BarChart3, Building2, Download
 import { generatePayslipPdf, generatePeriodSummaryPdf, generateAllPeriodsStatsPdf } from '@/lib/payrollPdf';
 import * as XLSX from 'xlsx';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { notifyError } from '@/lib/errors';
 
 interface PayrollPeriod {
   id: number;
@@ -252,7 +253,7 @@ export default function Paie() {
       setPeriodForm({ start_date: '', end_date: '', label: '' });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -289,7 +290,7 @@ export default function Paie() {
       });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -319,7 +320,7 @@ export default function Paie() {
       setEditingEntry(null);
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -340,7 +341,7 @@ export default function Paie() {
       setEntryToDelete(null);
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -362,7 +363,7 @@ export default function Paie() {
       queryClient.invalidateQueries({ queryKey: ['payroll-all-entries'] });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -384,7 +385,7 @@ export default function Paie() {
       queryClient.invalidateQueries({ queryKey: ['payroll-all-entries'] });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -408,7 +409,7 @@ export default function Paie() {
       queryClient.invalidateQueries({ queryKey: ['payroll-all-entries'] });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -431,7 +432,7 @@ export default function Paie() {
       queryClient.invalidateQueries({ queryKey: ['payroll-periods'] });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -449,7 +450,7 @@ export default function Paie() {
       queryClient.invalidateQueries({ queryKey: ['payroll-periods'] });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -474,7 +475,7 @@ export default function Paie() {
       setPeriodForm({ start_date: '', end_date: '', label: '' });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -498,7 +499,7 @@ export default function Paie() {
       }
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -533,7 +534,7 @@ export default function Paie() {
       queryClient.invalidateQueries({ queryKey: ['payroll-entries'] });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -558,7 +559,7 @@ export default function Paie() {
       setPaymentForm({ payment_method: 'cash', paid_at: new Date().toISOString().split('T')[0] });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -580,7 +581,7 @@ export default function Paie() {
       queryClient.invalidateQueries({ queryKey: ['payroll-all-entries'] });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -613,7 +614,7 @@ export default function Paie() {
       setPaymentForm({ payment_method: 'cash', paid_at: new Date().toISOString().split('T')[0] });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 

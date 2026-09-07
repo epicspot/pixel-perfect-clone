@@ -32,6 +32,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { setGlobalLoading } from "@/hooks/useLoadingProgress";
 import { formatCurrency } from "@/lib/formatters";
+import { notifyError } from '@/lib/errors';
 
 type ShipmentType = "excess_baggage" | "unaccompanied_baggage" | "parcel" | "express";
 type ShipmentStatus = "pending" | "in_transit" | "delivered" | "cancelled";
@@ -335,7 +336,7 @@ export default function Expeditions() {
     },
     onError: (error: any) => {
       setGlobalLoading(false);
-      toast.error(error.message || "Erreur lors de la création");
+      notifyError(error, "Erreur lors de la création");
     },
   });
 
@@ -364,7 +365,7 @@ export default function Expeditions() {
       });
     },
     onError: (error: any) => {
-      toast.error(error.message || "Erreur lors de la mise à jour");
+      notifyError(error, "Erreur lors de la mise à jour");
     },
   });
 

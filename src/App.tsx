@@ -2,7 +2,8 @@ import { Suspense, lazy, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from "@tanstack/react-query";
+import { notifyError } from "@/lib/errors";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { hasRouteAccess, UserRole, roleRoutePermissions } from "@/lib/permissions";
@@ -43,7 +44,29 @@ const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Install = lazy(() => import("./pages/Install"));
 
+// Gestion centralisée des erreurs de chargement et d'enregistrement :
+// chaque échec réseau / base de données devient un message clair.
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      // On n'alerte qu'une fois par ressource, et jamais pour les données déjà affichées.
+      if (query.state.data !== undefined) return;
+      notifyError(error, {
+        fallbackTitle: "Chargement impossible",
+        context: "le chargement des données",
+      });
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _vars, _ctx, mutation) => {
+      // Les mutations qui gèrent déjà leur propre message ne sont pas doublées.
+      if (mutation.options.onError) return;
+      notifyError(error, {
+        fallbackTitle: "Enregistrement impossible",
+        context: "l'enregistrement",
+      });
+    },
+  }),
   defaultOptions: {
     queries: {
       retry: 1,
@@ -349,12 +372,34 @@ function InterfaceThemeInitializer() {
   return null;
 }
 
+// Capture les erreurs jamais interceptées (promesses rejetées, scripts)
+// afin d'afficher un message compréhensible au lieu d'un échec silencieux.
+function GlobalErrorListener() {
+  useEffect(() => {
+    const onRejection = (event: PromiseRejectionEvent) => {
+      notifyError(event.reason, { fallbackTitle: "Une action n'a pas abouti" });
+    };
+    const onError = (event: ErrorEvent) => {
+      if (!event.error) return;
+      notifyError(event.error, { fallbackTitle: "Une erreur inattendue est survenue" });
+    };
+    window.addEventListener("unhandledrejection", onRejection);
+    window.addEventListener("error", onError);
+    return () => {
+      window.removeEventListener("unhandledrejection", onRejection);
+      window.removeEventListener("error", onError);
+    };
+  }, []);
+  return null;
+}
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
           <InterfaceThemeInitializer />
+          <GlobalErrorListener />
           <GlobalLoadingBar />
           <Toaster />
           <Sonner />

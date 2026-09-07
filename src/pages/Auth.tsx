@@ -10,6 +10,7 @@ import { Bus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getRoleLabel, UserRole } from '@/lib/permissions';
 import { supabase } from '@/integrations/supabase/client';
+import { notifyError } from '@/lib/errors';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -89,7 +90,7 @@ const Auth = () => {
       } else if (error.message.includes('Invalid login')) {
         toast.error('Email ou mot de passe incorrect');
       } else {
-        toast.error(error.message || 'Erreur d\'authentification');
+        notifyError(error, 'Erreur d\'authentification');
       }
     } finally {
       setIsLoading(false);

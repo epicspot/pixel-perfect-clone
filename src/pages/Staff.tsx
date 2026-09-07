@@ -45,6 +45,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Plus, Users, Pencil, Trash2, Search } from 'lucide-react';
 import { formatCurrencyOrDash } from '@/lib/formatters';
+import { notifyError } from '@/lib/errors';
 
 type StaffType = 'driver' | 'assistant' | 'cashier' | 'admin' | 'mechanic' | 'other';
 
@@ -147,7 +148,7 @@ export default function Staff() {
       resetForm();
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -177,7 +178,7 @@ export default function Staff() {
       resetForm();
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -192,7 +193,7 @@ export default function Staff() {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 

@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { describeError } from '@/lib/errors';
 
 interface Props {
   children: ReactNode;
@@ -51,14 +52,20 @@ export class ErrorBoundary extends Component<Props, State> {
               <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
                 <AlertTriangle className="w-6 h-6 text-destructive" />
               </div>
-              <CardTitle className="text-lg">Une erreur est survenue</CardTitle>
+              <CardTitle className="text-lg">
+                {describeError(this.state.error).title}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground text-center">
-                Désolé, quelque chose s'est mal passé. Vous pouvez réessayer ou actualiser la page.
+                {describeError(this.state.error).detail}
               </p>
-              
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              <p className="text-xs text-muted-foreground text-center">
+                Vos données enregistrées ne sont pas perdues. Réessayez ou actualisez la page ;
+                si le problème persiste, signalez-le à un administrateur.
+              </p>
+
+              {import.meta.env.DEV && this.state.error && (
                 <div className="p-3 bg-muted rounded-lg">
                   <p className="text-xs font-mono text-destructive break-all">
                     {this.state.error.message}

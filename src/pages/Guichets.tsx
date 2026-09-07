@@ -37,6 +37,7 @@ import { fr } from 'date-fns/locale';
 import { AgencyFilter, useAgencyFilter } from '@/components/filters/AgencyFilter';
 import { setGlobalLoading } from '@/hooks/useLoadingProgress';
 import { formatCurrency } from '@/lib/formatters';
+import { notifyError } from '@/lib/errors';
 
 export default function Guichets() {
   const { user, profile } = useAuth();
@@ -208,7 +209,7 @@ export default function Guichets() {
       setNewCounterAgencyId('');
     },
     onError: (error: Error) => {
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -242,7 +243,7 @@ export default function Guichets() {
     },
     onError: (error: Error) => {
       setGlobalLoading(false);
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
@@ -311,7 +312,7 @@ export default function Guichets() {
     },
     onError: (error: Error) => {
       setGlobalLoading(false);
-      toast.error(`Erreur: ${error.message}`);
+      notifyError(error);
     },
   });
 
