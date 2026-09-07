@@ -28,19 +28,7 @@ jobs:
 
       - name: Coverage summary
         if: always()
-        run: |
-          if [ -f coverage/coverage-summary.json ]; then
-            node -e "
-              const t = require('./coverage/coverage-summary.json').total;
-              const rows = ['lines','statements','functions','branches']
-                .map(k => \`| ${k} | ${t[k].pct}% | ${t[k].covered}/${t[k].total} |\`).join('\n');
-              const md = ['## Couverture de tests','','| Métrique | % | Couvert |','|---|---|---|',rows,''].join('\n');
-              console.log(md);
-              require('fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + '\n');
-            "
-          else
-            echo "Aucun rapport de couverture trouvé." >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run: node scripts/coverage-summary.mjs
 
       - name: Upload coverage report (lcov + html)
         if: always()
