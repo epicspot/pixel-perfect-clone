@@ -399,6 +399,7 @@ const App = () => (
       <AuthProvider>
         <TooltipProvider>
           <InterfaceThemeInitializer />
+          <GlobalErrorListener />
           <GlobalLoadingBar />
           <Toaster />
           <Sonner />
