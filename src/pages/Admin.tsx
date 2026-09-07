@@ -17,7 +17,7 @@ import { getRoleLabel, getRoleColorClasses, UserRole } from "@/lib/permissions";
 import { audit } from "@/lib/audit";
 import { PermissionsManager } from "@/components/admin/PermissionsManager";
 import { useIsSiegeUser } from "@/hooks/useIsSiegeUser";
-import { notifyError } from '@/lib/errors';
+import { notifyError, describeError } from '@/lib/errors';
 
 type Tab = "agencies" | "routes" | "vehicles" | "users" | "permissions";
 
