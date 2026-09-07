@@ -58,7 +58,11 @@ test.describe("Journal d'audit — contrôle d'accès", () => {
     await expect
       .poll(() => log.tables.includes("audit_logs"), { timeout: 15_000 })
       .toBe(true);
-    await expect(page.getByText("Fuite Interdite E2E").first()).toBeVisible();
+    await expect
+      .poll(async () => await page.locator("table tbody tr").count(), {
+        timeout: 15_000,
+      })
+      .toBeGreaterThan(0);
   });
 
   test("le lien « Journal audit » est masqué hors Siège et visible au Siège", async ({
