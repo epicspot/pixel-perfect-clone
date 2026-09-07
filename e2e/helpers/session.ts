@@ -8,13 +8,18 @@ import type { Page } from "@playwright/test";
  * du journal d'audit sans dépendre de données réelles.
  */
 
-function readEnv(name: string): string {
-  const file = readFileSync(path.resolve(process.cwd(), ".env"), "utf8");
-  for (const line of file.split("\n")) {
-    const m = line.match(new RegExp(`^${name}\\s*=\\s*(.*)$`));
-    if (m) return m[1].trim().replace(/^["']|["']$/g, "");
+function readEnv(name: string, fallback: string): string {
+  if (process.env[name]) return String(process.env[name]);
+  try {
+    const file = readFileSync(path.resolve(process.cwd(), ".env"), "utf8");
+    for (const line of file.split("\n")) {
+      const m = line.match(new RegExp(`^${name}\\s*=\\s*(.*)$`));
+      if (m) return m[1].trim().replace(/^["']|["']$/g, "");
+    }
+  } catch {
+    // Pas de fichier .env (ex. CI) : on retombe sur la valeur par défaut.
   }
-  throw new Error(`Variable ${name} absente de .env`);
+  return fallback;
 }
 
 const SUPABASE_URL = readEnv("VITE_SUPABASE_URL");
