@@ -43,7 +43,29 @@ const Auth = lazy(() => import("./pages/Auth"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Install = lazy(() => import("./pages/Install"));
 
+// Gestion centralisée des erreurs de chargement et d'enregistrement :
+// chaque échec réseau / base de données devient un message clair.
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      // On n'alerte qu'une fois par ressource, et jamais pour les données déjà affichées.
+      if (query.state.data !== undefined) return;
+      notifyError(error, {
+        fallbackTitle: "Chargement impossible",
+        context: "le chargement des données",
+      });
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _vars, _ctx, mutation) => {
+      // Les mutations qui gèrent déjà leur propre message ne sont pas doublées.
+      if (mutation.options.onError) return;
+      notifyError(error, {
+        fallbackTitle: "Enregistrement impossible",
+        context: "l'enregistrement",
+      });
+    },
+  }),
   defaultOptions: {
     queries: {
       retry: 1,
